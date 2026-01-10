@@ -15,7 +15,10 @@ export default function Login() {
     e.preventDefault();
     setMsg("Šaljem login link...");
 
-    const { error } = await supabase.auth.signInWithOtp({ email });
+const { error } = await supabase.auth.signInWithOtp({
+  email,
+  options: { emailRedirectTo: `${window.location.origin}/` }
+});
 
     if (error) setMsg("Greška: " + error.message);
     else setMsg("Poslan je login link na email. Otvori ga i vratit će te na tracker.");
