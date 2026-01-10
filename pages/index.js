@@ -68,13 +68,20 @@ export default function Home() {
             <button onClick={logout} style={{ marginTop: 10, padding: "8px 12px", borderRadius: 8, border: "none", background: "#111", color: "#fff" }}>
               Odjava
             </button>
-          </div>
+<div style={{ marginTop: 24, display: "flex", gap: 12 }}>
+  <Link href="/login" style={{ padding: "10px 14px", borderRadius: 8, background: "#111", color: "#fff", textDecoration: "none" }}>
+    Prijava
+  </Link>
 
-          <div style={{ marginTop: 24, display: "flex", gap: 12 }}>
-            <Link href="/u21-kalkulator" style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #ccc", textDecoration: "none" }}>
-              U21 kalkulator
-            </Link>
-          </div>
+  <Link href="/dashboard" style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #ccc", textDecoration: "none" }}>
+    Dashboard
+  </Link>
+
+  <Link href="/u21-kalkulator" style={{ padding: "10px 14px", borderRadius: 8, border: "1px solid #ccc", textDecoration: "none" }}>
+    U21 kalkulator
+  </Link>
+</div>
+
         </>
       )}
     </main>
