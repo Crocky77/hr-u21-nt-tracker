@@ -18,6 +18,19 @@ function badgeStyle(kind) {
   return map[kind] || map.watch;
 }
 
+const U21_LIMIT_TOTAL = 21 * 112 + 111;
+
+function htTotalDays(y, d) {
+  if (y == null || d == null) return null;
+  return Number(y) * 112 + Number(d);
+}
+
+function u21LeftDays(y, d) {
+  const total = htTotalDays(y, d);
+  if (total == null) return null;
+  return U21_LIMIT_TOTAL - total; // >=0 eligible, <0 out
+}
+
 function Widget({ title, value, subtitle, tone = "neutral" }) {
   const tones = {
     good: { bg: "#e9fbeef0", border: "#c7f2d4" },
@@ -52,8 +65,7 @@ export default function DashboardPage() {
   const [players, setPlayers] = useState([]);
 
   useEffect(() => {
-    const t = getActiveTeam();
-    setActiveTeam(t);
+    setActiveTeam(getActiveTeam());
   }, []);
 
   async function fetchDashboard() {
@@ -62,10 +74,10 @@ export default function DashboardPage() {
 
     const { data, error } = await supabase
       .from("players")
-      .select("id, ht_player_id, full_name, position, dob, team_type, status, notes, created_at")
+      .select("id, ht_player_id, full_name, position, team_type, status, notes, ht_age_years, ht_age_days")
       .eq("team_type", activeTeam)
       .order("id", { ascending: false })
-      .limit(50);
+      .limit(200);
 
     if (error) {
       alert("Greška kod dohvata dashboard podataka: " + error.message);
@@ -87,27 +99,80 @@ export default function DashboardPage() {
     const watch = players.filter((p) => p.status === "watch").length;
     const risk = players.filter((p) => p.status === "risk").length;
 
-    // MVP: "ispadaju" = risk (dok ne uvedemo pravu HT dob +111d logiku)
-    const falling = risk;
+    const isU21 = activeTeam === "U21";
 
-    return { total, core, rotation, watch, risk, falling };
-  }, [players]);
+    let out = 0;
+    let outSoon14 = 0;
+    let missingHtAge = 0;
+
+    if (isU21) {
+      for (const p of players) {
+        const left = u21LeftDays(p.ht_age_years, p.ht_age_days);
+        if (left == null) {
+          missingHtAge++;
+          continue;
+        }
+        if (left < 0) out++;
+        if (left >= 0 && left <= 14) outSoon14++;
+      }
+    }
+
+    return { total, core, rotation, watch, risk, out, outSoon14, missingHtAge };
+  }, [players, activeTeam]);
 
   const criticalWarnings = useMemo(() => {
+    const isU21 = activeTeam === "U21";
     const list = [];
-    players.forEach((p) => {
-      if (p.status === "risk") list.push(`${p.full_name} → status RISK (provjeri dob / plan treninga)`);
+
+    // 1) U21: top 3 koji “izlaze uskoro”
+    if (isU21) {
+      const soon = players
+        .map((p) => {
+          const left = u21LeftDays(p.ht_age_years, p.ht_age_days);
+          return { p, left };
+        })
+        .filter((x) => x.left != null && x.left >= 0)
+        .sort((a, b) => a.left - b.left)
+        .slice(0, 3);
+
+      for (const x of soon) {
+        list.push(`${x.p.full_name} → izlazi za ${x.left} HT dana`);
+      }
+
+      // 2) U21: oni koji su već out
+      const outList = players
+        .map((p) => ({ p, left: u21LeftDays(p.ht_age_years, p.ht_age_days) }))
+        .filter((x) => x.left != null && x.left < 0)
+        .slice(0, 2);
+
+      for (const x of outList) {
+        list.push(`${x.p.full_name} → već OUT (prije ${Math.abs(x.left)} HT dana)`);
+      }
+
+      // 3) nedostaje HT dob
+      if (stats.missingHtAge > 0) {
+        list.push(`Nedostaje HT dob za ${stats.missingHtAge} igrača (unesi ht_age_years/days).`);
+      }
+    }
+
+    // zajednički: risk status i “stagn” u bilješci
+    for (const p of players.slice(0, 100)) {
+      if (p.status === "risk") list.push(`${p.full_name} → status RISK`);
       if ((p.notes || "").toLowerCase().includes("stagn")) list.push(`${p.full_name} → bilješka: stagnacija`);
-    });
+      if (list.length >= 5) break;
+    }
+
     if (list.length === 0) {
       list.push("Nema kritičnih upozorenja (MVP).");
-      list.push("Kad uvedemo HT dob + trening formulu, ovdje će biti automatska upozorenja.");
     }
-    return list.slice(0, 4);
-  }, [players]);
+
+    return list.slice(0, 5);
+  }, [players, activeTeam, stats.missingHtAge]);
+
+  const isU21 = activeTeam === "U21";
 
   return (
-    <AppLayout title="Dashboard">
+    <AppLayout title={isU21 ? "U21 Dashboard" : "NT Dashboard"}>
       {/* Widgets */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
         <Widget
@@ -116,12 +181,39 @@ export default function DashboardPage() {
           subtitle="Podaci iz baze (players)"
           tone="good"
         />
-        <Widget
-          title="Igrači ispadaju"
-          value={loading ? "…" : stats.falling}
-          subtitle="MVP: trenutno = RISK"
-          tone="warn"
-        />
+
+        {isU21 ? (
+          <Widget
+            title="Ispali iz U21"
+            value={loading ? "…" : stats.out}
+            subtitle="Po HT dobi (21g + 111d)"
+            tone="warn"
+          />
+        ) : (
+          <Widget
+            title="RISK igrači"
+            value={loading ? "…" : stats.risk}
+            subtitle="MVP status (ručno)"
+            tone="warn"
+          />
+        )}
+
+        {isU21 ? (
+          <Widget
+            title="Izlaze uskoro"
+            value={loading ? "…" : stats.outSoon14}
+            subtitle="U idućih 14 HT dana"
+            tone="warn"
+          />
+        ) : (
+          <Widget
+            title="Core igrači"
+            value={loading ? "…" : stats.core}
+            subtitle="MVP status (ručno)"
+            tone="good"
+          />
+        )}
+
         <div
           style={{
             borderRadius: 16,
@@ -162,12 +254,6 @@ export default function DashboardPage() {
             (V1) status je ručni; kasnije automatika prema formuli/treningu.
           </div>
         </div>
-        <Widget
-          title="Trening / forma / stamina"
-          value="—"
-          subtitle="Dolazi s CHPP + trening formulom"
-          tone="neutral"
-        />
       </div>
 
       {/* Lower row */}
@@ -183,7 +269,7 @@ export default function DashboardPage() {
           }}
         >
           <div style={{ padding: 14, background: "#d32f2f", color: "white", fontWeight: 900 }}>
-            ⚠️ Kritična upozorenja
+            ⚠️ Upozorenja
           </div>
           <div style={{ padding: 14 }}>
             {criticalWarnings.map((w, idx) => (
@@ -202,7 +288,7 @@ export default function DashboardPage() {
               </div>
             ))}
             <div style={{ fontSize: 12, opacity: 0.7 }}>
-              U sljedećem koraku ubacujemo: HT dob (21g+111d) + “izlazi za X dana”.
+              U21 logika je sada točna po HT dobi (21g + 111d). Sljedeće: “target date” za Euro ciklus.
             </div>
           </div>
         </div>
@@ -226,12 +312,17 @@ export default function DashboardPage() {
                 <tr style={{ textAlign: "left", fontSize: 12, opacity: 0.75 }}>
                   <th style={{ padding: "8px 6px", borderBottom: "1px solid #eee" }}>Ime</th>
                   <th style={{ padding: "8px 6px", borderBottom: "1px solid #eee" }}>Poz</th>
+                  {isU21 ? (
+                    <th style={{ padding: "8px 6px", borderBottom: "1px solid #eee" }}>Izlazi za</th>
+                  ) : null}
                   <th style={{ padding: "8px 6px", borderBottom: "1px solid #eee" }}>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {(players || []).slice(0, 5).map((p) => {
                   const b = badgeStyle(p.status);
+                  const left = isU21 ? u21LeftDays(p.ht_age_years, p.ht_age_days) : null;
+
                   return (
                     <tr key={p.id}>
                       <td style={{ padding: "10px 6px", borderBottom: "1px solid #f3f4f6", fontWeight: 900 }}>
@@ -239,6 +330,13 @@ export default function DashboardPage() {
                         {p.ht_player_id ? <div style={{ fontSize: 12, opacity: 0.7 }}>HT ID: {p.ht_player_id}</div> : null}
                       </td>
                       <td style={{ padding: "10px 6px", borderBottom: "1px solid #f3f4f6" }}>{p.position}</td>
+
+                      {isU21 ? (
+                        <td style={{ padding: "10px 6px", borderBottom: "1px solid #f3f4f6" }}>
+                          {left == null ? "—" : left >= 0 ? `${left}d` : `OUT`}
+                        </td>
+                      ) : null}
+
                       <td style={{ padding: "10px 6px", borderBottom: "1px solid #f3f4f6" }}>
                         <span
                           style={{
@@ -259,7 +357,7 @@ export default function DashboardPage() {
 
                 {!loading && players.length === 0 ? (
                   <tr>
-                    <td colSpan={3} style={{ padding: 12, opacity: 0.75 }}>
+                    <td colSpan={isU21 ? 4 : 3} style={{ padding: 12, opacity: 0.75 }}>
                       Nema igrača u bazi za ovaj tim. Dodaj prvog na stranici “Igrači”.
                     </td>
                   </tr>
@@ -299,7 +397,7 @@ export default function DashboardPage() {
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, opacity: 0.65 }}>
-              * “Forma/stamina/trening” dolaze nakon CHPP licence + trening formule.
+              * Ako je “izlazi za” — to su HT dani (točno za U21 pravilo).
             </div>
           </div>
         </div>
