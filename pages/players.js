@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
 
-const HR_COUNTRY_ID = 191; // Croatia (za sad hardkodirano za naš alat)
+const HR_COUNTRY_ID = 191; // Croatia (hardcode za naš alat)
 
 const TEAM_STAFF = {
   U21: { label: "U21 Hrvatska", coach: "matej1603", assistant: "Zvonzi_" },
@@ -29,19 +29,15 @@ function badgeStyle(kind) {
   return map[kind] || map.watch;
 }
 
-// MVP dob: iz datuma rođenja računamo približno "g (d)" samo za osjećaj.
-// Kasnije ubacujemo pravu HT dob formulu (sezone/tjedni).
+// MVP dob: približno, kasnije ide prava HT dob formula
 function calcAgeApprox(dateStr) {
   if (!dateStr) return "-";
   const dob = new Date(dateStr + "T00:00:00Z");
   const now = new Date();
   const ms = now.getTime() - dob.getTime();
   const days = Math.max(0, Math.floor(ms / (1000 * 60 * 60 * 24)));
-
-  // PLACEHOLDER: nije HT precizno, samo MVP
   const years = Math.floor(days / 365);
   const remDays = days % 365;
-
   return `${years}g (${remDays}d)`;
 }
 
@@ -62,7 +58,7 @@ export default function Players() {
     ht_player_id: "",
     full_name: "",
     position: "DEF",
-    date_of_birth: "",
+    dob: "",
     status: "watch",
     notes: "",
   });
@@ -109,11 +105,10 @@ export default function Players() {
     if (!activeTeam) return;
     setLoadingPlayers(true);
 
-    // Filtriramo po activeTeam (opcija 2)
     const { data, error } = await supabase
       .from("players")
       .select(
-        "id, ht_player_id, full_name, position, date_of_birth, country_id, team_type, status, notes, last_seen_at, created_at"
+        "id, ht_player_id, full_name, position, dob, country_id, team_type, status, notes, last_seen_at, created_at"
       )
       .eq("team_type", activeTeam)
       .order("id", { ascending: false });
@@ -150,16 +145,14 @@ export default function Players() {
     if (!activeTeam) return;
 
     const payload = {
-      // DB constraints:
-      country_id: HR_COUNTRY_ID, // NOT NULL u tvojoj tablici
+      country_id: HR_COUNTRY_ID, // NOT NULL kod tebe
       team_type: activeTeam, // automatski iz odabira
       full_name: newPlayer.full_name.trim(),
       position: newPlayer.position,
-      date_of_birth: newPlayer.date_of_birth, // NOT NULL u tvojoj tablici
+      dob: newPlayer.dob, // ✅ tvoja kolona
       status: newPlayer.status,
       notes: newPlayer.notes,
 
-      // opcionalno
       ht_player_id: newPlayer.ht_player_id ? Number(newPlayer.ht_player_id) : null,
     };
 
@@ -173,7 +166,7 @@ export default function Players() {
       ht_player_id: "",
       full_name: "",
       position: "DEF",
-      date_of_birth: "",
+      dob: "",
       status: "watch",
       notes: "",
     });
@@ -192,7 +185,6 @@ export default function Players() {
   const onSwitchTeam = (team) => {
     setActiveTeam(team);
     setActiveTeamState(team);
-    // refresh list
     router.replace("/players");
   };
 
@@ -222,7 +214,7 @@ export default function Players() {
           "radial-gradient(1200px 600px at 50% 0%, rgba(211,47,47,0.18) 0%, rgba(255,255,255,1) 60%)",
       }}
     >
-      {/* Header (sličan dashboardu) */}
+      {/* Header */}
       <div
         style={{
           background: "linear-gradient(90deg, #b71c1c 0%, #d32f2f 50%, #b71c1c 100%)",
@@ -285,7 +277,6 @@ export default function Players() {
                     background: activeTeam === t ? "rgba(0,0,0,0.24)" : "transparent",
                     fontWeight: 900,
                   }}
-                  title={`Prebaci na ${TEAM_STAFF[t].label}`}
                 >
                   {t}
                 </button>
@@ -396,8 +387,8 @@ export default function Players() {
 
               <input
                 type="date"
-                value={newPlayer.date_of_birth}
-                onChange={(e) => setNewPlayer((p) => ({ ...p, date_of_birth: e.target.value }))}
+                value={newPlayer.dob}
+                onChange={(e) => setNewPlayer((p) => ({ ...p, dob: e.target.value }))}
                 required
                 style={{ padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
               />
@@ -466,8 +457,8 @@ export default function Players() {
             <tbody>
               {filtered.map((r) => {
                 const b = badgeStyle(r.status);
-                const dobDate = r.date_of_birth || "-";
-                const approx = calcAgeApprox(r.date_of_birth);
+                const dobDate = r.dob || "-";
+                const approx = calcAgeApprox(r.dob);
 
                 return (
                   <tr key={r.id}>
@@ -479,13 +470,8 @@ export default function Players() {
                     <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>{r.position}</td>
                     <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>{r.team_type}</td>
 
-                    <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>
-                      {dobDate}
-                    </td>
-
-                    <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>
-                      {approx}
-                    </td>
+                    <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>{dobDate}</td>
+                    <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>{approx}</td>
 
                     <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>
                       <span style={{ display: "inline-flex", padding: "6px 10px", borderRadius: 10, background: b.bg, color: b.fg, fontWeight: 900 }}>
@@ -497,24 +483,13 @@ export default function Players() {
                       <textarea
                         defaultValue={r.notes || ""}
                         placeholder="Bilješke..."
-                        style={{
-                          width: "100%",
-                          minHeight: 46,
-                          padding: 10,
-                          borderRadius: 10,
-                          border: "1px solid #e5e7eb",
-                          fontFamily: "Arial, sans-serif",
-                        }}
-                        disabled={role !== "admin"} // MVP: samo admin uređuje
+                        style={{ width: "100%", minHeight: 46, padding: 10, borderRadius: 10, border: "1px solid #e5e7eb", fontFamily: "Arial, sans-serif" }}
+                        disabled={role !== "admin"}
                         onBlur={(e) => {
                           if (role === "admin") quickSaveNotes(r.id, e.target.value);
                         }}
                       />
-                      {role !== "admin" ? (
-                        <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
-                          MVP: bilješke uređuje samo admin.
-                        </div>
-                      ) : null}
+                      {role !== "admin" ? <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>MVP: bilješke uređuje samo admin.</div> : null}
                     </td>
 
                     <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>
@@ -538,7 +513,7 @@ export default function Players() {
         </div>
 
         <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
-          Sljedeće: prava HT dob (21g+111d), U21 status, te bilješke po skautu (notes tablica po useru, ne samo admin).
+          Sljedeće: prava HT dob (21g+111d), U21 status, te bilješke po skautu (notes tablica po useru).
         </div>
       </main>
     </div>
