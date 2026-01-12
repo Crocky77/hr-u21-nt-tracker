@@ -1,33 +1,49 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import AppLayout from "../components/AppLayout";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
-
-const STAFF = {
-  U21: { teamLabel: "U21 Hrvatska", coach: "matej1603", assistant: "Zvonzi_" },
-  NT: { teamLabel: "NT Hrvatska", coach: "Zagi_", assistant: "Nosonja" },
-};
+import { supabase } from "../utils/supabaseClient";
 
 function badgeStyle(kind) {
   const map = {
     core: { bg: "#dcfce7", fg: "#166534" },
     rotation: { bg: "#e0f2fe", fg: "#075985" },
     watch: { bg: "#f3f4f6", fg: "#111827" },
-    risk: { bg: "#fee2e2", fg: "#991b1b" },
+    risk: { bg: "#fee2e2", fg: "#991b1b" }
   };
   return map[kind] || map.watch;
+}
+
+// MVP HT age prikaz (112 dana = 1 HT godina)
+const HT_YEAR_DAYS = 112;
+function daysBetween(dateA, dateB) {
+  const a = new Date(Date.UTC(dateA.getUTCFullYear(), dateA.getUTCMonth(), dateA.getUTCDate()));
+  const b = new Date(Date.UTC(dateB.getUTCFullYear(), dateB.getUTCMonth(), dateB.getUTCDate()));
+  const ms = a.getTime() - b.getTime();
+  return Math.floor(ms / (1000 * 60 * 60 * 24));
+}
+function htAgeFromDob(dobStr, atDateStr) {
+  if (!dobStr || !atDateStr) return null;
+  const dob = new Date(dobStr + "T00:00:00Z");
+  const at = new Date(atDateStr + "T00:00:00Z");
+  const d = daysBetween(at, dob);
+  const years = Math.floor(d / HT_YEAR_DAYS);
+  const days = d % HT_YEAR_DAYS;
+  return { years, days };
+}
+function todayIso() {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 export default function Players() {
   const [access, setAccess] = useState("loading"); // loading | denied | ok
   const [email, setEmail] = useState(null);
   const [role, setRole] = useState(null);
-  const [teamType, setTeamType] = useState(null); // U21 | NT
+  const [userTeam, setUserTeam] = useState(null); // U21 | NT
+  const [activeTeam, setActiveTeam] = useState(null);
 
   const [rows, setRows] = useState([]);
   const [loadingPlayers, setLoadingPlayers] = useState(true);
@@ -38,9 +54,9 @@ export default function Players() {
     ht_player_id: "",
     full_name: "",
     position: "DEF",
-    date_of_birth: "", // OVO je kolona u schema (NOT NULL)
+    date_of_birth: "",
     status: "watch",
-    notes: "",
+    notes: ""
   });
 
   useEffect(() => {
@@ -65,27 +81,30 @@ export default function Players() {
         return;
       }
 
-      const u = urows[0];
-      if (!u.team_type) {
-        setAccess("denied");
-        return;
-      }
-
-      setRole(u.role || "user");
-      setTeamType(u.team_type);
+      setRole(urows[0].role);
+      setUserTeam(urows[0].team_type || "U21");
       setAccess("ok");
     })();
   }, []);
 
-  async function fetchPlayers() {
-    if (!teamType) return;
+  // aktivni tim (admin može override preko ?team=)
+  useEffect(() => {
+    if (access !== "ok" || !userTeam) return;
 
+    const params = new URLSearchParams(window.location.search);
+    const qpTeam = params.get("team");
+    if (role === "admin" && (qpTeam === "U21" || qpTeam === "NT")) {
+      setActiveTeam(qpTeam);
+    } else {
+      setActiveTeam(userTeam);
+    }
+  }, [access, userTeam, role]);
+
+  async function fetchPlayers(teamType) {
     setLoadingPlayers(true);
     const { data, error } = await supabase
       .from("players")
-      .select(
-        "id, ht_player_id, full_name, position, team_type, status, notes, last_seen_at, date_of_birth, ht_age_years, ht_age_days, u21_status"
-      )
+      .select("id, ht_player_id, full_name, position, date_of_birth, team_type, status, notes, last_seen_at")
       .eq("team_type", teamType)
       .order("id", { ascending: false });
 
@@ -94,15 +113,14 @@ export default function Players() {
   }
 
   useEffect(() => {
-    if (access === "ok") fetchPlayers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [access, teamType]);
+    if (access === "ok" && activeTeam) fetchPlayers(activeTeam);
+  }, [access, activeTeam]);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return rows.filter((r) => {
+      if (!query) return true;
       return (
-        !query ||
         (r.full_name || "").toLowerCase().includes(query) ||
         String(r.ht_player_id || "").includes(query) ||
         (r.position || "").toLowerCase().includes(query)
@@ -110,20 +128,22 @@ export default function Players() {
     });
   }, [rows, q]);
 
+  async function logout() {
+    await supabase.auth.signOut();
+    window.location.replace("/login");
+  }
+
   async function addPlayer(e) {
     e.preventDefault();
 
-    // MVP: country_id mora postojati (NOT NULL). Stavljamo default 0.
-    // Kasnije iz CHPP: stvarni country_id + klub info itd.
     const payload = {
       ht_player_id: newPlayer.ht_player_id ? Number(newPlayer.ht_player_id) : null,
       full_name: newPlayer.full_name.trim(),
       position: newPlayer.position,
-      team_type: teamType, // ZAKLJUČANO na tim korisnika
+      date_of_birth: newPlayer.date_of_birth,
+      team_type: activeTeam, // zaključano!
       status: newPlayer.status,
-      notes: newPlayer.notes,
-      country_id: 0,
-      date_of_birth: newPlayer.date_of_birth, // NOT NULL
+      notes: newPlayer.notes
     };
 
     const { error } = await supabase.from("players").insert(payload);
@@ -138,99 +158,86 @@ export default function Players() {
       position: "DEF",
       date_of_birth: "",
       status: "watch",
-      notes: "",
+      notes: ""
     });
 
-    fetchPlayers();
+    fetchPlayers(activeTeam);
   }
 
   async function quickSaveNotes(id, notes) {
     const { error } = await supabase.from("players").update({ notes }).eq("id", id);
     if (error) alert("Greška kod spremanja bilješki: " + error.message);
-    else fetchPlayers();
+    else fetchPlayers(activeTeam);
   }
-
-  const staff = teamType ? STAFF[teamType] : null;
 
   if (access === "denied") {
     return (
-      <AppLayout title="Hrvatski U21/NT Tracker">
-        <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 16, padding: 18 }}>
-          <h2 style={{ marginTop: 0 }}>Nemaš pristup.</h2>
-          <p>Prijavi se s odobrenim emailom ili kontaktiraj admina.</p>
-          <Link href="/login">→ Prijava</Link>
-        </div>
-      </AppLayout>
+      <main style={{ fontFamily: "Arial, sans-serif", padding: 40, maxWidth: 1100, margin: "0 auto" }}>
+        <h1 style={{ color: "#c00" }}>Igrači</h1>
+        <p><strong>Nemaš pristup.</strong></p>
+        <Link href="/login">→ Prijava</Link>
+      </main>
     );
   }
 
-  if (access === "loading") {
+  if (access === "loading" || !activeTeam) {
     return (
-      <AppLayout title="Hrvatski U21/NT Tracker">
-        <div style={{ padding: 10 }}>Učitavam...</div>
-      </AppLayout>
+      <main style={{ fontFamily: "Arial, sans-serif", padding: 40 }}>
+        Učitavam...
+      </main>
     );
   }
 
   return (
     <AppLayout
-      title="Hrvatski U21/NT Tracker"
-      subtitle="Selektorski panel • Scouting • U21/NT"
-      activeTeamLabel={staff?.teamLabel || null}
+      title="Igrači"
+      subtitle={`Aktivni tim: ${activeTeam} Hrvatska`}
+      userLine={`Ulogiran: ${email} · Uloga: ${role}`}
+      actions={
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Link href="/dashboard" style={btnGhost}>Dashboard</Link>
+          <button onClick={() => fetchPlayers(activeTeam)} style={btnGhost}>Osvježi</button>
+          <button onClick={logout} style={btnBlack}>Odjava</button>
+        </div>
+      }
     >
-      <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 14 }}>
-        <div style={{ fontWeight: 900, fontSize: 18, color: "#b91c1c" }}>Igrači</div>
-        <div style={{ marginTop: 6, opacity: 0.85 }}>
-          Aktivni tim: <b>{staff?.teamLabel}</b> · Izbornik: <b>{staff?.coach}</b> · Pomoćnik: <b>{staff?.assistant}</b>
-        </div>
-        <div style={{ marginTop: 6, fontSize: 12, opacity: 0.7 }}>
-          Ulogiran: <b>{email}</b> · Uloga: <b>{role}</b>
-        </div>
-      </div>
-
-      {/* Filter */}
+      {/* Filteri */}
       <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search: ime, HT ID, pozicija..."
-          style={{ flex: 1, minWidth: 240, padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+          style={{ flex: 1, minWidth: 240, padding: 10, borderRadius: 12, border: "1px solid #e5e7eb" }}
         />
-        <button
-          onClick={fetchPlayers}
-          style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #e5e7eb", background: "#fff", fontWeight: 900, cursor: "pointer" }}
-        >
-          Osvježi
-        </button>
       </div>
 
-      {/* Admin: add */}
-      {role === "admin" ? (
-        <div style={{ marginTop: 14, border: "1px solid #e5e7eb", borderRadius: 16, background: "#fff", padding: 14 }}>
+      {/* Admin: dodavanje igrača */}
+      {role === "admin" && (
+        <div style={{ marginTop: 14, border: "1px solid #e5e7eb", borderRadius: 16, background: "#fff", padding: 14, boxShadow: "0 10px 30px rgba(0,0,0,0.06)" }}>
           <div style={{ fontWeight: 900, marginBottom: 10 }}>
-            Dodaj igrača (MVP) — sprema u: <span style={{ color: "#b91c1c" }}>{staff?.teamLabel}</span>
+            Dodaj igrača (MVP) — sprema u: <span style={{ color: "#c00" }}>{activeTeam} Hrvatska</span>
           </div>
 
-          <form onSubmit={addPlayer} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr", gap: 10 }}>
+          <form onSubmit={addPlayer} style={{ display: "grid", gridTemplateColumns: "1.4fr 0.8fr 0.7fr 0.9fr", gap: 10 }}>
             <input
               value={newPlayer.full_name}
               onChange={(e) => setNewPlayer((p) => ({ ...p, full_name: e.target.value }))}
               placeholder="Ime i prezime"
               required
-              style={{ padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+              style={input}
             />
 
             <input
               value={newPlayer.ht_player_id}
               onChange={(e) => setNewPlayer((p) => ({ ...p, ht_player_id: e.target.value }))}
               placeholder="HT ID (opcionalno)"
-              style={{ padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+              style={input}
             />
 
             <select
               value={newPlayer.position}
               onChange={(e) => setNewPlayer((p) => ({ ...p, position: e.target.value }))}
-              style={{ padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+              style={input}
             >
               <option value="GK">GK</option>
               <option value="DEF">DEF</option>
@@ -245,13 +252,13 @@ export default function Players() {
               value={newPlayer.date_of_birth}
               onChange={(e) => setNewPlayer((p) => ({ ...p, date_of_birth: e.target.value }))}
               required
-              style={{ padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+              style={input}
             />
 
             <select
               value={newPlayer.status}
               onChange={(e) => setNewPlayer((p) => ({ ...p, status: e.target.value }))}
-              style={{ padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+              style={input}
             >
               <option value="core">core</option>
               <option value="rotation">rotation</option>
@@ -263,7 +270,7 @@ export default function Players() {
               value={newPlayer.notes}
               onChange={(e) => setNewPlayer((p) => ({ ...p, notes: e.target.value }))}
               placeholder="Bilješka (kratko)"
-              style={{ gridColumn: "span 3", padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" }}
+              style={{ ...input, gridColumn: "span 3" }}
             />
 
             <button
@@ -275,13 +282,13 @@ export default function Players() {
           </form>
 
           <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-            Napomena: HT dob i U21 status će biti precizni tek kad uvedemo HT formulu i CHPP sync.
+            Napomena: pravi HT dob + trening alarmi dolaze kasnije (CHPP sync + trening formula).
           </div>
         </div>
-      ) : null}
+      )}
 
-      {/* Table */}
-      <div style={{ marginTop: 14, border: "1px solid #e5e7eb", borderRadius: 16, background: "#fff", overflowX: "auto" }}>
+      {/* Tablica */}
+      <div style={{ marginTop: 14, border: "1px solid #e5e7eb", borderRadius: 16, background: "#fff", overflowX: "auto", boxShadow: "0 10px 30px rgba(0,0,0,0.06)" }}>
         <div style={{ padding: 12, fontWeight: 900, borderBottom: "1px solid #e5e7eb" }}>
           Popis igrača {loadingPlayers ? " (učitavam...)" : `(${filtered.length})`}
         </div>
@@ -291,8 +298,8 @@ export default function Players() {
             <tr style={{ textAlign: "left", fontSize: 12, opacity: 0.75 }}>
               <th style={th}>Ime</th>
               <th style={th}>Poz</th>
-              <th style={th}>HT dob</th>
-              {teamType === "U21" ? <th style={th}>U21</th> : null}
+              <th style={th}>DOB</th>
+              <th style={th}>Dob (MVP)</th>
               <th style={th}>Status</th>
               <th style={th}>Bilješke</th>
               <th style={th}>Akcija</th>
@@ -302,6 +309,7 @@ export default function Players() {
           <tbody>
             {filtered.map((r) => {
               const b = badgeStyle(r.status);
+              const age = htAgeFromDob(r.date_of_birth, todayIso());
               return (
                 <tr key={r.id}>
                   <td style={tdStrong}>
@@ -309,19 +317,13 @@ export default function Players() {
                     {r.ht_player_id ? <div style={{ fontSize: 12, opacity: 0.7 }}>HT ID: {r.ht_player_id}</div> : null}
                   </td>
 
-                  <td style={td}>{r.position || "-"}</td>
-
-                  <td style={td}>
-                    {r.ht_age_years != null && r.ht_age_days != null
-                      ? `${r.ht_age_years}g (${r.ht_age_days}d)`
-                      : "-"}
-                  </td>
-
-                  {teamType === "U21" ? <td style={td}>{r.u21_status || "-"}</td> : null}
+                  <td style={td}>{r.position || "—"}</td>
+                  <td style={td}>{r.date_of_birth || "—"}</td>
+                  <td style={td}>{age ? `${age.years}g ${age.days}d` : "—"}</td>
 
                   <td style={td}>
                     <span style={{ display: "inline-flex", padding: "6px 10px", borderRadius: 10, background: b.bg, color: b.fg, fontWeight: 900 }}>
-                      {r.status}
+                      {r.status || "—"}
                     </span>
                   </td>
 
@@ -329,8 +331,8 @@ export default function Players() {
                     <textarea
                       defaultValue={r.notes || ""}
                       placeholder="Bilješke..."
-                      style={{ width: "100%", minHeight: 46, padding: 10, borderRadius: 10, border: "1px solid #e5e7eb", fontFamily: "Arial, sans-serif" }}
-                      disabled={role !== "admin"} // MVP: admin uređuje
+                      style={{ width: "100%", minHeight: 46, padding: 10, borderRadius: 12, border: "1px solid #e5e7eb", fontFamily: "Arial, sans-serif" }}
+                      disabled={role !== "admin"} // MVP: samo admin uređuje
                       onBlur={(e) => {
                         if (role === "admin") quickSaveNotes(r.id, e.target.value);
                       }}
@@ -349,7 +351,7 @@ export default function Players() {
 
             {!loadingPlayers && filtered.length === 0 ? (
               <tr>
-                <td colSpan={teamType === "U21" ? 7 : 6} style={{ padding: 14, opacity: 0.75 }}>
+                <td colSpan={7} style={{ padding: 14, opacity: 0.75 }}>
                   Nema rezultata. (Ako si admin, dodaj prvog igrača gore.)
                 </td>
               </tr>
@@ -357,13 +359,37 @@ export default function Players() {
           </tbody>
         </table>
       </div>
-
-      <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
-        Sljedeće: bilješke po skautu (notes tablica po useru), trening alarmi, CHPP sync za skillove/sub-skillove.
-      </div>
     </AppLayout>
   );
 }
+
+// --- styles ---
+const btnGhost = {
+  padding: "10px 12px",
+  borderRadius: 12,
+  border: "1px solid #e5e7eb",
+  background: "#fff",
+  textDecoration: "none",
+  fontWeight: 900,
+  color: "#111"
+};
+
+const btnBlack = {
+  padding: "10px 12px",
+  borderRadius: 12,
+  border: "none",
+  background: "#111",
+  color: "#fff",
+  fontWeight: 900,
+  cursor: "pointer"
+};
+
+const input = {
+  padding: 10,
+  borderRadius: 12,
+  border: "1px solid #e5e7eb",
+  background: "#fff"
+};
 
 const th = { padding: "10px 10px", borderBottom: "1px solid #eee" };
 const td = { padding: "10px 10px", borderBottom: "1px solid #f3f4f6" };
