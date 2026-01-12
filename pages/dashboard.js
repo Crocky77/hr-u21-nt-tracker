@@ -1,356 +1,357 @@
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import AppLayout from "../components/AppLayout";
-import { supabase } from "../utils/supabaseClient";
 
-function getActiveTeam() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("activeTeam");
-}
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
-function badgeStyle(kind) {
-  const map = {
-    core: { bg: "#dcfce7", fg: "#166534" },
-    rotation: { bg: "#e0f2fe", fg: "#075985" },
-    watch: { bg: "#f3f4f6", fg: "#111827" },
-    risk: { bg: "#fee2e2", fg: "#991b1b" },
-  };
-  return map[kind] || map.watch;
-}
+// hardcoded osoblje za MVP (kasnije povučemo iz CHPP)
+const STAFF = {
+  U21: { teamLabel: "U21 Hrvatska", coach: "matej1603", assistant: "Zvonzi_" },
+  NT: { teamLabel: "NT Hrvatska", coach: "Zagi_", assistant: "Nosonja" },
+};
 
-const U21_LIMIT_TOTAL = 21 * 112 + 111;
-
-function htTotalDays(y, d) {
-  if (y == null || d == null) return null;
-  return Number(y) * 112 + Number(d);
-}
-
-function u21LeftDaysNow(y, d) {
-  const total = htTotalDays(y, d);
-  if (total == null) return null;
-  return U21_LIMIT_TOTAL - total; // >=0 eligible, <0 out
-}
-
-function Widget({ title, value, subtitle, tone = "neutral" }) {
+function Card({ title, value, sub, tone = "neutral" }) {
   const tones = {
-    good: { bg: "#e9fbeef0", border: "#c7f2d4" },
-    warn: { bg: "#fff6eaf0", border: "#ffe0b2" },
-    neutral: { bg: "#ffffff", border: "#e5e7eb" },
+    neutral: { bg: "#fff", border: "#e5e7eb" },
+    good: { bg: "#ecfdf5", border: "#a7f3d0" },
+    warn: { bg: "#fff7ed", border: "#fed7aa" },
+    bad: { bg: "#fef2f2", border: "#fecaca" },
+    dark: { bg: "#111827", border: "#111827" },
   };
-  const t = tones[tone];
+  const t = tones[tone] || tones.neutral;
 
   return (
     <div
       style={{
-        borderRadius: 16,
-        padding: 16,
-        border: `1px solid ${t.border}`,
         background: t.bg,
-        boxShadow: "0 14px 30px rgba(0,0,0,0.08)",
-        minHeight: 110,
+        border: `1px solid ${t.border}`,
+        borderRadius: 16,
+        padding: 14,
+        boxShadow: "0 10px 25px rgba(0,0,0,0.06)",
       }}
     >
-      <div style={{ fontSize: 14, fontWeight: 900, opacity: 0.85 }}>{title}</div>
-      <div style={{ marginTop: 10, fontSize: 46, fontWeight: 900, color: "#111", lineHeight: 1 }}>
+      <div style={{ fontWeight: 900, opacity: 0.9 }}>{title}</div>
+      <div style={{ fontSize: 44, fontWeight: 900, marginTop: 8, color: tone === "dark" ? "#fff" : "#111" }}>
         {value}
       </div>
-      {subtitle ? <div style={{ marginTop: 6, fontSize: 13, opacity: 0.75 }}>{subtitle}</div> : null}
+      {sub ? <div style={{ marginTop: 6, opacity: 0.75, fontWeight: 700 }}>{sub}</div> : null}
     </div>
   );
 }
 
-export default function DashboardPage() {
-  const [activeTeam, setActiveTeam] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [players, setPlayers] = useState([]);
+export default function Dashboard() {
+  const [access, setAccess] = useState("loading"); // loading | denied | ok
+  const [email, setEmail] = useState(null);
+  const [role, setRole] = useState(null);
+  const [teamType, setTeamType] = useState(null); // U21 | NT
 
-  const [cycleDays, setCycleDays] = useState(130); // default
+  const [rows, setRows] = useState([]);
+  const [loadingPlayers, setLoadingPlayers] = useState(true);
 
   useEffect(() => {
-    setActiveTeam(getActiveTeam());
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const userEmail = data?.user?.email ?? null;
+
+      if (!userEmail) {
+        setAccess("denied");
+        return;
+      }
+      setEmail(userEmail);
+
+      const { data: urows } = await supabase
+        .from("users")
+        .select("role, team_type")
+        .eq("email", userEmail)
+        .limit(1);
+
+      if (!urows || urows.length === 0) {
+        setAccess("denied");
+        return;
+      }
+
+      const u = urows[0];
+      if (!u.team_type) {
+        setAccess("denied");
+        return;
+      }
+
+      setRole(u.role || "user");
+      setTeamType(u.team_type);
+      setAccess("ok");
+    })();
   }, []);
 
-  async function fetchSettings() {
-    const { data, error } = await supabase.from("settings").select("u21_cycle_days").eq("id", 1).limit(1);
-    if (!error && data && data.length > 0) setCycleDays(data[0].u21_cycle_days);
-  }
-
-  async function fetchDashboard() {
-    if (!activeTeam) return;
-    setLoading(true);
-
-    await fetchSettings();
+  async function fetchPlayers() {
+    if (!teamType) return;
+    setLoadingPlayers(true);
 
     const { data, error } = await supabase
       .from("players")
-      .select("id, ht_player_id, full_name, position, team_type, status, notes, ht_age_years, ht_age_days")
-      .eq("team_type", activeTeam)
-      .order("id", { ascending: false })
-      .limit(300);
+      .select(
+        "id, full_name, position, team_type, status, ht_age_years, ht_age_days, u21_status, last_seen_at"
+      )
+      .eq("team_type", teamType)
+      .order("id", { ascending: false });
 
-    if (error) {
-      alert("Greška kod dohvata dashboard podataka: " + error.message);
-      setPlayers([]);
-    } else {
-      setPlayers(data || []);
-    }
-    setLoading(false);
+    if (!error && data) setRows(data);
+    setLoadingPlayers(false);
   }
 
   useEffect(() => {
-    if (activeTeam) fetchDashboard();
-  }, [activeTeam]);
+    if (access === "ok") fetchPlayers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [access, teamType]);
 
-  const computed = useMemo(() => {
-    const isU21 = activeTeam === "U21";
-    const out = [];
-    const missing = [];
-    const soon14 = [];
-    const okToFinal = [];
-    const noToFinal = [];
+  const staff = useMemo(() => (teamType ? STAFF[teamType] : null), [teamType]);
 
-    for (const p of players) {
-      const leftNow = isU21 ? u21LeftDaysNow(p.ht_age_years, p.ht_age_days) : null;
-
-      if (isU21) {
-        if (leftNow == null) {
-          missing.push(p);
-          continue;
-        }
-        if (leftNow < 0) out.push({ p, leftNow });
-        if (leftNow >= 0 && leftNow <= 14) soon14.push({ p, leftNow });
-
-        const leftAtFinal = leftNow - cycleDays;
-        if (leftAtFinal >= 0) okToFinal.push({ p, leftAtFinal });
-        else noToFinal.push({ p, leftAtFinal });
-      }
-    }
-
-    // sortiranja za prikaz
-    soon14.sort((a, b) => a.leftNow - b.leftNow);
-    out.sort((a, b) => a.leftNow - b.leftNow); // negativno
-    okToFinal.sort((a, b) => a.leftAtFinal - b.leftAtFinal); // najmanji višak prvi
-    noToFinal.sort((a, b) => a.leftAtFinal - b.leftAtFinal); // najviše fali (više negativno) prvi
-
-    return { isU21, out, missing, soon14, okToFinal, noToFinal };
-  }, [players, activeTeam, cycleDays]);
-
+  // KPI (MVP: iz baze + placeholder logike)
   const stats = useMemo(() => {
-    const total = players.length;
-    const core = players.filter((p) => p.status === "core").length;
-    const rotation = players.filter((p) => p.status === "rotation").length;
-    const watch = players.filter((p) => p.status === "watch").length;
-    const risk = players.filter((p) => p.status === "risk").length;
+    const total = rows.length;
 
-    return {
-      total,
-      core,
-      rotation,
-      watch,
-      risk,
-      outCount: computed.out.length,
-      soon14Count: computed.soon14.length,
-      okFinalCount: computed.okToFinal.length,
-      noFinalCount: computed.noToFinal.length,
-      missingCount: computed.missing.length,
-    };
-  }, [players, computed]);
+    const core = rows.filter((r) => r.status === "core").length;
+    const rotation = rows.filter((r) => r.status === "rotation").length;
+    const watch = rows.filter((r) => r.status === "watch").length;
+    const risk = rows.filter((r) => r.status === "risk").length;
 
-  const warnings = useMemo(() => {
-    const list = [];
-    if (computed.isU21) {
-      computed.soon14.slice(0, 3).forEach((x) => list.push(`${x.p.full_name} → izlazi za ${x.leftNow} HT dana`));
-      computed.noToFinal.slice(0, 2).forEach((x) => list.push(`${x.p.full_name} → NE može do finala (fali ${Math.abs(x.leftAtFinal)} HT dana)`));
-      if (stats.missingCount > 0) list.push(`Nedostaje HT dob za ${stats.missingCount} igrača.`);
-    }
+    // U21: “ispali” = u21_status === 'ispao' (ako postoji) ili ht_age>21+111 placeholder
+    const u21_out = rows.filter((r) => r.u21_status === "ispao").length;
+    const u21_soon = rows.filter((r) => r.u21_status === "izlazi_uskoro").length;
 
-    for (const p of players.slice(0, 120)) {
-      if (p.status === "risk") list.push(`${p.full_name} → status RISK`);
-      if ((p.notes || "").toLowerCase().includes("stagn")) list.push(`${p.full_name} → bilješka: stagnacija`);
-      if (list.length >= 6) break;
-    }
+    return { total, core, rotation, watch, risk, u21_out, u21_soon };
+  }, [rows]);
 
-    if (list.length === 0) list.push("Nema upozorenja (MVP).");
-    return list.slice(0, 6);
-  }, [players, computed, stats.missingCount]);
+  const quick = useMemo(() => rows.slice(0, 8), [rows]);
+
+  if (access === "denied") {
+    return (
+      <AppLayout title="Hrvatski U21/NT Tracker">
+        <div style={{ background: "#fff", border: "1px solid #eee", borderRadius: 16, padding: 18 }}>
+          <h2 style={{ marginTop: 0 }}>Nemaš pristup.</h2>
+          <p>Prijavi se s odobrenim emailom ili kontaktiraj admina.</p>
+          <Link href="/login">→ Prijava</Link>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (access === "loading") {
+    return (
+      <AppLayout title="Hrvatski U21/NT Tracker">
+        <div style={{ padding: 10 }}>Učitavam...</div>
+      </AppLayout>
+    );
+  }
 
   return (
-    <AppLayout title={computed.isU21 ? "U21 Dashboard" : "NT Dashboard"}>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
-        <Widget title={`Aktivni ${activeTeam || ""} igrači`} value={loading ? "…" : stats.total} subtitle="Baza: players" tone="good" />
-
-        {computed.isU21 ? (
-          <Widget title="Ispali iz U21" value={loading ? "…" : stats.outCount} subtitle="Po HT dobi (21g+111d)" tone="warn" />
-        ) : (
-          <Widget title="RISK igrači" value={loading ? "…" : stats.risk} subtitle="MVP status (ručno)" tone="warn" />
-        )}
-
-        {computed.isU21 ? (
-          <Widget title="Izlaze uskoro" value={loading ? "…" : stats.soon14Count} subtitle="U idućih 14 HT dana" tone="warn" />
-        ) : (
-          <Widget title="Core igrači" value={loading ? "…" : stats.core} subtitle="MVP status (ručno)" tone="good" />
-        )}
-
-        {computed.isU21 ? (
-          <Widget
-            title="EURO ciklus"
-            value={loading ? "…" : stats.okFinalCount}
-            subtitle={`Mogu do finala (cycle = ${cycleDays} HT dana)`}
-            tone="good"
-          />
-        ) : (
-          <div
-            style={{
-              borderRadius: 16,
-              padding: 16,
-              border: "1px solid #e5e7eb",
-              background: "white",
-              boxShadow: "0 14px 30px rgba(0,0,0,0.08)",
-              minHeight: 110,
-            }}
-          >
-            <div style={{ fontSize: 14, fontWeight: 900, opacity: 0.85 }}>Status raspodjela</div>
-            <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {[
-                ["core", stats.core],
-                ["rotation", stats.rotation],
-                ["watch", stats.watch],
-                ["risk", stats.risk],
-              ].map(([k, v]) => {
-                const b = badgeStyle(k);
-                return (
-                  <span
-                    key={k}
-                    style={{
-                      display: "inline-flex",
-                      padding: "8px 10px",
-                      borderRadius: 12,
-                      background: b.bg,
-                      color: b.fg,
-                      fontWeight: 900,
-                    }}
-                  >
-                    {k}: {loading ? "…" : v}
-                  </span>
-                );
-              })}
-            </div>
-            <div style={{ marginTop: 8, fontSize: 12, opacity: 0.65 }}>(V1) ručno; kasnije automatika.</div>
+    <AppLayout
+      title="Hrvatski U21/NT Tracker"
+      subtitle="Selektorski panel • Scouting • U21/NT"
+      activeTeamLabel={staff?.teamLabel || null}
+    >
+      {/* staff bar */}
+      <div
+        style={{
+          background: "#fff",
+          border: "1px solid #e5e7eb",
+          borderRadius: 16,
+          padding: 14,
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          alignItems: "center",
+          flexWrap: "wrap",
+          boxShadow: "0 10px 25px rgba(0,0,0,0.05)",
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 900, fontSize: 16 }}>
+            Aktivni tim: <span style={{ color: "#b91c1c" }}>{staff?.teamLabel}</span>
           </div>
-        )}
-      </div>
-
-      <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <div style={panelStyle}>
-          <div style={{ ...panelHeader, background: "#d32f2f", color: "white" }}>⚠️ Upozorenja</div>
-          <div style={{ padding: 14 }}>
-            {warnings.map((w, idx) => (
-              <div key={idx} style={warnRow}>
-                {w}
-              </div>
-            ))}
-            {computed.isU21 ? (
-              <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-                “EURO ciklus” je trenutno u HT danima (manual). Kad dođe CHPP, vežemo za stvarne datume kola/utakmica.
-              </div>
-            ) : null}
+          <div style={{ marginTop: 6, opacity: 0.85 }}>
+            Izbornik: <b>{staff?.coach}</b> · Pomoćnik: <b>{staff?.assistant}</b>
+          </div>
+          <div style={{ marginTop: 6, fontSize: 12, opacity: 0.7 }}>
+            Ulogiran: <b>{email}</b> · Uloga: <b>{role}</b>
           </div>
         </div>
 
-        <div style={panelStyle}>
-          <div style={{ ...panelHeader, background: "#1f2937", color: "white" }}>
-            U21 ciklus: tko može do finala?
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Link href="/players" style={btnPrimary}>
+            Igrači →
+          </Link>
+          <Link href="/requests" style={btnSoft}>
+            Zahtjevi
+          </Link>
+          <Link href="/lists" style={btnSoft}>
+            Popisi
+          </Link>
+          <Link href="/alerts" style={btnSoft}>
+            Upozorenja
+          </Link>
+          <Link href="/training-settings" style={btnSoft}>
+            Postavke treninga
+          </Link>
+          <Link href="/clubs" style={btnSoft}>
+            Klubovi
+          </Link>
+        </div>
+      </div>
+
+      {/* KPI cards */}
+      <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        <Card title="Ukupno igrača" value={stats.total} sub="u bazi (tvoj tim)" tone="neutral" />
+        <Card title="Core" value={stats.core} sub="glavna jezgra" tone="good" />
+        <Card title="Watch" value={stats.watch} sub="za praćenje" tone="neutral" />
+        <Card title="Risk" value={stats.risk} sub="kritični / rizik" tone="bad" />
+      </div>
+
+      {/* U21-only block */}
+      {teamType === "U21" ? (
+        <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 12 }}>
+          <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 14 }}>
+            <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 10 }}>
+              Kritična upozorenja (U21)
+            </div>
+
+            <div style={warnRow}>
+              <b>Izlaze uskoro:</b> {stats.u21_soon}
+              <span style={{ opacity: 0.7, marginLeft: 8 }}>(placeholder dok ne uvedemo punu HT logiku)</span>
+            </div>
+            <div style={warnRow}>
+              <b>Ispali:</b> {stats.u21_out}
+            </div>
+
+            <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75 }}>
+              Sljedeće: “U21 ciklus: tko može do finala” računamo po HT tjednima i datumu finala (iz CHPP sync-a).
+            </div>
           </div>
-          <div style={{ padding: 14 }}>
-            {!computed.isU21 ? (
-              <div style={{ opacity: 0.75 }}>
-                NT dashboard nema U21 ciklus. Prebaci team na U21 da vidiš ovaj dio.
-              </div>
-            ) : (
-              <>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div style={{ padding: 12, borderRadius: 14, border: "1px solid #e5e7eb", background: "#fff" }}>
-                    <div style={{ fontWeight: 900 }}>✅ Mogu do finala</div>
-                    <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-                      {computed.okToFinal.slice(0, 5).map((x) => (
-                        <div key={x.p.id} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                          <span style={{ fontWeight: 800 }}>{x.p.full_name}</span>
-                          <span style={{ fontWeight: 900, color: "#166534" }}>+{x.leftAtFinal}d</span>
-                        </div>
-                      ))}
-                      {computed.okToFinal.length === 0 ? <div style={{ opacity: 0.7 }}>Nema.</div> : null}
-                    </div>
-                  </div>
 
-                  <div style={{ padding: 12, borderRadius: 14, border: "1px solid #e5e7eb", background: "#fff" }}>
-                    <div style={{ fontWeight: 900 }}>⛔ Ne mogu do finala</div>
-                    <div style={{ marginTop: 8, display: "grid", gap: 8 }}>
-                      {computed.noToFinal.slice(0, 5).map((x) => (
-                        <div key={x.p.id} style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                          <span style={{ fontWeight: 800 }}>{x.p.full_name}</span>
-                          <span style={{ fontWeight: 900, color: "#991b1b" }}>-{Math.abs(x.leftAtFinal)}d</span>
-                        </div>
-                      ))}
-                      {computed.noToFinal.length === 0 ? <div style={{ opacity: 0.7 }}>Nema.</div> : null}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "space-between" }}>
-                  <Link href="/players" style={primaryBtn}>
-                    Idi na Igrače →
-                  </Link>
-                  <button onClick={() => fetchDashboard()} style={secondaryBtn}>
-                    Osvježi
-                  </button>
-                </div>
-
-                <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-                  Prikaz: +X znači koliko HT dana ostaje viška na finalu; -X znači koliko fali.
-                </div>
-              </>
-            )}
+          <div style={{ background: "#111827", border: "1px solid #111827", borderRadius: 16, padding: 14, color: "#fff" }}>
+            <div style={{ fontWeight: 900, fontSize: 16, marginBottom: 10 }}>
+              Trening alarmi (skeleton)
+            </div>
+            <div style={{ opacity: 0.9, lineHeight: 1.4 }}>
+              U V1 (dok čekamo CHPP) ovo je “placeholder”:
+              <ul style={{ marginTop: 8 }}>
+                <li>za svakog igrača spremamo ciljane skillove (kasnije)</li>
+                <li>računamo odstupanje od idealnog treninga (kasnije formula)</li>
+                <li>generiramo upozorenja skautovima (alerts)</li>
+              </ul>
+            </div>
           </div>
+        </div>
+      ) : null}
+
+      {/* NT-only note */}
+      {teamType === "NT" ? (
+        <div style={{ marginTop: 12, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, padding: 14 }}>
+          <div style={{ fontWeight: 900, fontSize: 16 }}>Napomena (NT)</div>
+          <div style={{ marginTop: 8, opacity: 0.85 }}>
+            NT dashboard nema U21 kalkulator / U21 ciklus. Fokus: forma, status, napredak, trening alarmi (kasnije), klub/coach info (kasnije CHPP).
+          </div>
+        </div>
+      ) : null}
+
+      {/* Quick table */}
+      <div style={{ marginTop: 14, background: "#fff", border: "1px solid #e5e7eb", borderRadius: 16, overflowX: "auto" }}>
+        <div style={{ padding: 12, fontWeight: 900, borderBottom: "1px solid #eee" }}>
+          Pregled igrača (brzi rez) {loadingPlayers ? " · učitavam..." : ""}
+        </div>
+
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ textAlign: "left", fontSize: 12, opacity: 0.75 }}>
+              <th style={th}>Ime</th>
+              <th style={th}>Poz</th>
+              <th style={th}>Dob (HT)</th>
+              <th style={th}>Status</th>
+              {teamType === "U21" ? <th style={th}>U21</th> : null}
+            </tr>
+          </thead>
+          <tbody>
+            {quick.map((p) => (
+              <tr key={p.id}>
+                <td style={tdStrong}>{p.full_name}</td>
+                <td style={td}>{p.position || "-"}</td>
+                <td style={td}>
+                  {p.ht_age_years != null && p.ht_age_days != null
+                    ? `${p.ht_age_years}g (${p.ht_age_days}d)`
+                    : "-"}
+                </td>
+                <td style={td}>
+                  <span style={badge(p.status)}>{p.status || "watch"}</span>
+                </td>
+                {teamType === "U21" ? <td style={td}>{p.u21_status || "-"}</td> : null}
+              </tr>
+            ))}
+            {!loadingPlayers && quick.length === 0 ? (
+              <tr>
+                <td colSpan={teamType === "U21" ? 5 : 4} style={{ padding: 14, opacity: 0.75 }}>
+                  Nema igrača u bazi. Dodaj ih na “Igrači”.
+                </td>
+              </tr>
+            ) : null}
+          </tbody>
+        </table>
+
+        <div style={{ padding: 12 }}>
+          <Link href="/players" style={btnPrimary}>Vidi sve igrače →</Link>
         </div>
       </div>
     </AppLayout>
   );
 }
 
-const panelStyle = {
-  borderRadius: 18,
-  background: "white",
-  border: "1px solid #e5e7eb",
-  boxShadow: "0 18px 40px rgba(0,0,0,0.10)",
-  overflow: "hidden",
-};
-
-const panelHeader = { padding: 14, fontWeight: 900 };
-
-const warnRow = {
-  padding: 12,
-  borderRadius: 14,
-  background: "#fff1f2",
-  border: "1px solid #fee2e2",
-  fontWeight: 800,
-  marginBottom: 10,
-};
-
-const primaryBtn = {
-  display: "inline-block",
-  background: "#1d4ed8",
-  color: "white",
-  padding: "10px 14px",
+const btnPrimary = {
+  padding: "10px 12px",
   borderRadius: 12,
+  background: "#111",
+  color: "#fff",
   textDecoration: "none",
   fontWeight: 900,
 };
 
-const secondaryBtn = {
-  padding: "10px 14px",
+const btnSoft = {
+  padding: "10px 12px",
   borderRadius: 12,
   border: "1px solid #e5e7eb",
-  background: "white",
+  background: "#fff",
+  textDecoration: "none",
   fontWeight: 900,
-  cursor: "pointer",
+  color: "#111",
 };
+
+const th = { padding: "10px 10px", borderBottom: "1px solid #eee" };
+const td = { padding: "10px 10px", borderBottom: "1px solid #f3f4f6" };
+const tdStrong = { ...td, fontWeight: 900 };
+
+const warnRow = {
+  padding: 12,
+  borderRadius: 12,
+  border: "1px solid #fee2e2",
+  background: "#fef2f2",
+  marginBottom: 10,
+};
+
+function badge(status) {
+  const map = {
+    core: { bg: "#dcfce7", fg: "#166534" },
+    rotation: { bg: "#e0f2fe", fg: "#075985" },
+    watch: { bg: "#f3f4f6", fg: "#111827" },
+    risk: { bg: "#fee2e2", fg: "#991b1b" },
+  };
+  const b = map[status] || map.watch;
+  return {
+    display: "inline-flex",
+    padding: "6px 10px",
+    borderRadius: 10,
+    background: b.bg,
+    color: b.fg,
+    fontWeight: 900,
+  };
+}
