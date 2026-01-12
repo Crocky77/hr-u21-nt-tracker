@@ -33,7 +33,6 @@ export default function AppLayout({ children, pageTitle }) {
       const t = urows[0].team_type;
       setTeam(t);
 
-      // rola per team iz staff_roles
       const { data: srows } = await supabase
         .from("staff_roles")
         .select("role")
@@ -95,6 +94,7 @@ export default function AppLayout({ children, pageTitle }) {
             <Link href="/dashboard" style={navBtnStyle()}>Dashboard</Link>
             <Link href="/players" style={navBtnStyle()}>Igrači</Link>
             <Link href="/osoblje" style={navBtnStyle()}>Osoblje</Link>
+            <Link href="/trening-alarmi" style={navBtnStyle()}>Trening alarmi</Link>
 
             {showU21Tools ? (
               <Link href="/u21-status" style={navBtnStyle()}>U21 status</Link>
