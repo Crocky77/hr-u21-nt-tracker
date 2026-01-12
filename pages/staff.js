@@ -18,6 +18,8 @@ export default function Staff() {
 
   const [rows, setRows] = useState([]);
   const [loadingRows, setLoadingRows] = useState(true);
+
+  // samo admin i coach upravljaju
   const canManage = role === "admin" || role === "coach";
 
   const [form, setForm] = useState({
@@ -57,6 +59,7 @@ export default function Staff() {
   async function fetchStaff() {
     if (!teamType) return;
     setLoadingRows(true);
+
     const { data, error } = await supabase
       .from("staff_members")
       .select("id, team_type, email, ht_nick, role, created_at")
@@ -79,18 +82,51 @@ export default function Staff() {
   async function addMember(e) {
     e.preventDefault();
 
+    const targetEmail = form.email.trim().toLowerCase();
+    if (!targetEmail.includes("@")) {
+      alert("Upiši ispravan email.");
+      return;
+    }
+
+    // 1) provjeri da user postoji u users tablici
+    const { data: urows, error: uerr } = await supabase
+      .from("users")
+      .select("email, role")
+      .eq("email", targetEmail)
+      .limit(1);
+
+    if (uerr) {
+      alert("Greška kod provjere users: " + uerr.message);
+      return;
+    }
+
+    if (!urows || urows.length === 0) {
+      alert("User ne postoji u 'users' tablici. Dodaj ga tamo ili neka se prvo prijavi jednom.");
+      return;
+    }
+
+    // admina ne diramo (samo info)
+    if (urows[0].role === "admin") {
+      alert("Ovaj user je admin. Možeš ga dodati u osoblje, ali mu se role neće mijenjati.");
+    }
+
+    // 2) insert u staff_members (trigger će syncati users.role + team_type, osim admina)
     const payload = {
       team_type: teamType,
-      email: form.email.trim().toLowerCase(),
+      email: targetEmail,
       ht_nick: form.ht_nick.trim() || null,
       role: form.role
     };
 
     const { error } = await supabase.from("staff_members").insert(payload);
-    if (error) return alert("Greška: " + error.message);
+    if (error) {
+      alert("Greška: " + error.message);
+      return;
+    }
 
     setForm({ email: "", ht_nick: "", role: "scout" });
     fetchStaff();
+    alert("Dodano u osoblje. (Ako nije admin, users.role/team_type su automatski ažurirani.)");
   }
 
   async function removeMember(id) {
@@ -138,7 +174,7 @@ export default function Staff() {
         <div style={card}>
           <div style={{ fontWeight: 900, fontSize: 16 }}>Dodaj člana osoblja</div>
           <div style={{ fontSize: 12, opacity: 0.75, marginTop: 6 }}>
-            MVP: trenutno dodajemo ručno. Kasnije izbornik dodaje osoblje nakon CHPP autorizacije.
+            Pravilo: email mora postojati u tablici <b>users</b>. Nakon dodavanja, baza automatski synca role/team_type (osim admina).
           </div>
 
           <form onSubmit={addMember} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 0.8fr", gap: 10, marginTop: 12 }}>
@@ -146,7 +182,7 @@ export default function Staff() {
               value={form.email}
               onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
               required
-              placeholder="Email (mora biti prijavljen korisnik)"
+              placeholder="Email (mora biti u users tablici)"
               style={input}
             />
             <input
@@ -163,7 +199,6 @@ export default function Staff() {
               <option value="assistant">Pomoćnik</option>
               <option value="head_scout">Glavni skaut</option>
               <option value="scout">Skaut</option>
-              {/* coach u praksi dolazi iz CHPP / users.role; ali možeš i ručno ako baš treba */}
               <option value="coach">Izbornik</option>
             </select>
 
