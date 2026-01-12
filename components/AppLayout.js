@@ -1,228 +1,125 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
 
-const TEAM_STAFF = {
-  U21: { label: "U21 Hrvatska", coach: "matej1603", assistant: "Zvonzi_" },
-  NT: { label: "NT Hrvatska", coach: "Zagi_", assistant: "Nosonja" },
-};
-
-function getActiveTeam() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("activeTeam");
-}
-function setActiveTeam(team) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("activeTeam", team);
-}
-
-export default function AppLayout({ title = "Dashboard", children }) {
-  const router = useRouter();
-
-  const [activeTeam, setActiveTeamState] = useState(null);
-  const [access, setAccess] = useState("loading"); // loading | denied | ok
+export default function AppLayout({ children, pageTitle }) {
+  const [loading, setLoading] = useState(true);
   const [email, setEmail] = useState(null);
+  const [team, setTeam] = useState(null);
   const [role, setRole] = useState(null);
 
-  // Team gate
-  useEffect(() => {
-    const t = getActiveTeam();
-    if (!t) {
-      router.replace("/");
-      return;
-    }
-    setActiveTeamState(t);
-  }, [router]);
-
-  // Auth + allowlist gate
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
       const userEmail = data?.user?.email ?? null;
 
       if (!userEmail) {
-        setAccess("denied");
+        window.location.replace("/login");
         return;
       }
       setEmail(userEmail);
 
       const { data: urows } = await supabase
         .from("users")
-        .select("role")
+        .select("team_type")
         .eq("email", userEmail)
         .limit(1);
 
-      if (!urows || urows.length === 0) {
-        setAccess("denied");
+      if (!urows || urows.length === 0 || !urows[0].team_type) {
+        setLoading(false);
+        setTeam(null);
         return;
       }
+      const t = urows[0].team_type;
+      setTeam(t);
 
-      setRole(urows[0].role);
-      setAccess("ok");
+      // rola per team iz staff_roles
+      const { data: srows } = await supabase
+        .from("staff_roles")
+        .select("role")
+        .eq("team_type", t)
+        .eq("email", userEmail)
+        .limit(1);
+
+      setRole(srows && srows.length > 0 ? srows[0].role : "scout");
+      setLoading(false);
     })();
   }, []);
 
-  const staff = activeTeam ? TEAM_STAFF[activeTeam] : null;
-
-  const onSwitchTeam = (team) => {
-    setActiveTeam(team);
-    setActiveTeamState(team);
-    router.replace("/dashboard");
-  };
-
-  const logout = async () => {
+  async function logout() {
     await supabase.auth.signOut();
-    router.push("/login");
-  };
+    window.location.replace("/login");
+  }
 
-  if (access === "denied") {
+  if (loading) {
     return (
-      <main style={{ fontFamily: "Arial, sans-serif", padding: 40, maxWidth: 1100, margin: "0 auto" }}>
-        <h1 style={{ color: "#c00" }}>Nemaš pristup</h1>
-        <p>Prijavi se s odobrenim emailom ili kontaktiraj admina.</p>
-        <Link href="/login">→ Prijava</Link>
+      <main style={{ fontFamily: "Arial, sans-serif", padding: 24 }}>
+        Učitavam...
       </main>
     );
   }
 
-  if (access === "loading" || !activeTeam) {
-    return <main style={{ fontFamily: "Arial, sans-serif", padding: 40 }}>Učitavam...</main>;
+  if (!team) {
+    return (
+      <main style={{ fontFamily: "Arial, sans-serif", padding: 24, maxWidth: 900, margin: "0 auto" }}>
+        <h1 style={{ color: "#b91c1c" }}>Nemaš dodijeljen tim</h1>
+        <p>Admin mora postaviti <b>team_type</b> u <b>users</b> tablici (U21 ili NT).</p>
+        <button onClick={logout} style={{ padding: "10px 12px", borderRadius: 12, border: "none", background: "#111", color: "#fff", fontWeight: 900 }}>
+          Odjava
+        </button>
+      </main>
+    );
   }
 
+  const showU21Tools = team === "U21";
+
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        fontFamily: "Arial, sans-serif",
-        background:
-          "radial-gradient(1200px 600px at 50% 0%, rgba(211,47,47,0.22) 0%, rgba(255,255,255,1) 60%)",
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          background: "linear-gradient(90deg, #b71c1c 0%, #d32f2f 50%, #b71c1c 100%)",
-          color: "white",
-          padding: "14px 18px",
-          boxShadow: "0 10px 24px rgba(0,0,0,0.20)",
-          position: "sticky",
-          top: 0,
-          zIndex: 10,
-        }}
-      >
-        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div
-                style={{
-                  width: 42,
-                  height: 42,
-                  borderRadius: 14,
-                  background: "rgba(255,255,255,0.18)",
-                  border: "1px solid rgba(255,255,255,0.25)",
-                  display: "grid",
-                  placeItems: "center",
-                  fontWeight: 900,
-                }}
-              >
-                HR
-              </div>
-              <div>
-                <div style={{ fontSize: 22, fontWeight: 900, lineHeight: 1.1 }}>Hrvatski U21/NT Tracker</div>
-                <div style={{ fontSize: 13, opacity: 0.92 }}>
-                  {title} · Aktivni tim: <b>{staff?.label || activeTeam}</b> · Izbornik: <b>{staff?.coach}</b> · Pomoćnik:{" "}
-                  <b>{staff?.assistant}</b>
-                </div>
-              </div>
+    <div style={{ fontFamily: "Arial, sans-serif", minHeight: "100vh", background: "#f6f7fb" }}>
+      <div style={{ background: "linear-gradient(90deg,#7f1d1d,#ef4444)", color: "#fff", padding: "14px 18px", boxShadow: "0 12px 28px rgba(0,0,0,0.18)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: "rgba(255,255,255,0.14)", display: "grid", placeItems: "center", fontWeight: 900 }}>
+              HR
             </div>
-
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, opacity: 0.95 }}>
-                <b>{email}</b> {role ? <>(<b>{role}</b>)</> : null}
-              </span>
-
-              {/* Team switch */}
-              <div
-                style={{
-                  display: "flex",
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  border: "1px solid rgba(255,255,255,0.25)",
-                  background: "rgba(255,255,255,0.12)",
-                }}
-              >
-                {["U21", "NT"].map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => onSwitchTeam(t)}
-                    style={{
-                      padding: "10px 12px",
-                      cursor: "pointer",
-                      border: "none",
-                      color: "white",
-                      background: activeTeam === t ? "rgba(0,0,0,0.24)" : "transparent",
-                      fontWeight: 900,
-                    }}
-                  >
-                    {t}
-                  </button>
-                ))}
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 900 }}>Hrvatski U21/NT Tracker</div>
+              <div style={{ fontSize: 12, opacity: 0.9 }}>
+                Tim: <b>{team}</b> • {email} ({role})
               </div>
-
-              <button
-                onClick={logout}
-                style={{
-                  padding: "10px 12px",
-                  borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.18)",
-                  background: "rgba(0,0,0,0.25)",
-                  color: "#fff",
-                  fontWeight: 900,
-                  cursor: "pointer",
-                }}
-              >
-                Odjava
-              </button>
+              {pageTitle ? <div style={{ marginTop: 2, fontSize: 12, opacity: 0.9 }}>{pageTitle}</div> : null}
             </div>
           </div>
 
-          {/* Menu */}
-          <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link href="/dashboard" style={menuLinkStyle(router.pathname === "/dashboard")}>Dashboard</Link>
-            <Link href="/players" style={menuLinkStyle(router.pathname.startsWith("/players"))}>Igrači</Link>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <Link href="/" style={navBtnStyle()}>Naslovna</Link>
+            <Link href="/dashboard" style={navBtnStyle()}>Dashboard</Link>
+            <Link href="/players" style={navBtnStyle()}>Igrači</Link>
+            <Link href="/osoblje" style={navBtnStyle()}>Osoblje</Link>
 
-            <Link href="/popisi" style={menuLinkStyle(router.pathname === "/popisi")}>Popisi</Link>
-            <Link href="/upozorenja" style={menuLinkStyle(router.pathname === "/upozorenja")}>Upozorenja</Link>
-            <Link href="/postavke-treninga" style={menuLinkStyle(router.pathname === "/postavke-treninga")}>Postavke treninga</Link>
-            <Link href="/log" style={menuLinkStyle(router.pathname === "/log")}>Log</Link>
-
-            {activeTeam === "U21" ? (
-              <Link href="/u21-kalkulator" style={menuLinkStyle(router.pathname === "/u21-kalkulator")}>
-                U21 kalkulator
-              </Link>
+            {showU21Tools ? (
+              <Link href="/u21-status" style={navBtnStyle()}>U21 status</Link>
             ) : null}
 
-            <Link href="/" style={menuLinkStyle(false)}>Promijeni tim</Link>
+            <button onClick={logout} style={{ ...navBtnStyle(), background: "#111", borderColor: "#111", cursor: "pointer" }}>
+              Odjava
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Content */}
-      <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24 }}>{children}</main>
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: 18 }}>{children}</div>
     </div>
   );
 }
 
-function menuLinkStyle(active) {
+function navBtnStyle() {
   return {
-    background: active ? "rgba(0,0,0,0.22)" : "rgba(255,255,255,0.16)",
-    color: "white",
-    border: "1px solid rgba(255,255,255,0.25)",
-    padding: "10px 12px",
+    padding: "9px 12px",
     borderRadius: 12,
+    background: "rgba(255,255,255,0.14)",
+    border: "1px solid rgba(255,255,255,0.22)",
+    color: "#fff",
     textDecoration: "none",
     fontWeight: 900,
-    display: "inline-block",
   };
 }
