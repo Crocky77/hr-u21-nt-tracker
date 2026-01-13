@@ -1,5 +1,5 @@
 import { useRouter } from "next/router";
-import DashboardU21 from "../../dashboard_u21";
+import DashboardU21 from "../../dashboard";
 import DashboardNT from "../../dashboard_nt";
 
 export default function TeamDashboard() {
