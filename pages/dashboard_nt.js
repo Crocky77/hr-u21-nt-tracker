@@ -1,12 +1,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
 import AppLayout from "../components/AppLayout";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from "../utils/supabaseClient";
 
 export default function DashboardNT() {
   const [access, setAccess] = useState("loading"); // loading | denied | ok
@@ -59,7 +54,11 @@ export default function DashboardNT() {
   }
 
   if (access === "loading") {
-    return <main style={{ fontFamily: "Arial, sans-serif", padding: 40 }}>Učitavam...</main>;
+    return (
+      <main style={{ fontFamily: "Arial, sans-serif", padding: 40 }}>
+        Učitavam...
+      </main>
+    );
   }
 
   return (
@@ -91,7 +90,7 @@ export default function DashboardNT() {
 
           <Panel title="Brzi rez (demo)">
             <div style={{ opacity: 0.8 }}>
-              Ovdje ćemo staviti tablicu “top core” + “zadnji update” kad krenemo s CHPP sync.
+              Ovdje ćemo kasnije staviti listu iz baze (core/rotation) i “zadnji update”.
             </div>
           </Panel>
         </div>
