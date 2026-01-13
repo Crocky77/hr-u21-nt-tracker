@@ -1,184 +1,239 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
+import AppLayout from "../components/AppLayout";
 import { supabase } from "../utils/supabaseClient";
 
-const TEAM_STAFF = {
-  U21: { label: "U21 Hrvatska", coach: "matej1603", assistant: "Zvonzi_" },
-  NT: { label: "NT Hrvatska", coach: "Zagi_", assistant: "Nosonja" },
-};
-
-function setActiveTeam(team) {
-  if (typeof window === "undefined") return;
-  localStorage.setItem("activeTeam", team);
-}
-
-export default function IndexPage() {
-  const router = useRouter();
-  const [userEmail, setUserEmail] = useState(null);
+export default function Home() {
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [email, setEmail] = useState(null);
   const [role, setRole] = useState(null);
 
   useEffect(() => {
     (async () => {
       const { data } = await supabase.auth.getUser();
-      const email = data?.user?.email ?? null;
-      setUserEmail(email);
+      const userEmail = data?.user?.email ?? null;
 
-      if (email) {
-        const { data: urows } = await supabase
-          .from("users")
-          .select("role")
-          .eq("email", email)
-          .limit(1);
-
-        if (urows && urows.length > 0) setRole(urows[0].role);
+      if (!userEmail) {
+        setIsLoggedIn(false);
+        setSessionChecked(true);
+        return;
       }
+
+      setIsLoggedIn(true);
+      setEmail(userEmail);
+
+      const { data: urows } = await supabase
+        .from("users")
+        .select("role")
+        .eq("email", userEmail)
+        .limit(1);
+
+      setRole(urows?.[0]?.role ?? null);
+      setSessionChecked(true);
     })();
   }, []);
 
-  const chooseTeam = (team) => {
-    setActiveTeam(team);
-    router.push("/dashboard");
-  };
+  async function logout() {
+    await supabase.auth.signOut();
+    window.location.replace("/login");
+  }
 
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        fontFamily: "Arial, sans-serif",
-        background:
-          "radial-gradient(1200px 600px at 50% 0%, rgba(211,47,47,0.22) 0%, rgba(255,255,255,1) 60%)",
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          background: "linear-gradient(90deg, #b71c1c 0%, #d32f2f 50%, #b71c1c 100%)",
-          color: "white",
-          padding: "16px 18px",
-          boxShadow: "0 10px 24px rgba(0,0,0,0.20)",
-        }}
-      >
-        <div
-          style={{
-            maxWidth: 1100,
-            margin: "0 auto",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 14,
-                background: "rgba(255,255,255,0.18)",
-                border: "1px solid rgba(255,255,255,0.25)",
-                display: "grid",
-                placeItems: "center",
-                fontWeight: 900,
-              }}
-            >
-              HR
-            </div>
-            <div>
-              <div style={{ fontSize: 24, fontWeight: 900, lineHeight: 1.1 }}>
-                Hrvatski U21/NT Tracker
-              </div>
-              <div style={{ fontSize: 13, opacity: 0.92 }}>
-                Selektorski panel · Skauting · U21/NT
-              </div>
-            </div>
-          </div>
+  if (!sessionChecked) {
+    return (
+      <main style={{ fontFamily: "Arial, sans-serif", padding: 40 }}>
+        Učitavam...
+      </main>
+    );
+  }
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            {userEmail ? (
-              <div style={{ fontSize: 13, opacity: 0.95 }}>
-                Dobrodošli, <b>{userEmail}</b> {role ? <>(<b>{role}</b>)</> : null}
-              </div>
-            ) : (
-              <div style={{ fontSize: 13, opacity: 0.95 }}>Nisi prijavljen</div>
-            )}
+  // NISI LOGIRAN
+  if (!isLoggedIn) {
+    return (
+      <AppLayout teamType="PUBLIC" title="Odaberi tim">
+        <div style={{ padding: 18 }}>
+          <div
+            style={{
+              maxWidth: 900,
+              margin: "0 auto",
+              background: "rgba(255,255,255,0.92)",
+              border: "1px solid #e5e7eb",
+              borderRadius: 18,
+              padding: 18
+            }}
+          >
+            <h2 style={{ margin: 0, fontSize: 28 }}>Prijavi se da uđeš u alat</h2>
+            <p style={{ marginTop: 10, opacity: 0.85 }}>
+              Ovaj tracker je namijenjen HR U21 i NT timu. Prijava je trenutno preko emaila (privremeno),
+              a kasnije ide preko Hattrick CHPP.
+            </p>
 
             <Link
               href="/login"
               style={{
-                background: "rgba(255,255,255,0.16)",
-                color: "white",
-                border: "1px solid rgba(255,255,255,0.25)",
-                padding: "10px 14px",
+                display: "inline-flex",
+                marginTop: 10,
+                padding: "12px 14px",
                 borderRadius: 12,
+                background: "#111",
+                color: "#fff",
                 textDecoration: "none",
-                fontWeight: 900,
+                fontWeight: 900
               }}
             >
               Prijava →
             </Link>
           </div>
         </div>
-      </div>
+      </AppLayout>
+    );
+  }
 
-      {/* Body */}
-      <main style={{ maxWidth: 1100, margin: "0 auto", padding: 24 }}>
+  // LOGIRAN
+  return (
+    <AppLayout teamType="PUBLIC" title="Odaberi tim">
+      <div style={{ padding: 18 }}>
         <div
           style={{
-            marginTop: 14,
-            background: "rgba(255,255,255,0.85)",
+            maxWidth: 980,
+            margin: "0 auto",
+            background: "rgba(255,255,255,0.92)",
             border: "1px solid #e5e7eb",
             borderRadius: 18,
-            padding: 18,
-            boxShadow: "0 18px 40px rgba(0,0,0,0.10)",
+            padding: 18
           }}
         >
-          <div style={{ fontSize: 26, fontWeight: 900, color: "#111" }}>Odaberi tim</div>
-          <div style={{ marginTop: 6, fontSize: 14, opacity: 0.8 }}>
-            Ovaj alat je namijenjen HR U21 i NT timu. Prijava je trenutno preko emaila (privremeno), a kasnije ide preko
-            Hattrick CHPP.
+          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: 28 }}>Odaberi tim</h2>
+              <div style={{ marginTop: 8, opacity: 0.85 }}>
+                Ulogiran: <strong>{email}</strong>
+                {role ? (
+                  <>
+                    {" "}
+                    · Uloga: <strong>{role}</strong>
+                  </>
+                ) : null}
+              </div>
+              <div style={{ marginTop: 6, fontSize: 13, opacity: 0.75 }}>
+                (V1) Ručno dodavanje igrača + bilješke. CHPP sync dolazi čim dobijemo licencu.
+              </div>
+            </div>
+
+            <button
+              onClick={logout}
+              style={{
+                height: 42,
+                padding: "10px 14px",
+                borderRadius: 12,
+                border: "none",
+                background: "#111",
+                color: "#fff",
+                fontWeight: 900,
+                cursor: "pointer",
+                alignSelf: "flex-start"
+              }}
+            >
+              Odjava
+            </button>
           </div>
 
-          <div style={{ marginTop: 16, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            {(["U21", "NT"]).map((t) => {
-              const s = TEAM_STAFF[t];
-              return (
-                <button
-                  key={t}
-                  onClick={() => chooseTeam(t)}
+          <div
+            style={{
+              marginTop: 14,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 14
+            }}
+          >
+            {/* U21 */}
+            <div
+              style={{
+                borderRadius: 16,
+                border: "1px solid #e5e7eb",
+                padding: 16,
+                background: "#fff"
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 900, fontSize: 18, color: "#7f1d1d" }}>U21 Hrvatska</div>
+                  <div style={{ marginTop: 6, fontSize: 13, opacity: 0.85 }}>
+                    Izbornik: <strong>matej1603</strong> · Pomoćnik: <strong>Zvonzi_</strong>
+                  </div>
+                </div>
+
+                <Link
+                  href="/team/u21/dashboard"
                   style={{
-                    textAlign: "left",
-                    borderRadius: 16,
-                    padding: 16,
-                    border: "1px solid #e5e7eb",
-                    background: "white",
-                    cursor: "pointer",
-                    boxShadow: "0 12px 26px rgba(0,0,0,0.06)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    background: "#111",
+                    color: "#fff",
+                    textDecoration: "none",
+                    fontWeight: 900,
+                    height: 42
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
-                    <div style={{ fontSize: 20, fontWeight: 900, color: "#b71c1c" }}>{s.label}</div>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>→ <Link href="/team/u21/dashboard">→ Otvori dashboard</Link> <Link href="/team/nt/dashboard">→ Otvori dashboard</Link></div>
-                  </div>
+                  → Otvori dashboard
+                </Link>
+              </div>
 
-                  <div style={{ marginTop: 10, fontSize: 13, opacity: 0.85 }}>
-                    Izbornik: <b>{s.coach}</b> · Pomoćnik: <b>{s.assistant}</b>
-                  </div>
+              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.75 }}>
+                U21 dashboard ima U21-ciklus widgete (tko može do odabranog datuma), “izlaze uskoro”, i trening alarme (skeleton).
+              </div>
+            </div>
 
-                  <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-                    (V1) Ručno dodavanje igrača + bilješke. CHPP sync dolazi čim dobijemo licencu.
+            {/* NT */}
+            <div
+              style={{
+                borderRadius: 16,
+                border: "1px solid #e5e7eb",
+                padding: 16,
+                background: "#fff"
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                <div>
+                  <div style={{ fontWeight: 900, fontSize: 18, color: "#7f1d1d" }}>NT Hrvatska</div>
+                  <div style={{ marginTop: 6, fontSize: 13, opacity: 0.85 }}>
+                    Izbornik: <strong>Zagi_</strong> · Pomoćnik: <strong>Nosonja</strong>
                   </div>
-                </button>
-              );
-            })}
+                </div>
+
+                <Link
+                  href="/team/nt/dashboard"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    background: "#111",
+                    color: "#fff",
+                    textDecoration: "none",
+                    fontWeight: 900,
+                    height: 42
+                  }}
+                >
+                  → Otvori dashboard
+                </Link>
+              </div>
+
+              <div style={{ marginTop: 10, fontSize: 13, opacity: 0.75 }}>
+                NT dashboard nema U21 ciklus. Ima svoje widgete i trening alarme (skeleton) + kasnije tracking forme/stamine/treninga.
+              </div>
+            </div>
           </div>
 
-          <div style={{ marginTop: 14, fontSize: 12, opacity: 0.7 }}>
-            Savjet: ako si već prijavljen, samo odaberi tim i odmah ćeš ući u odgovarajući dashboard.
+          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
+            Savjet: odaberi tim i odmah ulaziš u odgovarajući dashboard. Skauti i osoblje vide samo svoj tim (admin vidi sve).
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </AppLayout>
   );
 }
