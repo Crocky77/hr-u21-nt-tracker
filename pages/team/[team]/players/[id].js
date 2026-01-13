@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import AppLayout from "../../../components/AppLayout";
-import { supabase } from "../../../utils/supabaseClient";
+import AppLayout from "../../../../components/AppLayout";
+import { supabase } from "../../../../utils/supabaseClient";
 
 function addDays(date, days) {
   const d = new Date(date.getTime());
@@ -12,7 +12,6 @@ function addDays(date, days) {
 
 function isoToDate(iso) {
   if (!iso) return null;
-  // ISO "YYYY-MM-DD"
   const d = new Date(iso + "T00:00:00Z");
   if (isNaN(d.getTime())) return null;
   return d;
@@ -27,7 +26,7 @@ function u21Eligibility(dobIso, targetIso) {
   if (!dob || !target) return null;
 
   const cutoff = addDays(dob, U21_CUTOFF_DAYS);
-  const eligible = cutoff.getTime() >= target.getTime(); // još nije prošao cutoff → U21
+  const eligible = cutoff.getTime() >= target.getTime();
   const diffDays = Math.ceil((cutoff.getTime() - target.getTime()) / (1000 * 60 * 60 * 24));
   return { eligible, diffDays, cutoff };
 }
@@ -132,7 +131,6 @@ export default function PlayerDetails() {
 
     const row = data && data.length ? data[0] : null;
 
-    // sigurnost: igrač mora biti iz tog teamType (osim admina koji sve vidi)
     if (row && role !== "admin" && row.team_type && row.team_type !== teamType) {
       router.replace("/team");
       return;
@@ -140,7 +138,6 @@ export default function PlayerDetails() {
 
     setPlayer(row);
 
-    // init edit fields
     setEditStatus(row?.status || "watch");
     setEditNotes(row?.notes || "");
     setEditDob(row?.date_of_birth || row?.dob || "");
@@ -167,11 +164,8 @@ export default function PlayerDetails() {
   }
 
   async function fetchCompetitionsAndMilestones() {
-    // samo za U21 panel
     if (teamType !== "U21") return;
 
-    // Učitamo milestone redove i iz njih složimo competitions drop-down
-    // Ovdje pretpostavljamo da milestones tablica ima: id, team_type, competition_code, competition_name, milestone_label, milestone_date
     const { data, error } = await supabase
       .from("milestones")
       .select("*")
@@ -179,7 +173,6 @@ export default function PlayerDetails() {
       .order("milestone_date", { ascending: true });
 
     if (error) {
-      // nije fatalno — samo pokažemo da nema
       setCompetitions([]);
       setMilestones([]);
       return;
@@ -187,7 +180,6 @@ export default function PlayerDetails() {
 
     const rows = data || [];
 
-    // competitions = unique by competition_code
     const compMap = new Map();
     rows.forEach((r) => {
       const code = r.competition_code || r.competition || r.code || "U21";
@@ -198,13 +190,11 @@ export default function PlayerDetails() {
     const comps = Array.from(compMap.values());
     setCompetitions(comps);
 
-    // default selected comp = first
     const defaultComp = comps.length ? comps[0].code : "";
     const useComp = selectedComp || defaultComp;
 
     if (!selectedComp && defaultComp) setSelectedComp(defaultComp);
 
-    // filter milestones by selected competition code
     const ms = rows.filter((r) => {
       const code = r.competition_code || r.competition || r.code || "U21";
       return String(code) === String(useComp);
@@ -212,7 +202,6 @@ export default function PlayerDetails() {
 
     setMilestones(ms);
 
-    // default milestone = first
     if (!selectedMilestoneId && ms.length) setSelectedMilestoneId(String(ms[0].id));
   }
 
@@ -225,11 +214,9 @@ export default function PlayerDetails() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [access, playerId, teamType]);
 
-  // Kad promijenimo competition → refilter milestones
   useEffect(() => {
     if (teamType !== "U21") return;
     if (!competitions.length) return;
-    // reload milestones by re-calling fetchCompetitionsAndMilestones which filters based on selectedComp
     fetchCompetitionsAndMilestones();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedComp]);
@@ -246,7 +233,7 @@ export default function PlayerDetails() {
       status: editStatus,
       notes: editNotes || "",
       ht_player_id: editHtId ? Number(editHtId) : null,
-      date_of_birth: editDob || null
+      date_of_birth: editDob || null,
     };
 
     const { error } = await supabase.from("players").update(payload).eq("id", player.id);
@@ -286,7 +273,9 @@ export default function PlayerDetails() {
       <AppLayout title="Detalji igrača">
         <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
           <h1>Detalji igrača</h1>
-          <p><strong>Nemaš pristup.</strong></p>
+          <p>
+            <strong>Nemaš pristup.</strong>
+          </p>
           <Link href="/login">→ Prijava</Link>
         </main>
       </AppLayout>
@@ -309,7 +298,6 @@ export default function PlayerDetails() {
   return (
     <AppLayout title="Detalji igrača">
       <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-        {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
           <div>
             <div style={{ fontSize: 12, opacity: 0.75 }}>
@@ -320,14 +308,18 @@ export default function PlayerDetails() {
               Ulogiran: <strong>{email}</strong> · Uloga: <strong>{role}</strong>
               {userTeam ? (
                 <>
-                  {" "}· Moj tim: <strong>{userTeam}</strong>
+                  {" "}
+                  · Moj tim: <strong>{userTeam}</strong>
                 </>
               ) : null}
             </div>
           </div>
 
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <Link href={`/team/${teamSlug}/players`} style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #e5e7eb", textDecoration: "none" }}>
+            <Link
+              href={`/team/${teamSlug}/players`}
+              style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #e5e7eb", textDecoration: "none" }}
+            >
               ← Povratak na popis
             </Link>
             <button
@@ -345,7 +337,6 @@ export default function PlayerDetails() {
           </div>
         </div>
 
-        {/* Main card */}
         <div style={{ marginTop: 14, border: "1px solid #e5e7eb", borderRadius: 14, background: "#fff", padding: 16 }}>
           {loadingPlayer ? (
             <div>Učitavam igrača...</div>
@@ -357,9 +348,8 @@ export default function PlayerDetails() {
                 <div>
                   <div style={{ fontSize: 26, fontWeight: 900 }}>{player.full_name}</div>
                   <div style={{ marginTop: 6, opacity: 0.85 }}>
-                    Team: <strong>{player.team_type || teamType}</strong>
-                    {" "}· Pozicija: <strong>{player.position || "—"}</strong>
-                    {" "}· Status: <strong>{player.status || "—"}</strong>
+                    Team: <strong>{player.team_type || teamType}</strong> · Pozicija: <strong>{player.position || "—"}</strong> · Status:{" "}
+                    <strong>{player.status || "—"}</strong>
                   </div>
                 </div>
 
@@ -376,7 +366,6 @@ export default function PlayerDetails() {
                 </div>
               </div>
 
-              {/* U21 info today */}
               {teamType === "U21" ? (
                 <div style={{ marginTop: 14, borderTop: "1px solid #f3f4f6", paddingTop: 14 }}>
                   <div style={{ fontWeight: 900, marginBottom: 8 }}>U21 status</div>
@@ -397,14 +386,11 @@ export default function PlayerDetails() {
                         </div>
                       </div>
 
-                      {/* Milestone widget */}
                       <div style={{ flex: 1, minWidth: 320, padding: 12, borderRadius: 12, border: "1px solid #e5e7eb", background: "#fff" }}>
                         <div style={{ fontWeight: 900, marginBottom: 8 }}>U21 milestone (MVP)</div>
 
                         {competitions.length === 0 ? (
-                          <div style={{ opacity: 0.75 }}>
-                            Nema milestone podataka (ili milestones tablica nije popunjena).
-                          </div>
+                          <div style={{ opacity: 0.75 }}>Nema milestone podataka (ili milestones tablica nije popunjena).</div>
                         ) : (
                           <>
                             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -430,7 +416,9 @@ export default function PlayerDetails() {
                               >
                                 {milestones.map((m) => (
                                   <option key={m.id} value={m.id}>
-                                    {(m.milestone_date || m.date || "????-??-??") + " — " + (m.milestone_label || m.label || m.milestone_key || "milestone")}
+                                    {(m.milestone_date || m.date || "????-??-??") +
+                                      " — " +
+                                      (m.milestone_label || m.label || m.milestone_key || "milestone")}
                                   </option>
                                 ))}
                               </select>
@@ -469,7 +457,6 @@ export default function PlayerDetails() {
                 </div>
               ) : null}
 
-              {/* Alerts for this player */}
               <div style={{ marginTop: 14, borderTop: "1px solid #f3f4f6", paddingTop: 14 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                   <div style={{ fontWeight: 900 }}>Upozorenja za ovog igrača</div>
@@ -496,7 +483,10 @@ export default function PlayerDetails() {
                       {alerts.slice(0, 12).map((a) => {
                         const b = severityBadge(a.severity);
                         return (
-                          <div key={a.id} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: a.resolved ? "#f8fafc" : "#fff" }}>
+                          <div
+                            key={a.id}
+                            style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: a.resolved ? "#f8fafc" : "#fff" }}
+                          >
                             <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
                               <div style={{ fontWeight: 900 }}>
                                 {a.alert_type || "alert"} {a.resolved ? "(riješeno)" : ""}
@@ -522,7 +512,6 @@ export default function PlayerDetails() {
                 </div>
               </div>
 
-              {/* Admin quick edit */}
               {role === "admin" ? (
                 <div style={{ marginTop: 14, borderTop: "1px solid #f3f4f6", paddingTop: 14 }}>
                   <div style={{ fontWeight: 900, marginBottom: 10 }}>Admin: brzo uređivanje</div>
@@ -568,7 +557,15 @@ export default function PlayerDetails() {
                         value={editNotes}
                         onChange={(e) => setEditNotes(e.target.value)}
                         placeholder="Bilješke..."
-                        style={{ width: "100%", marginTop: 8, minHeight: 90, padding: 10, borderRadius: 10, border: "1px solid #e5e7eb", fontFamily: "Arial, sans-serif" }}
+                        style={{
+                          width: "100%",
+                          marginTop: 8,
+                          minHeight: 90,
+                          padding: 10,
+                          borderRadius: 10,
+                          border: "1px solid #e5e7eb",
+                          fontFamily: "Arial, sans-serif",
+                        }}
                       />
                       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
                         <button
