@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import AppLayout from "../../components/AppLayout";
-import { supabase } from "../../utils/supabaseClient";
+import AppLayout from "../../../components/AppLayout";
+import { supabase } from "../../../utils/supabaseClient";
 
 function badgeStyle(kind) {
   const map = {
     core: { bg: "#dcfce7", fg: "#166534" },
     rotation: { bg: "#e0f2fe", fg: "#075985" },
     watch: { bg: "#f3f4f6", fg: "#111827" },
-    risk: { bg: "#fee2e2", fg: "#991b1b" }
+    risk: { bg: "#fee2e2", fg: "#991b1b" },
   };
   return map[kind] || map.watch;
 }
@@ -33,10 +33,10 @@ export default function TeamPlayers() {
     ht_player_id: "",
     full_name: "",
     position: "DEF",
-    date_of_birth: "", // koristimo date_of_birth, ali ćemo fallbackati i na dob u selectu
+    date_of_birth: "",
     team_type: teamType,
     status: "watch",
-    notes: ""
+    notes: "",
   });
 
   useEffect(() => {
@@ -79,7 +79,6 @@ export default function TeamPlayers() {
   async function fetchPlayers() {
     setLoadingPlayers(true);
 
-    // U ovom tim view-u prikazujemo samo igrače tog tima (U21 ili NT)
     const { data, error } = await supabase
       .from("players")
       .select(
@@ -94,6 +93,7 @@ export default function TeamPlayers() {
 
   useEffect(() => {
     if (access === "ok") fetchPlayers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [access, teamType]);
 
   const filtered = useMemo(() => {
@@ -124,7 +124,7 @@ export default function TeamPlayers() {
       date_of_birth: newPlayer.date_of_birth || null,
       team_type: teamType,
       status: newPlayer.status,
-      notes: newPlayer.notes || ""
+      notes: newPlayer.notes || "",
     };
 
     const { error } = await supabase.from("players").insert(payload);
@@ -140,7 +140,7 @@ export default function TeamPlayers() {
       date_of_birth: "",
       team_type: teamType,
       status: "watch",
-      notes: ""
+      notes: "",
     });
 
     fetchPlayers();
@@ -151,7 +151,9 @@ export default function TeamPlayers() {
       <AppLayout title="Igrači">
         <main style={{ padding: 24, maxWidth: 1100, margin: "0 auto" }}>
           <h1 style={{ margin: "6px 0 0" }}>Igrači</h1>
-          <p><strong>Nemaš pristup.</strong></p>
+          <p>
+            <strong>Nemaš pristup.</strong>
+          </p>
           <Link href="/login">→ Prijava</Link>
         </main>
       </AppLayout>
@@ -179,7 +181,8 @@ export default function TeamPlayers() {
               Ulogiran: <strong>{email}</strong> · Uloga: <strong>{role}</strong>
               {userTeam ? (
                 <>
-                  {" "}· Moj tim: <strong>{userTeam}</strong>
+                  {" "}
+                  · Moj tim: <strong>{userTeam}</strong>
                 </>
               ) : null}
             </div>
@@ -203,7 +206,15 @@ export default function TeamPlayers() {
             </Link>
             <button
               onClick={logout}
-              style={{ padding: "10px 12px", borderRadius: 10, border: "none", background: "#111", color: "#fff", fontWeight: 900, cursor: "pointer" }}
+              style={{
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "none",
+                background: "#111",
+                color: "#fff",
+                fontWeight: 900,
+                cursor: "pointer",
+              }}
             >
               Odjava
             </button>
@@ -338,7 +349,16 @@ export default function TeamPlayers() {
                     <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>{htAge}</td>
 
                     <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>
-                      <span style={{ display: "inline-flex", padding: "6px 10px", borderRadius: 10, background: b.bg, color: b.fg, fontWeight: 900 }}>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          padding: "6px 10px",
+                          borderRadius: 10,
+                          background: b.bg,
+                          color: b.fg,
+                          fontWeight: 900,
+                        }}
+                      >
                         {r.status}
                       </span>
                     </td>
