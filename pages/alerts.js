@@ -69,7 +69,7 @@ export default function AlertsPage() {
     // pretpostavka: training_alerts ima barem: id, team_type, kind, severity, message, player_id, created_at, resolved_at
     const { data, error } = await supabase
       .from("training_alerts")
-      .select("id, team_type, player_id, kind, severity, message, created_at, resolved_at")
+      .select("id, team_type, player_id, alert_type, severity, message, created_at, resolved")
       .eq("team_type", teamType)
       .order("created_at", { ascending: false });
 
@@ -171,7 +171,7 @@ export default function AlertsPage() {
     }
     const { error } = await supabase
       .from("training_alerts")
-      .update({ resolved_at: new Date().toISOString() })
+      .update({ resolved: true })
       .eq("id", id);
 
     if (error) setMsg("Greška: " + error.message);
@@ -186,7 +186,7 @@ export default function AlertsPage() {
     }
     const { error } = await supabase
       .from("training_alerts")
-      .update({ resolved_at: null })
+      .update({ resolved: false })
       .eq("id", id);
 
     if (error) setMsg("Greška: " + error.message);
@@ -295,13 +295,13 @@ export default function AlertsPage() {
             {filtered.map((r) => {
               const sev = severityStyle(r.severity);
               const created = r.created_at ? new Date(r.created_at).toLocaleString() : "-";
-              const isResolved = !!r.resolved_at;
+              const isResolved = r.resolved === true;
 
               return (
                 <tr key={r.id}>
                   <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>{created}</td>
                   <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6", fontWeight: 900 }}>
-                    {r.kind || "—"}
+                    {r.alert_type || "—"}
                   </td>
                   <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>
                     <span style={{ display: "inline-flex", padding: "6px 10px", borderRadius: 10, background: sev.bg, color: sev.fg, fontWeight: 900 }}>
