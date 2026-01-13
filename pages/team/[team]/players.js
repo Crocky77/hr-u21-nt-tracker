@@ -1,6 +1,7 @@
 // pages/team/[team]/players.js
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
+import Link from "next/link";
 import AppLayout from "../../../components/AppLayout";
 import { supabase } from "../../../utils/supabaseClient";
 
@@ -83,7 +84,6 @@ export default function TeamPlayers() {
 
     if (role !== "admin") {
       if (!userTeamType || userTeamType !== wanted) {
-        // nema pristup tuđem timu
         router.replace("/");
       }
     }
@@ -95,7 +95,7 @@ export default function TeamPlayers() {
 
     const wanted = teamTypeDB(team);
 
-    // SELECT * da izbjegnemo “schema cache / column not found” probleme dok mijenjamo tablicu
+    // SELECT * da izbjegnemo schema cache probleme
     const { data, error } = await supabase
       .from("players")
       .select("*")
@@ -297,6 +297,7 @@ export default function TeamPlayers() {
               <th style={{ padding: "10px 10px", borderBottom: "1px solid #eee" }}>HT dob</th>
               <th style={{ padding: "10px 10px", borderBottom: "1px solid #eee" }}>Status</th>
               <th style={{ padding: "10px 10px", borderBottom: "1px solid #eee" }}>Bilješke</th>
+              <th style={{ padding: "10px 10px", borderBottom: "1px solid #eee" }}>Akcija</th>
             </tr>
           </thead>
 
@@ -332,13 +333,21 @@ export default function TeamPlayers() {
                     />
                     {role !== "admin" ? <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>MVP: bilješke uređuje samo admin.</div> : null}
                   </td>
+                  <td style={{ padding: "10px 10px", borderBottom: "1px solid #f3f4f6" }}>
+                    <Link
+                      href={`/team/${team}/players/${r.id}`}
+                      style={{ display: "inline-flex", padding: "8px 10px", borderRadius: 12, border: "1px solid #e5e7eb", textDecoration: "none", fontWeight: 1000, background: "#fff" }}
+                    >
+                      Detalji →
+                    </Link>
+                  </td>
                 </tr>
               );
             })}
 
             {!loadingPlayers && filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: 14, opacity: 0.75 }}>
+                <td colSpan={7} style={{ padding: 14, opacity: 0.75 }}>
                   Nema rezultata. (Ako si admin, dodaj prvog igrača gore.)
                 </td>
               </tr>
