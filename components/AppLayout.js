@@ -1,201 +1,149 @@
+// components/AppLayout.js
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 import { supabase } from "../utils/supabaseClient";
 
-export default function AppLayout({
-  title,
-  subtitle,
-  badgeLeft,
-  badgeRight,
-  children,
-}) {
-  const [email, setEmail] = useState(null);
+function CheckerboardIcon() {
+  // mali "šahovnica" motiv kao SVG (ne treba nikakav asset)
+  return (
+    <svg width="34" height="34" viewBox="0 0 34 34" style={{ borderRadius: 10, overflow: "hidden" }}>
+      <rect width="34" height="34" fill="#ffffff" />
+      {/* 4x4 kockice */}
+      {Array.from({ length: 4 }).map((_, r) =>
+        Array.from({ length: 4 }).map((__, c) => {
+          const size = 34 / 4;
+          const x = c * size;
+          const y = r * size;
+          const isRed = (r + c) % 2 === 0;
+          return <rect key={`${r}-${c}`} x={x} y={y} width={size} height={size} fill={isRed ? "#d61f2c" : "#ffffff"} />;
+        })
+      )}
+    </svg>
+  );
+}
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getUser();
-      setEmail(data?.user?.email ?? null);
-    })();
-  }, []);
+export default function AppLayout({
+  title = "Hrvatski U21/NT Tracker",
+  team = null, // "u21" | "nt" | null
+  teamLabel = "",
+  email = "",
+  role = "",
+  children
+}) {
+  const router = useRouter();
+
+  async function logout() {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  }
+
+  const isTeam = team === "u21" || team === "nt";
+
+  const navBtn = (href, label, active = false) => (
+    <Link
+      href={href}
+      style={{
+        padding: "10px 14px",
+        borderRadius: 14,
+        textDecoration: "none",
+        fontWeight: 900,
+        border: active ? "1px solid rgba(255,255,255,0.55)" : "1px solid rgba(255,255,255,0.25)",
+        background: active ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.10)",
+        color: "#fff",
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8
+      }}
+    >
+      {label}
+    </Link>
+  );
 
   return (
-    <div className="page">
-      <header className="top">
-        <div className="topInner">
-          <div className="brand">
-            <div className="crest">HR</div>
-            <div className="brandText">
-              <div className="brandTitle">Hrvatski U21/NT Tracker</div>
-              <div className="brandSub">Selektorski panel · Scouting · U21/NT</div>
+    <div style={{ minHeight: "100vh", background: "#f6f7fb" }}>
+      {/* HEADER */}
+      <header
+        style={{
+          background: "linear-gradient(135deg, #b81424 0%, #e5343f 45%, #a70f1f 100%)",
+          color: "#fff",
+          padding: "18px 18px 14px",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.20)"
+        }}
+      >
+        <div style={{ maxWidth: 1120, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+          {/* Left brand */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <CheckerboardIcon />
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 1000, lineHeight: 1.15 }}>{title}</div>
+                <div style={{ fontSize: 12, opacity: 0.9, fontWeight: 700 }}>
+                  Selektorski panel · Scouting · U21/NT
+                </div>
+              </div>
             </div>
+
+            {isTeam ? (
+              <div style={{ display: "flex", gap: 8, marginLeft: 12, flexWrap: "wrap" }}>
+                <span style={{ padding: "6px 10px", borderRadius: 999, background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.20)", fontWeight: 900 }}>
+                  {teamLabel || (team === "u21" ? "U21 Hrvatska" : "NT Hrvatska")}
+                </span>
+                {role ? (
+                  <span style={{ padding: "6px 10px", borderRadius: 999, background: "rgba(0,0,0,0.30)", border: "1px solid rgba(255,255,255,0.12)", fontWeight: 900 }}>
+                    {role}
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
-          <div className="meta">
-            <div className="badges">
-              {badgeLeft ? <span className="pill pillLight">{badgeLeft}</span> : null}
-              {badgeRight ? <span className="pill pillDark">{badgeRight}</span> : null}
-            </div>
-            {email ? <div className="who">Dobrodošli, <strong>{email}</strong></div> : null}
+          {/* Right user */}
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            {email ? (
+              <div style={{ fontSize: 12, opacity: 0.95, fontWeight: 800 }}>
+                Dobrodošli, <span style={{ textDecoration: "underline" }}>{email}</span>
+              </div>
+            ) : null}
+            <button
+              onClick={logout}
+              style={{
+                padding: "10px 14px",
+                borderRadius: 14,
+                border: "none",
+                background: "#101114",
+                color: "#fff",
+                fontWeight: 1000,
+                cursor: "pointer"
+              }}
+            >
+              Odjava
+            </button>
           </div>
         </div>
 
-        <div className="nav">
-          <div className="navInner">
-            <Link className="navBtn" href="/">Naslovna</Link>
-            <Link className="navBtn" href="/about">O alatu</Link>
-            <Link className="navBtn" href="/help">Pomoć</Link>
-            <Link className="navBtn" href="/donate">Donacije</Link>
-          </div>
+        {/* NAV */}
+        <div style={{ maxWidth: 1120, margin: "12px auto 0", display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {navBtn("/", "Naslovna", router.pathname === "/")}
+          {!isTeam ? (
+            <>
+              {navBtn("/about", "O alatu", router.pathname === "/about")}
+              {navBtn("/help", "Pomoć", router.pathname === "/help")}
+              {navBtn("/donations", "Donacije", router.pathname === "/donations")}
+            </>
+          ) : (
+            <>
+              {navBtn(`/team/${team}/dashboard`, "Dashboard", router.asPath.includes("/dashboard"))}
+              {navBtn(`/team/${team}/players`, "Igrači", router.asPath.includes("/players"))}
+              {navBtn(`/team/${team}/alerts`, "Upozorenja", router.asPath.includes("/alerts"))}
+            </>
+          )}
         </div>
       </header>
 
-      <main className="main">
-        <div className="container">
-          <div className="pageHead">
-            <h1 className="h1">{title}</h1>
-            {subtitle ? <div className="sub">{subtitle}</div> : null}
-          </div>
-
-          {children}
-        </div>
+      {/* BODY */}
+      <main style={{ maxWidth: 1120, margin: "0 auto", padding: "18px 16px 50px" }}>
+        {children}
       </main>
-
-      <style jsx>{`
-        .page {
-          min-height: 100vh;
-          background:
-            radial-gradient(1100px 600px at 50% 0%, rgba(255,255,255,0.8), rgba(255,255,255,0.25)),
-            linear-gradient(180deg, #b10d0d 0%, #7a0a0a 40%, #f3f4f6 40%, #f3f4f6 100%);
-        }
-        .top {
-          position: sticky;
-          top: 0;
-          z-index: 20;
-          backdrop-filter: blur(6px);
-        }
-        .topInner {
-          max-width: 1120px;
-          margin: 0 auto;
-          padding: 16px 16px 10px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        }
-        .brand {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-        }
-        .crest {
-          width: 44px;
-          height: 44px;
-          border-radius: 14px;
-          display: grid;
-          place-items: center;
-          font-weight: 1000;
-          color: #fff;
-          background: rgba(255,255,255,0.18);
-          border: 1px solid rgba(255,255,255,0.35);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.25);
-          letter-spacing: 0.5px;
-        }
-        .brandTitle {
-          color: #fff;
-          font-weight: 1000;
-          font-size: 18px;
-          line-height: 1.15;
-          text-shadow: 0 2px 10px rgba(0,0,0,0.25);
-        }
-        .brandSub {
-          color: rgba(255,255,255,0.85);
-          font-size: 12px;
-          font-weight: 700;
-        }
-        .meta {
-          text-align: right;
-          display: grid;
-          gap: 6px;
-        }
-        .badges {
-          display: flex;
-          gap: 8px;
-          justify-content: flex-end;
-          flex-wrap: wrap;
-        }
-        .pill {
-          padding: 6px 10px;
-          border-radius: 999px;
-          font-weight: 950;
-          font-size: 12px;
-          border: 1px solid rgba(255,255,255,0.25);
-        }
-        .pillLight {
-          background: rgba(255,255,255,0.16);
-          color: rgba(255,255,255,0.95);
-        }
-        .pillDark {
-          background: rgba(0,0,0,0.32);
-          color: #fff;
-          border-color: rgba(0,0,0,0.2);
-        }
-        .who {
-          color: rgba(255,255,255,0.9);
-          font-size: 12px;
-          font-weight: 700;
-        }
-        .nav {
-          border-top: 1px solid rgba(255,255,255,0.18);
-          border-bottom: 1px solid rgba(0,0,0,0.08);
-          background: rgba(0,0,0,0.14);
-        }
-        .navInner {
-          max-width: 1120px;
-          margin: 0 auto;
-          padding: 10px 16px;
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
-        .navBtn {
-          text-decoration: none;
-          color: #fff;
-          font-weight: 900;
-          font-size: 13px;
-          padding: 10px 12px;
-          border-radius: 14px;
-          background: rgba(255,255,255,0.12);
-          border: 1px solid rgba(255,255,255,0.22);
-          transition: transform 0.12s ease, background 0.12s ease;
-        }
-        .navBtn:hover {
-          transform: translateY(-1px);
-          background: rgba(255,255,255,0.18);
-        }
-        .main {
-          padding: 22px 16px 40px;
-        }
-        .container {
-          max-width: 1120px;
-          margin: 0 auto;
-        }
-        .pageHead {
-          margin-bottom: 14px;
-        }
-        .h1 {
-          margin: 0;
-          color: #111;
-          font-size: 28px;
-          font-weight: 1000;
-          letter-spacing: -0.2px;
-        }
-        .sub {
-          margin-top: 6px;
-          color: rgba(0,0,0,0.65);
-          font-weight: 700;
-          font-size: 13px;
-        }
-      `}</style>
     </div>
   );
 }
