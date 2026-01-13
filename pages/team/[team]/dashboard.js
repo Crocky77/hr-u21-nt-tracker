@@ -6,12 +6,12 @@ export default function TeamDashboard() {
   const router = useRouter();
   const { team } = router.query;
 
-  if (!team) return null;
+  if (!team) return <div style={{ padding: 40 }}>Učitavam...</div>;
 
   const t = String(team).toLowerCase();
 
-  if (t === "u21") return <DashboardU21 teamType="U21" />;
-  if (t === "nt") return <DashboardNT teamType="NT" />;
+  if (t === "u21") return <DashboardU21 />;
+  if (t === "nt") return <DashboardNT />;
 
   return (
     <main style={{ padding: 40, fontFamily: "Arial, sans-serif" }}>
