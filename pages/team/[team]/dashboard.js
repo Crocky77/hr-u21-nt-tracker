@@ -4,7 +4,6 @@ import { useRouter } from "next/router";
 import AppLayout from "../../../components/AppLayout";
 import { supabase } from "../../../utils/supabaseClient";
 
-// team param očekujemo: "u21" ili "nt"
 function normalizeTeam(team) {
   const t = String(team || "").toLowerCase();
   if (t === "u21") return "U21";
@@ -25,26 +24,21 @@ export default function TeamDashboard() {
   const [loadingPlayers, setLoadingPlayers] = useState(true);
 
   // U21 ciklus
-  const [competitions, setCompetitions] = useState([]);
   const [milestones, setMilestones] = useState([]);
+  const [competitions, setCompetitions] = useState([]);
   const [selectedCompetition, setSelectedCompetition] = useState("");
   const [selectedMilestoneId, setSelectedMilestoneId] = useState("");
 
-  // helper: je li korisnik admin
   const isAdmin = role === "admin";
 
   useEffect(() => {
     (async () => {
-      // čekamo router param
       if (!router.isReady) return;
-
-      // ako team param nije dobar, vrati na naslovnicu
       if (!teamType) {
         setAccess("denied");
         return;
       }
 
-      // auth user
       const { data } = await supabase.auth.getUser();
       const userEmail = data?.user?.email ?? null;
 
@@ -52,10 +46,8 @@ export default function TeamDashboard() {
         setAccess("denied");
         return;
       }
-
       setEmail(userEmail);
 
-      // user record (role + team_type)
       const { data: urows, error: uerr } = await supabase
         .from("users")
         .select("role, team_type")
@@ -71,7 +63,7 @@ export default function TeamDashboard() {
       setRole(u.role);
       setUserTeamType(u.team_type);
 
-      // pristup: admin može sve; ostali samo svoj tim
+      // admin može sve; ostali samo svoj tim
       if (u.role !== "admin" && u.team_type !== teamType) {
         setAccess("denied");
         return;
@@ -87,9 +79,7 @@ export default function TeamDashboard() {
 
     const { data, error } = await supabase
       .from("players")
-      .select(
-        "id, full_name, position, team_type, status, date_of_birth, ht_age_years, ht_age_days"
-      )
+      .select("id, full_name, position, team_type, status, date_of_birth, ht_age_years, ht_age_days")
       .eq("team_type", teamType)
       .order("id", { ascending: false });
 
@@ -98,7 +88,6 @@ export default function TeamDashboard() {
   }
 
   async function fetchMilestonesForU21() {
-    // ovo je samo za U21, NT nema
     const { data, error } = await supabase
       .from("milestones")
       .select("id, competition_code, label, milestone_date, sort_order")
@@ -107,22 +96,20 @@ export default function TeamDashboard() {
 
     if (error) return;
 
-    setMilestones(data || []);
+    const rows = data || [];
+    setMilestones(rows);
 
-    // složi competitions listu
     const uniqueCompetitions = Array.from(
-      new Set((data || []).map((x) => x.competition_code).filter(Boolean))
+      new Set(rows.map((x) => x.competition_code).filter(Boolean))
     );
 
     setCompetitions(uniqueCompetitions);
 
-    // default selections
     if (uniqueCompetitions.length > 0) {
       const comp = uniqueCompetitions[0];
       setSelectedCompetition(comp);
-
-      const firstMilestone = (data || []).find((m) => m.competition_code === comp);
-      if (firstMilestone) setSelectedMilestoneId(String(firstMilestone.id));
+      const first = rows.find((m) => m.competition_code === comp);
+      if (first) setSelectedMilestoneId(String(first.id));
     }
   }
 
@@ -141,15 +128,14 @@ export default function TeamDashboard() {
     return (milestones || []).find((m) => String(m.id) === String(selectedMilestoneId)) || null;
   }, [milestones, selectedMilestoneId]);
 
-  // MVP U21 logika: cutoff = milestone_date - (21*112 + 111) dana
-  // (ovo prati tvoju trenutnu MVP logiku)
+  // MVP U21 logika: cutoff = dob + (21*112+111)
   function isU21OnDate(playerDob, milestoneDate) {
     if (!playerDob || !milestoneDate) return false;
     const dob = new Date(playerDob + "T00:00:00Z");
     const ms = new Date(milestoneDate + "T00:00:00Z");
     const cutoffDays = 21 * 112 + 111;
     const cutoff = new Date(dob.getTime() + cutoffDays * 24 * 60 * 60 * 1000);
-    return cutoff >= ms; // ako je cutoff nakon milestonea => još je U21
+    return cutoff >= ms;
   }
 
   const u21Stats = useMemo(() => {
@@ -158,30 +144,23 @@ export default function TeamDashboard() {
     }
 
     const msDate = selectedMilestone.milestone_date;
-
     const okRows = [];
     const outRows = [];
     const soonRows = [];
 
+    const now = new Date();
+
     for (const p of players) {
-      const isOk = isU21OnDate(p.date_of_birth, msDate);
-      if (isOk) okRows.push(p);
+      const ok = isU21OnDate(p.date_of_birth, msDate);
+      if (ok) okRows.push(p);
       else outRows.push(p);
 
-      // "izlazi uskoro" = u iduća ~3 tjedna (21 dan) od danas (MVP)
-      // koristimo ht dob danas ako postoji, ali MVP fallback na dob
-      // Najjednostavnije: izračunaj cutoff datum i vidi je li unutar 21 dana
       if (p.date_of_birth) {
         const dob = new Date(p.date_of_birth + "T00:00:00Z");
         const cutoffDays = 21 * 112 + 111;
         const cutoff = new Date(dob.getTime() + cutoffDays * 24 * 60 * 60 * 1000);
-
-        const now = new Date();
         const diffDays = Math.floor((cutoff.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-
-        if (diffDays >= 0 && diffDays <= 21) {
-          soonRows.push(p);
-        }
+        if (diffDays >= 0 && diffDays <= 21) soonRows.push(p);
       }
     }
 
@@ -195,67 +174,64 @@ export default function TeamDashboard() {
 
   if (access === "loading") {
     return (
-      <AppLayout title="Učitavam...">
-        <div style={{ padding: 20 }}>Učitavam...</div>
+      <AppLayout title="Učitavam..." badgeLeft="" badgeRight="">
+        <div className="card">Učitavam...</div>
       </AppLayout>
     );
   }
 
   if (access === "denied") {
     return (
-      <AppLayout title="Nemaš pristup">
-        <div style={{ padding: 20 }}>
-          <h2 style={{ marginTop: 0 }}>Nemaš pristup.</h2>
-          <p>
-            Ako si već prijavljen, moguće je da pokušavaš ući u tim koji nije tvoj (U21/NT).
-          </p>
-          <Link href="/" style={{ fontWeight: 900 }}>
-            ← Nazad na naslovnicu
-          </Link>
+      <AppLayout title="Nemaš pristup" badgeLeft="" badgeRight="">
+        <div className="card">
+          <h3 style={{ marginTop: 0 }}>Nemaš pristup ovom timu.</h3>
+          <div style={{ color: "rgba(0,0,0,0.65)", fontWeight: 700 }}>
+            Ako nisi admin: možeš ući samo u svoj tim (U21 ili NT).
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Link href="/" className="btnLight">← Nazad na naslovnicu</Link>
+          </div>
         </div>
+
+        <style jsx>{baseStyles}</style>
       </AppLayout>
     );
   }
 
+  const teamLabel = teamType === "U21" ? "U21 Hrvatska" : "NT Hrvatska";
+  const teamSlug = teamType === "U21" ? "u21" : "nt";
+
   return (
     <AppLayout
       title={`${teamType} Dashboard`}
-      subtitle={`Aktivni tim: ${teamType} Hrvatska`}
-      badgeLeft={teamType}
-      badgeRight={isAdmin ? "admin" : (role || "user")}
+      subtitle={`Aktivni tim: ${teamLabel}`}
+      badgeLeft={teamLabel}
+      badgeRight={isAdmin ? "admin" : (role || "")}
     >
-      {/* top bar */}
-      <div style={{ display: "flex (wrap)", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 14 }}>
-        <Link href="/" style={btnStyle(false)}>Naslovna</Link>
-        <Link href={`/team/${teamType === "U21" ? "u21" : "nt"}/dashboard`} style={btnStyle(true)}>Dashboard</Link>
-        <Link href={`/team/${teamType === "U21" ? "u21" : "nt"}/players`} style={btnStyle(false)}>Igrači</Link>
-        <Link href={`/team/${teamType === "U21" ? "u21" : "nt"}/alerts`} style={btnStyle(false)}>Upozorenja</Link>
-        <Link href="/about" style={btnStyle(false)}>O alatu</Link>
-        <Link href="/help" style={btnStyle(false)}>Pomoć</Link>
-        <Link href="/donate" style={btnStyle(false)}>Donacije</Link>
-
-        <div style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
-          <div style={{ fontSize: 13, opacity: 0.85 }}>
-            Dobrodošli, <strong>{email}</strong>
-          </div>
-          <button onClick={logout} style={btnDanger()}>
-            Odjava
-          </button>
+      {/* top actions */}
+      <div className="topRow">
+        <div className="tabs">
+          <Link className="tab" href="/">Naslovna</Link>
+          <Link className="tab tabActive" href={`/team/${teamSlug}/dashboard`}>Dashboard</Link>
+          <Link className="tab" href={`/team/${teamSlug}/players`}>Igrači</Link>
+          <Link className="tab" href={`/team/${teamSlug}/alerts`}>Upozorenja</Link>
         </div>
+
+        <button className="btnDark" onClick={logout}>Odjava</button>
       </div>
 
-      {/* glavni content */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        {/* U21 ciklus - samo U21 */}
+      <div className="grid2">
+        {/* LEFT: U21 ili NT summary */}
         {teamType === "U21" ? (
-          <div style={card()}>
-            <h3 style={{ marginTop: 0 }}>U21 ciklus · tko može do odabranog datuma</h3>
-            <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 10 }}>
+          <div className="card">
+            <div className="cardTitle">U21 ciklus · tko može do odabranog datuma</div>
+            <div className="muted">
               Odaberi natjecanje i milestone (datum) – dobit ćeš tko je U21 na taj datum (MVP logika).
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div className="row2">
               <select
+                className="input"
                 value={selectedCompetition}
                 onChange={(e) => {
                   const comp = e.target.value;
@@ -263,7 +239,6 @@ export default function TeamDashboard() {
                   const first = (milestones || []).find((m) => m.competition_code === comp);
                   if (first) setSelectedMilestoneId(String(first.id));
                 }}
-                style={inputStyle()}
               >
                 {competitions.length === 0 ? (
                   <option value="">(nema natjecanja)</option>
@@ -273,9 +248,9 @@ export default function TeamDashboard() {
               </select>
 
               <select
+                className="input"
                 value={selectedMilestoneId}
                 onChange={(e) => setSelectedMilestoneId(e.target.value)}
-                style={inputStyle()}
               >
                 {filteredMilestones.length === 0 ? (
                   <option value="">(nema milestone-a)</option>
@@ -289,99 +264,104 @@ export default function TeamDashboard() {
               </select>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginTop: 12 }}>
-              <div style={{ ...miniCard(), background: "#dcfce7" }}>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>U21 na taj datum</div>
-                <div style={{ fontSize: 32, fontWeight: 900 }}>{u21Stats.ok}</div>
+            <div className="stats3">
+              <div className="stat statOk">
+                <div className="statLabel">U21 na taj datum</div>
+                <div className="statValue">{u21Stats.ok}</div>
               </div>
-              <div style={{ ...miniCard(), background: "#ffe4e6" }}>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>Prestar / ispao</div>
-                <div style={{ fontSize: 32, fontWeight: 900 }}>{u21Stats.out}</div>
+              <div className="stat statBad">
+                <div className="statLabel">Prestar / ispao</div>
+                <div className="statValue">{u21Stats.out}</div>
               </div>
-              <div style={{ ...miniCard(), background: "#fef3c7" }}>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>Izlazi uskoro (3 tjedna)</div>
-                <div style={{ fontSize: 32, fontWeight: 900 }}>{u21Stats.soon}</div>
+              <div className="stat statWarn">
+                <div className="statLabel">Izlazi uskoro (3 tjedna)</div>
+                <div className="statValue">{u21Stats.soon}</div>
               </div>
             </div>
 
-            <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75 }}>
-              Cutoff datum: {selectedMilestone?.milestone_date || "-"} · Pravilo MVP: U21 ako je ≤ 21g 111d na taj datum.
+            <div className="tiny">
+              Cutoff datum: <strong>{selectedMilestone?.milestone_date || "-"}</strong> · Pravilo MVP: U21 ako je ≤ 21g 111d na taj datum.
             </div>
           </div>
         ) : (
-          <div style={card()}>
-            <h3 style={{ marginTop: 0 }}>NT Dashboard</h3>
-            <div style={{ fontSize: 13, opacity: 0.8 }}>
-              Ovo je NT panel. U21 ciklus se ovdje NE prikazuje (po tvojoj logici).
+          <div className="card">
+            <div className="cardTitle">NT pregled</div>
+            <div className="muted">
+              Ovdje su NT widgeti. U21 ciklus se ovdje ne prikazuje.
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 12 }}>
-              <div style={{ ...miniCard(), background: "#e0f2fe" }}>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>Igrači u bazi</div>
-                <div style={{ fontSize: 32, fontWeight: 900 }}>{players.length}</div>
+            <div className="stats2">
+              <div className="stat statBlue">
+                <div className="statLabel">Igrači u bazi</div>
+                <div className="statValue">{loadingPlayers ? "…" : players.length}</div>
               </div>
-              <div style={{ ...miniCard(), background: "#f3f4f6" }}>
-                <div style={{ fontSize: 12, opacity: 0.75 }}>Upozorenja</div>
-                <div style={{ fontSize: 13, opacity: 0.8 }}>Idi na “Upozorenja” →</div>
+
+              <div className="stat statGrey">
+                <div className="statLabel">Brzi link</div>
+                <Link className="link" href={`/team/${teamSlug}/players`}>→ Otvori igrače</Link>
               </div>
+            </div>
+
+            <div className="tiny">
+              * Kasnije: forma/stamina/trening tracking kroz CHPP + snapshots.
             </div>
           </div>
         )}
 
-        {/* trening alarmi placeholder */}
-        <div style={card()}>
-          <h3 style={{ marginTop: 0 }}>Trening alarmi (skeleton)</h3>
-          <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 10 }}>
-            Ovdje ćemo ubaciti “koliko zaostaje za idealnim treningom” + upozorenja osoblju.
+        {/* RIGHT: trening alarmi (skeleton) */}
+        <div className="card">
+          <div className="cardTitle">Trening alarmi (skeleton)</div>
+          <div className="muted">
+            Ovdje ćemo ubaciti “koliko zaostaje za idealnim treningom” + automatska upozorenja osoblju.
           </div>
 
-          <div style={{ display: "grid", gap: 8 }}>
-            <div style={alertPill("#fff7ed")}>⚠️ Placeholder: “Igrač X stagnira 2 treninga”</div>
-            <div style={alertPill("#fff7ed")}>⚠️ Placeholder: “Igrač Y nije na očekivanom treningu”</div>
-            <div style={alertPill("#ecfdf5")}>✅ Placeholder: “Sve OK za top core listu”</div>
+          <div className="alerts">
+            <div className="pillWarn">⚠️ Igrač X stagnira 2 treninga (placeholder)</div>
+            <div className="pillWarn">⚠️ Igrač Y nije na očekivanom treningu (placeholder)</div>
+            <div className="pillOk">✅ Sve OK za top core listu (placeholder)</div>
           </div>
 
-          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
+          <div className="tiny">
             * Ovo je skeleton dok ne složimo pravu logiku trening formula + snapshots.
           </div>
         </div>
       </div>
 
-      {/* izlaze uskoro tablica - samo U21 */}
+      {/* U21: izlaze uskoro */}
       {teamType === "U21" ? (
-        <div style={{ ...card(), marginTop: 14 }}>
-          <h3 style={{ marginTop: 0 }}>Izlaze uskoro (3 tjedna) · brzi rez</h3>
+        <div className="card" style={{ marginTop: 14 }}>
+          <div className="cardTitle">Izlaze uskoro (3 tjedna) · brzi rez</div>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <div className="tableWrap">
+            <table className="table">
               <thead>
-                <tr style={{ textAlign: "left", fontSize: 12, opacity: 0.75 }}>
-                  <th style={th()}>Igrač</th>
-                  <th style={th()}>Poz</th>
-                  <th style={th()}>DOB</th>
-                  <th style={th()}>HT dob danas</th>
-                  <th style={th()}>Status</th>
+                <tr>
+                  <th>Igrač</th>
+                  <th>Poz</th>
+                  <th>DOB</th>
+                  <th>HT dob danas</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {u21Stats.soonRows.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ padding: 12, opacity: 0.75 }}>
+                    <td colSpan={5} className="empty">
                       Nema igrača koji izlaze uskoro.
                     </td>
                   </tr>
                 ) : (
                   u21Stats.soonRows.map((p) => (
                     <tr key={p.id}>
-                      <td style={tdStrong()}>{p.full_name}</td>
-                      <td style={td()}>{p.position || "-"}</td>
-                      <td style={td()}>{p.date_of_birth || "-"}</td>
-                      <td style={td()}>
+                      <td className="strong">{p.full_name}</td>
+                      <td>{p.position || "-"}</td>
+                      <td>{p.date_of_birth || "-"}</td>
+                      <td>
                         {p.ht_age_years != null && p.ht_age_days != null
                           ? `${p.ht_age_years}g ${p.ht_age_days}d`
                           : "-"}
                       </td>
-                      <td style={td()}>{p.status || "-"}</td>
+                      <td>{p.status || "-"}</td>
                     </tr>
                   ))
                 )}
@@ -389,88 +369,201 @@ export default function TeamDashboard() {
             </table>
           </div>
 
-          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-            * MVP logika: date_of_birth + (21*112+111) dana. Kasnije ćemo zamijeniti CHPP/HT točnim.
+          <div className="tiny">
+            * MVP logika: date_of_birth + (21*112+111). Kasnije ćemo zamijeniti CHPP/HT točnim.
           </div>
         </div>
       ) : null}
 
-      <div style={{ marginTop: 14, fontSize: 12, opacity: 0.7 }}>
-        Debug info: team={teamType} · userTeam={userTeamType || "-"} · role={role || "-"} · players={loadingPlayers ? "loading" : players.length}
-      </div>
+      <style jsx>{baseStyles}</style>
     </AppLayout>
   );
 }
 
-/* ---- styles ---- */
+const baseStyles = `
+  .topRow{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .tabs{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .tab{
+    text-decoration:none;
+    color:#111;
+    font-weight:1000;
+    font-size:13px;
+    padding:10px 12px;
+    border-radius:14px;
+    background:rgba(255,255,255,0.78);
+    border:1px solid rgba(0,0,0,0.08);
+    box-shadow:0 14px 30px rgba(0,0,0,0.06);
+  }
+  .tabActive{
+    background:rgba(17,17,17,0.92);
+    color:#fff;
+  }
+  .btnDark{
+    border:none;
+    border-radius:14px;
+    padding:10px 14px;
+    font-weight:1000;
+    cursor:pointer;
+    background:#111;
+    color:#fff;
+    box-shadow:0 14px 30px rgba(0,0,0,0.12);
+  }
+  .btnLight{
+    text-decoration:none;
+    border-radius:14px;
+    padding:10px 14px;
+    font-weight:1000;
+    background:rgba(0,0,0,0.06);
+    border:1px solid rgba(0,0,0,0.12);
+    color:#111;
+    display:inline-block;
+  }
+  .grid2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+  }
+  .card{
+    background:rgba(255,255,255,0.88);
+    border:1px solid rgba(0,0,0,0.08);
+    border-radius:20px;
+    padding:16px;
+    box-shadow:0 18px 45px rgba(0,0,0,0.08);
+  }
+  .cardTitle{
+    font-weight:1000;
+    font-size:16px;
+    margin:0 0 8px;
+    color:#111;
+  }
+  .muted{
+    font-weight:700;
+    font-size:13px;
+    color:rgba(0,0,0,0.65);
+    line-height:1.4;
+    margin-bottom:12px;
+  }
+  .row2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-bottom:12px;
+  }
+  .input{
+    padding:10px 12px;
+    border-radius:14px;
+    border:1px solid rgba(0,0,0,0.12);
+    background:#fff;
+    font-weight:900;
+  }
+  .stats3{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:10px;
+    margin-top:4px;
+  }
+  .stats2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+    margin-top:12px;
+  }
+  .stat{
+    border-radius:16px;
+    border:1px solid rgba(0,0,0,0.08);
+    padding:12px;
+  }
+  .statLabel{
+    font-weight:900;
+    font-size:12px;
+    color:rgba(0,0,0,0.65);
+    margin-bottom:6px;
+  }
+  .statValue{
+    font-weight:1000;
+    font-size:28px;
+    color:#111;
+    letter-spacing:-0.2px;
+  }
+  .statOk{ background:#dcfce7; }
+  .statBad{ background:#ffe4e6; }
+  .statWarn{ background:#fef3c7; }
+  .statBlue{ background:#e0f2fe; }
+  .statGrey{ background:#f3f4f6; }
+  .tiny{
+    margin-top:10px;
+    font-weight:700;
+    font-size:12px;
+    color:rgba(0,0,0,0.6);
+  }
+  .alerts{
+    display:grid;
+    gap:10px;
+    margin-top:10px;
+  }
+  .pillWarn{
+    padding:12px 12px;
+    border-radius:16px;
+    border:1px solid rgba(0,0,0,0.08);
+    background:#fff7ed;
+    font-weight:900;
+  }
+  .pillOk{
+    padding:12px 12px;
+    border-radius:16px;
+    border:1px solid rgba(0,0,0,0.08);
+    background:#ecfdf5;
+    font-weight:900;
+  }
+  .link{
+    font-weight:1000;
+    color:#111;
+    text-decoration:none;
+  }
+  .tableWrap{
+    overflow-x:auto;
+    margin-top:10px;
+  }
+  .table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:13px;
+  }
+  th{
+    text-align:left;
+    padding:10px;
+    border-bottom:1px solid rgba(0,0,0,0.10);
+    color:rgba(0,0,0,0.65);
+    font-weight:1000;
+    font-size:12px;
+  }
+  td{
+    padding:10px;
+    border-bottom:1px solid rgba(0,0,0,0.06);
+    color:#111;
+    font-weight:700;
+  }
+  .strong{ font-weight:1000; }
+  .empty{
+    padding:12px;
+    color:rgba(0,0,0,0.65);
+    font-weight:800;
+  }
 
-function card() {
-  return {
-    background: "rgba(255,255,255,0.85)",
-    border: "1px solid rgba(0,0,0,0.08)",
-    borderRadius: 16,
-    padding: 14
-  };
-}
-
-function miniCard() {
-  return {
-    borderRadius: 14,
-    padding: 12,
-    border: "1px solid rgba(0,0,0,0.08)"
-  };
-}
-
-function inputStyle() {
-  return {
-    padding: 10,
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.12)",
-    background: "#fff",
-    fontWeight: 800
-  };
-}
-
-function btnStyle(active) {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "1px solid rgba(255,255,255,0.25)",
-    background: active ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.12)",
-    color: "#fff",
-    textDecoration: "none",
-    fontWeight: 900
-  };
-}
-
-function btnDanger() {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    border: "none",
-    background: "#111",
-    color: "#fff",
-    fontWeight: 900,
-    cursor: "pointer"
-  };
-}
-
-function alertPill(bg) {
-  return {
-    padding: "10px 12px",
-    borderRadius: 12,
-    background: bg,
-    border: "1px solid rgba(0,0,0,0.08)",
-    fontWeight: 800
-  };
-}
-
-function th() {
-  return { padding: "10px 10px", borderBottom: "1px solid rgba(0,0,0,0.1)" };
-}
-function td() {
-  return { padding: "10px 10px", borderBottom: "1px solid rgba(0,0,0,0.06)" };
-}
-function tdStrong() {
-  return { ...td(), fontWeight: 900 };
-}
+  @media (max-width: 900px){
+    .grid2{ grid-template-columns:1fr; }
+    .stats3{ grid-template-columns:1fr; }
+    .row2{ grid-template-columns:1fr; }
+  }
+`;
