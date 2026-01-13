@@ -159,7 +159,7 @@ export default function IndexPage() {
                 >
                   <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10 }}>
                     <div style={{ fontSize: 20, fontWeight: 900, color: "#b71c1c" }}>{s.label}</div>
-                    <div style={{ fontSize: 12, opacity: 0.7 }}>→ Otvori dashboard</div>
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>→ <Link href="/team/u21/dashboard">→ Otvori dashboard</Link> <Link href="/team/nt/dashboard">→ Otvori dashboard</Link></div>
                   </div>
 
                   <div style={{ marginTop: 10, fontSize: 13, opacity: 0.85 }}>
