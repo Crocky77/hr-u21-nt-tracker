@@ -1,3 +1,5 @@
+export default function DashboardU21({ teamType = "U21" }) {
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import AppLayout from "../components/AppLayout";
