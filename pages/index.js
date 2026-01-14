@@ -10,34 +10,31 @@ export default function Home() {
         subtitle="Javni pregled alata za praćenje hrvatskih reprezentativaca (U21 i NT). Gost može vidjeti strukturu i “preview”, ali su igrači i skilovi zaključani bez prijave."
         right={
           <>
-            <a href="/api/auth/login" style={btnPrimary}>
+            <Link href="/login" style={btnPrimary}>
               Prijava
-            </a>
-            <a href="/api/auth/logout" style={btnGhost}>
+            </Link>
+            <Link href="/logout" style={btnGhost}>
               Odjava
-            </a>
+            </Link>
           </>
         }
       />
 
-      {/* Modul: Moji igrači */}
       <div style={{ marginTop: 14 }}>
         <HrCard
           title="Moji igrači u Hrvatskom trackeru"
           subtitle="Ukoliko želiš registrirati svoj klub i igrače u tracker, klikni na gumb ispod za prijavu. Autorizacijom daješ dozvolu aplikaciji da periodično skenira tvoj klub u potrazi za talentima."
-          tag={null}
         />
         <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <a href="/api/auth/login" style={btnPrimary}>
+          <Link href="/login" style={btnPrimary}>
             Prijava
-          </a>
+          </Link>
           <div style={{ fontSize: 12, opacity: 0.75, alignSelf: "center" }}>
             (CHPP spajanje dolazi kasnije — sada pripremamo UI + DB)
           </div>
         </div>
       </div>
 
-      {/* U21 / NT kartice: klik na cijelu karticu */}
       <div
         style={{
           marginTop: 14,
@@ -60,7 +57,6 @@ export default function Home() {
         />
       </div>
 
-      {/* Footer links - kontrast */}
       <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
         <Link href="/about" style={footerLink}>
           O alatu →
