@@ -1,53 +1,131 @@
-import { useState } from "react";
-import Link from "next/link";
-import { createClient } from "@supabase/supabase-js";
+// pages/login.js
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+let supabase = null;
+try {
+  // eslint-disable-next-line import/no-unresolved
+  supabase = require("../utils/supabaseClient").supabase;
+} catch (e) {
+  supabase = null;
+}
 
-export default function Login() {
+export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [msg, setMsg] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  async function handleLogin(e) {
+  useEffect(() => {
+    let cancelled = false;
+
+    async function check() {
+      try {
+        if (!supabase?.auth?.getSession) return;
+
+        const { data } = await supabase.auth.getSession();
+        if (data?.session?.user && !cancelled) {
+          router.replace("/");
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    check();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  async function sendMagicLink(e) {
     e.preventDefault();
-    setMsg("Šaljem login link...");
+    setMsg("");
+    setBusy(true);
 
-const { error } = await supabase.auth.signInWithOtp({
-  email,
-  options: { emailRedirectTo: `${window.location.origin}/` }
-});
+    try {
+      if (!supabase?.auth?.signInWithOtp) {
+        setMsg("Login nije konfiguriran (nema Supabase clienta).");
+        setBusy(false);
+        return;
+      }
 
-    if (error) setMsg("Greška: " + error.message);
-    else setMsg("Poslan je login link na email. Otvori ga i vratit će te na tracker.");
+      const redirectTo =
+        typeof window !== "undefined" ? `${window.location.origin}/` : undefined;
+
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: redirectTo },
+      });
+
+      if (error) throw error;
+
+      setMsg("Poslan je magic link na email. Otvori link i bit ćeš prijavljen.");
+    } catch (err) {
+      setMsg(err?.message || "Greška kod prijave.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <main style={{ fontFamily: "Arial, sans-serif", padding: 40, maxWidth: 600, margin: "0 auto" }}>
-      <h1 style={{ color: "#c00" }}>Prijava</h1>
-      <p>Unesi email i dobit ćeš link za prijavu.</p>
+    <div style={{ padding: "24px 16px", maxWidth: 720, margin: "0 auto" }}>
+      <div style={card}>
+        <div style={{ fontSize: 28, fontWeight: 900, marginBottom: 6 }}>
+          Prijava
+        </div>
+        <div style={{ opacity: 0.9, marginBottom: 14 }}>
+          Upiši email. Dobit ćeš magic link za prijavu.
+        </div>
 
-      <form onSubmit={handleLogin} style={{ display: "flex", gap: 10, marginTop: 16 }}>
-        <input
-          type="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="tvoj@email.com"
-          style={{ flex: 1, padding: 10, borderRadius: 8, border: "1px solid #ccc" }}
-        />
-        <button style={{ padding: "10px 14px", borderRadius: 8, background: "#111", color: "#fff", border: "none" }}>
-          Pošalji
-        </button>
-      </form>
+        <form onSubmit={sendMagicLink} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="tvoj@email.com"
+            style={input}
+            type="email"
+            required
+          />
+          <button type="submit" disabled={busy} style={btn}>
+            {busy ? "Šaljem..." : "Pošalji link"}
+          </button>
+        </form>
 
-      <p style={{ marginTop: 12 }}>{msg}</p>
+        {msg ? <div style={{ marginTop: 12, fontSize: 14 }}>{msg}</div> : null}
 
-      <p style={{ marginTop: 24 }}>
-        <Link href="/">← Natrag</Link>
-      </p>
-    </main>
+        <div style={{ marginTop: 14 }}>
+          <a href="/" style={{ color: "#111", fontWeight: 900, textDecoration: "underline" }}>
+            ← Natrag na naslovnicu
+          </a>
+        </div>
+      </div>
+    </div>
   );
 }
+
+const card = {
+  background: "rgba(255,255,255,0.86)",
+  border: "1px solid rgba(0,0,0,0.18)",
+  borderRadius: 16,
+  padding: 18,
+  boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+};
+
+const input = {
+  flex: "1 1 260px",
+  padding: "12px 12px",
+  borderRadius: 12,
+  border: "1px solid rgba(0,0,0,0.22)",
+  fontSize: 16,
+};
+
+const btn = {
+  padding: "12px 14px",
+  borderRadius: 12,
+  border: "1px solid rgba(0,0,0,0.25)",
+  background: "rgba(0,0,0,0.88)",
+  color: "#fff",
+  fontWeight: 900,
+  cursor: "pointer",
+};
