@@ -1,33 +1,35 @@
 /* styles/globals.css */
 
-/* RESET */
-html, body {
-  padding: 0;
-  margin: 0;
-}
+/* Reset */
+* { box-sizing: border-box; }
+html, body { padding: 0; margin: 0; }
 
-* {
-  box-sizing: border-box;
-}
-
-/* Hattrick green background – GLOBALNO */
+/* Global background image on ALL pages */
 body {
-  background-color: #2f8f3a;
-
-  background-image:
-    radial-gradient(circle at 20px 20px, rgba(255,255,255,0.06) 2px, transparent 3px),
-    radial-gradient(circle at 60px 60px, rgba(0,0,0,0.07) 2px, transparent 3px),
-    radial-gradient(circle at 100px 20px, rgba(255,255,255,0.04) 2px, transparent 3px),
-    linear-gradient(0deg, rgba(0,0,0,0.08), rgba(0,0,0,0.08));
-
-  background-size: 120px 120px, 120px 120px, 120px 120px, 100% 100%;
-  background-repeat: repeat;
+  min-height: 100vh;
+  background-image: url("/backgrounds/hr-hero.jpg");
+  background-size: cover;
+  background-position: center top;
+  background-repeat: no-repeat;
   background-attachment: fixed;
-
-  color: #111;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* Soft overlay to keep text readable everywhere */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  z-index: 0;
 }
+
+/* Make sure the app content sits above the overlay */
+#__next {
+  position: relative;
+  z-index: 1;
+}
+
+/* Basic link defaults */
+a { color: inherit; text-decoration: none; }
+a:hover { text-decoration: underline; }
