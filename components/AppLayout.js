@@ -21,7 +21,9 @@ function TopNav() {
 
 export default function AppLayout({ children }) {
   const router = useRouter();
-  const isHome = router.pathname === '/';
+
+  // asPath je pouzdan za "/" (i kad ima query string)
+  const isHome = router.asPath === '/' || router.pathname === '/';
 
   return (
     <div className={isHome ? 'app app-home' : 'app app-light'}>
