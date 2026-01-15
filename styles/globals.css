@@ -1,87 +1,204 @@
-/* styles/globals.css */
-
-/* Reset */
-* { box-sizing: border-box; }
-html, body { padding: 0; margin: 0; }
-a { color: inherit; text-decoration: none; }
-a:hover { text-decoration: underline; }
-
-/*
-  GLOBAL BACKGROUND (2 layers):
-  - base layer: cover + blur (fills screen)
-  - top layer: contain (shows FULL image: top + bottom)
-*/
+/* ===== Base reset ===== */
+html,
 body {
-  min-height: 100vh;
-  background: #0b0f14;
+  padding: 0;
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
 }
 
-/* Base fill (cover) + blur */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image: url("/backgrounds/hr-hero.jpg");
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+:root {
+  --text: #111;
+  --muted: #444;
+  --panel-bg: rgba(255, 255, 255, 0.86);
+  --panel-border: rgba(0, 0, 0, 0.16);
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
+  --radius: 18px;
+
+  --nav-bg: rgba(255, 255, 255, 0.72);
+  --nav-border: rgba(0, 0, 0, 0.2);
+}
+
+/* ===== Layout wrappers ===== */
+.app {
+  min-height: 100vh;
+}
+
+/* HERO only on home */
+.app-home {
+  background-image: url("/backgrounds/hr-hero.jpg.png");
+  background-repeat: no-repeat;
   background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  filter: blur(10px);
-  transform: scale(1.05);
-  opacity: 0.85;
-  z-index: 0;
-  pointer-events: none;
+  /* fokus na gornji dio (banner) + ipak vidi i more */
+  background-position: center 18%;
+  background-attachment: fixed;
 }
 
-/* Top layer (contain) => FULL image visible */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background-image: url("/backgrounds/hr-hero.jpg");
-  background-size: contain;
-  background-position: center;
-  background-repeat: no-repeat;
-  opacity: 1;
-  z-index: 1;
-  pointer-events: none;
+/* Light tracker background everywhere else */
+.app-light {
+  background: #f4f6f8;
 }
 
-/* Soft dark overlay for readability */
-#__next::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.25);
-  z-index: 2;
-  pointer-events: none;
+/* page padding */
+.page {
+  min-height: calc(100vh - 56px);
+  padding: 18px 14px 40px;
 }
 
-/* App content always above background layers */
-#__next {
-  position: relative;
-  z-index: 3;
-}
-
-/*
-  Global layout wrapper (we will add this in _app.js via AppLayout):
-  Goal: push widgets into the "grey middle band" area.
-*/
-.appShell {
-  min-height: 100vh;
-  padding: 24px 16px 48px;
-}
-
-/* This is the "content zone" that sits around the middle */
-.contentZone {
-  max-width: 1080px;
+.page-inner {
+  max-width: 1100px;
   margin: 0 auto;
-  /* Push down into grey band, responsive */
-  padding-top: clamp(140px, 18vh, 240px);
 }
 
-/* Optional: tighten on small screens */
-@media (max-width: 700px) {
-  .contentZone {
-    padding-top: clamp(90px, 14vh, 160px);
+/* Home: da widgeti “sjednu” na sredinu u sivom dijelu slike */
+.page-home .page-inner {
+  max-width: 980px;
+  /* spusti sadržaj malo niže da uđe između igrača */
+  padding-top: 140px;
+}
+
+/* Non-home: kompaktno i čitljivo */
+.page-light .page-inner {
+  padding-top: 8px;
+}
+
+/* ===== Top nav ===== */
+.topnav {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  position: sticky;
+  top: 0;
+  z-index: 30;
+
+  background: var(--nav-bg);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--nav-border);
+}
+
+.topnav-inner {
+  width: 1100px;
+  max-width: calc(100% - 24px);
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+}
+
+.topnav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.78);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.topnav-link:hover {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+/* ===== Reusable “tracker” UI primitives ===== */
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 16px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 800px) {
+  .grid-2 {
+    grid-template-columns: 1fr;
   }
+  .page-home .page-inner {
+    padding-top: 110px;
+  }
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  background: rgba(0, 0, 0, 0.82);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.btn:hover {
+  background: rgba(0, 0, 0, 0.92);
+}
+
+/* Table readability */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(0, 0, 0, 0.16);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+th,
+td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  text-align: left;
+  color: var(--text);
+}
+
+th {
+  background: rgba(0, 0, 0, 0.06);
+  font-weight: 800;
+}
+
+tr:hover td {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+/* Inputs */
+input,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+/* Helper text */
+.muted {
+  color: var(--muted);
 }
