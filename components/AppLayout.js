@@ -1,9 +1,34 @@
-// components/AppLayout.js
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+
+function TopNav() {
+  return (
+    <nav className="topnav" aria-label="Glavna navigacija">
+      <div className="topnav-inner">
+        <Link className="topnav-link" href="/">
+          Naslovna
+        </Link>
+        <Link className="topnav-link" href="/team/u21">
+          Hrvatska U21
+        </Link>
+        <Link className="topnav-link" href="/team/nt">
+          Hrvatska NT
+        </Link>
+      </div>
+    </nav>
+  );
+}
 
 export default function AppLayout({ children }) {
+  const router = useRouter();
+  const isHome = router.pathname === '/';
+
   return (
-    <div className="appShell">
-      <div className="contentZone">{children}</div>
+    <div className={isHome ? 'app app-home' : 'app app-light'}>
+      <TopNav />
+      <main className={isHome ? 'page page-home' : 'page page-light'}>
+        <div className="page-inner">{children}</div>
+      </main>
     </div>
   );
 }
