@@ -1,9 +1,9 @@
-/* ===== Base reset ===== */
 html,
 body {
   padding: 0;
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
+  min-height: 100%;
 }
 
 * {
@@ -18,12 +18,12 @@ a {
 :root {
   --text: #111;
   --muted: #444;
-  --panel-bg: rgba(255, 255, 255, 0.86);
+  --panel-bg: rgba(255, 255, 255, 0.88);
   --panel-border: rgba(0, 0, 0, 0.16);
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
   --radius: 18px;
 
-  --nav-bg: rgba(255, 255, 255, 0.72);
+  --nav-bg: rgba(255, 255, 255, 0.78);
   --nav-border: rgba(0, 0, 0, 0.2);
 }
 
@@ -34,12 +34,21 @@ a {
 
 /* HERO only on home */
 .app-home {
+  /* fallback boja ako slika ne učita */
+  background-color: #0b0f14;
+
+  /* GLAVNO: hero slika */
   background-image: url("/backgrounds/hr-hero.jpg.png");
   background-repeat: no-repeat;
-  background-size: cover;
-  /* fokus na gornji dio (banner) + ipak vidi i more */
-  background-position: center 18%;
-  background-attachment: fixed;
+
+  /* VAŽNO: contain da vidimo vrh + dno (nema cropanja) */
+  background-size: contain;
+
+  /* centriraj */
+  background-position: center top;
+
+  /* da se ne ponavlja */
+  background-attachment: scroll;
 }
 
 /* Light tracker background everywhere else */
@@ -58,14 +67,13 @@ a {
   margin: 0 auto;
 }
 
-/* Home: da widgeti “sjednu” na sredinu u sivom dijelu slike */
+/* Home: spusti sadržaj u “sivi dio” */
 .page-home .page-inner {
   max-width: 980px;
-  /* spusti sadržaj malo niže da uđe između igrača */
-  padding-top: 140px;
+  padding-top: 170px;
 }
 
-/* Non-home: kompaktno i čitljivo */
+/* Non-home: kompaktno */
 .page-light .page-inner {
   padding-top: 8px;
 }
@@ -99,20 +107,19 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.18);
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.86);
   text-decoration: none;
   font-weight: 700;
 }
 
 .topnav-link:hover {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.96);
 }
 
-/* ===== Reusable “tracker” UI primitives ===== */
+/* ===== Reusable UI ===== */
 .panel {
   background: var(--panel-bg);
   border: 1px solid var(--panel-border);
@@ -121,7 +128,7 @@ a {
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.86);
   border: 1px solid rgba(0, 0, 0, 0.16);
   border-radius: 16px;
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
@@ -138,7 +145,7 @@ a {
     grid-template-columns: 1fr;
   }
   .page-home .page-inner {
-    padding-top: 110px;
+    padding-top: 120px;
   }
 }
 
@@ -147,7 +154,6 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   padding: 10px 14px;
   border-radius: 999px;
   border: 1px solid rgba(0, 0, 0, 0.22);
@@ -165,7 +171,7 @@ a {
 table {
   width: 100%;
   border-collapse: collapse;
-  background: rgba(255, 255, 255, 0.86);
+  background: rgba(255, 255, 255, 0.92);
   border: 1px solid rgba(0, 0, 0, 0.16);
   border-radius: 12px;
   overflow: hidden;
@@ -195,10 +201,9 @@ select {
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid rgba(0, 0, 0, 0.18);
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.96);
 }
 
-/* Helper text */
 .muted {
   color: var(--muted);
 }
