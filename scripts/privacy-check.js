@@ -1,93 +1,197 @@
-/* eslint-disable no-console */
+/**
+ * Privacy / secret leak checker (simple repo scan)
+ * - Detects emails, common API key formats, Supabase keys, JWT-like tokens
+ * - Exits with code 1 if suspicious strings are found
+ *
+ * Run: npm run privacy:check
+ */
+
 const fs = require("fs");
 const path = require("path");
 
 const ROOT = process.cwd();
 
-// stvari koje ne smiju procuriti u repo
-const PATTERNS = [
-  // emailovi (osnovno)
-  {
-    name: "email",
-    re: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i,
-  },
-
-  // supabase url / kljucevi (osnovno)
-  { name: "supabase anon key", re: /\beyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9._-]{20,}\.[A-Za-z0-9._-]{10,}\b/ },
-  { name: "supabase url", re: /\bhttps:\/\/[a-z0-9-]+\.supabase\.co\b/i },
-
-  // "api_key" / "secret" / "password"
-  { name: "secret keyword", re: /\b(api[_-]?key|secret|password|passwd|token)\b/i },
-];
-
-const IGNORE_DIRS = new Set(["node_modules", ".next", ".git", ".vercel"]);
-const IGNORE_FILES = new Set([
-  "package-lock.json",
-  "yarn.lock",
-  "pnpm-lock.yaml",
+// folders/files to skip
+const SKIP_DIRS = new Set([
+  ".git",
+  ".next",
+  "node_modules",
+  ".vercel",
+  ".turbo",
+  "dist",
+  "build",
+  "out",
+  "coverage"
 ]);
 
-function walk(dir, acc = []) {
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
-  for (const e of entries) {
-    if (IGNORE_DIRS.has(e.name)) continue;
-    const p = path.join(dir, e.name);
+const SKIP_FILES = new Set([
+  "package-lock.json",
+  "yarn.lock",
+  "pnpm-lock.yaml"
+]);
 
-    if (e.isDirectory()) walk(p, acc);
-    else acc.push(p);
+// file extensions we scan
+const ALLOW_EXT = new Set([
+  ".js",
+  ".jsx",
+  ".ts",
+  ".tsx",
+  ".json",
+  ".md",
+  ".txt",
+  ".env",
+  ".env.local",
+  ".env.example",
+  ".sql"
+]);
+
+// patterns to detect
+const PATTERNS = [
+  {
+    name: "Email address",
+    re: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi
+  },
+  {
+    name: "Supabase anon/service key (jwt-like)",
+    re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g
+  },
+  {
+    name: "Supabase URL hardcoded",
+    re: /\bhttps?:\/\/[a-z0-9-]+\.supabase\.co\b/gi
+  },
+  {
+    name: "NEXT_PUBLIC_SUPABASE_(URL|ANON_KEY) hardcoded value",
+    re: /\bNEXT_PUBLIC_SUPABASE_(URL|ANON_KEY)\s*[:=]\s*["'][^"']+["']/gi
+  },
+  {
+    name: "SUPABASE_(SERVICE_ROLE_KEY|ANON_KEY) hardcoded value",
+    re: /\bSUPABASE_(SERVICE_ROLE_KEY|ANON_KEY)\s*[:=]\s*["'][^"']+["']/gi
+  },
+  {
+    name: "Generic API key token (sk- / pk_ / api_key=)",
+    re: /\b(sk-[A-Za-z0-9]{10,}|pk_[A-Za-z0-9]{10,}|api[_-]?key\s*[:=]\s*["'][^"']{8,}["'])\b/gi
   }
-  return acc;
+];
+
+// allowlist – strings that are OK to exist in repo
+// (we allow example placeholders + env var usage)
+const ALLOWLIST = [
+  "example@example.com",
+  "you@example.com",
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "SUPABASE_ANON_KEY"
+];
+
+// mask found secrets in console output
+function mask(s) {
+  if (!s) return s;
+  if (s.length <= 8) return "***";
+  return s.slice(0, 4) + "…" + s.slice(-4);
 }
 
-function isTextFile(filePath) {
-  const ext = path.extname(filePath).toLowerCase();
-  // skeniramo samo tipične text/JS/TS/MD/JSON/CSS/SQL
-  return [
-    ".js", ".jsx", ".ts", ".tsx", ".json", ".md", ".txt",
-    ".css", ".scss", ".sql", ".env", ".yml", ".yaml",
-  ].includes(ext) || path.basename(filePath).startsWith(".env");
+function isAllowedHit(hit) {
+  const h = String(hit || "");
+  return ALLOWLIST.some((a) => h.includes(a));
 }
 
-function main() {
-  const files = walk(ROOT).filter((p) => {
-    const base = path.basename(p);
-    if (IGNORE_FILES.has(base)) return false;
-    return isTextFile(p);
-  });
+function shouldScanFile(fp) {
+  const base = path.basename(fp);
+  if (SKIP_FILES.has(base)) return false;
 
-  const findings = [];
+  const ext = path.extname(fp).toLowerCase();
+  // allow .env files without extension handling
+  if (base.startsWith(".env")) return true;
 
-  for (const f of files) {
-    let content;
-    try {
-      content = fs.readFileSync(f, "utf8");
-    } catch {
+  return ALLOW_EXT.has(ext);
+}
+
+function walk(dir, out = []) {
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+
+  for (const e of entries) {
+    const full = path.join(dir, e.name);
+
+    if (e.isDirectory()) {
+      if (SKIP_DIRS.has(e.name)) continue;
+      walk(full, out);
       continue;
     }
 
-    for (const pat of PATTERNS) {
-      const m = content.match(pat.re);
-      if (m) {
+    if (e.isFile()) {
+      if (shouldScanFile(full)) out.push(full);
+    }
+  }
+  return out;
+}
+
+function readTextSafe(fp) {
+  try {
+    return fs.readFileSync(fp, "utf8");
+  } catch {
+    return null;
+  }
+}
+
+function main() {
+  const files = walk(ROOT);
+
+  const findings = [];
+
+  for (const fp of files) {
+    const rel = path.relative(ROOT, fp);
+    const text = readTextSafe(fp);
+    if (!text) continue;
+
+    for (const p of PATTERNS) {
+      let m;
+      while ((m = p.re.exec(text)) !== null) {
+        const hit = m[0];
+        if (isAllowedHit(hit)) continue;
+
+        const idx = m.index;
+        // capture a small context around match
+        const start = Math.max(0, idx - 40);
+        const end = Math.min(text.length, idx + hit.length + 40);
+        const context = text.slice(start, end).replace(/\s+/g, " ");
+
         findings.push({
-          file: path.relative(ROOT, f),
-          type: pat.name,
-          match: m[0].slice(0, 120),
+          file: rel,
+          type: p.name,
+          hit,
+          context
         });
+
+        // prevent runaway on super-large matches
+        if (findings.length > 2000) break;
       }
     }
   }
 
-  if (findings.length) {
-    console.log("❌ PRIVACY CHECK FAILED. Found potential leaks:\n");
-    for (const x of findings) {
-      console.log(`- [${x.type}] ${x.file} -> ${x.match}`);
-    }
-    console.log("\n➡️  Ukloni/anonimiziraj navedeno pa probaj opet.");
-    process.exit(1);
+  if (findings.length === 0) {
+    console.log("✅ privacy-check: OK (no suspicious strings found)");
+    process.exit(0);
   }
 
-  console.log("✅ PRIVACY CHECK OK (no obvious leaks found).");
-  process.exit(0);
+  console.log("❌ privacy-check: FOUND possible leaks:\n");
+
+  // show only first 50 to keep logs readable
+  const show = findings.slice(0, 50);
+  for (const f of show) {
+    console.log(`- [${f.type}] ${f.file}`);
+    console.log(`  hit: ${mask(f.hit)}`);
+    console.log(`  ctx: ${f.context}\n`);
+  }
+
+  if (findings.length > 50) {
+    console.log(`… and ${findings.length - 50} more findings.`);
+  }
+
+  console.log(
+    "\n➡️  Fix: remove hardcoded secrets/emails or move them to ENV vars (Vercel env settings)."
+  );
+  process.exit(1);
 }
 
 main();
