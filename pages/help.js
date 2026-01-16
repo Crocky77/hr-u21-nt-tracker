@@ -1,20 +1,28 @@
+// pages/help.js
 import AppLayout from "../components/AppLayout";
 
 export default function Help() {
   return (
-    <AppLayout title="Hrvatski U21/NT Tracker" subtitle="Pomoć">
-      <div style={box}>
-        <h2 style={{ marginTop: 0 }}>Pomoć</h2>
-        <ul>
-          <li>Prijava: trenutno email link (MVP).</li>
-          <li>Pristup: samo odobreni korisnici u tablici <b>users</b>.</li>
-          <li>Igrači: admin dodaje igrače, ostali trenutno čitaju (MVP).</li>
-        </ul>
-        <p style={{ opacity: 0.75 }}>
-          Ako nešto ne radi, javi izborniku (ili adminu) – skupit ćemo bugove i složiti “Upozorenja” tab.
-        </p>
+    <AppLayout
+      accent="global"
+      title="Hrvatski U21/NT Tracker"
+      subtitle="Pomoć"
+    >
+      <div className="hr-header hr-headerAccentGlobal">
+        <div className="hr-headerRow">
+          <div>
+            <h2 className="hr-title" style={{ fontSize: 22, margin: 0 }}>
+              Pomoć
+            </h2>
+            <p className="hr-subtitle">
+              V1 je fokusiran na stabilnost i team-based routing. CHPP dolazi kasnije.
+            </p>
+            <p className="hr-subtitle" style={{ marginTop: 10 }}>
+              Ako nešto nije klikabilno ili je “razbijen” layout, pošalji screenshot + URL.
+            </p>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
 }
-const box = { background:"#fff", border:"1px solid #e5e7eb", borderRadius:16, padding:16 };
