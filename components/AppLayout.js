@@ -1,7 +1,14 @@
 // components/AppLayout.js
 import Link from "next/link";
 
-export default function AppLayout({ children, title, subtitle, actions }) {
+export default function AppLayout({ children, title, subtitle, actions, accent = "global" }) {
+  const accentClass =
+    accent === "u21"
+      ? "hr-headerAccentU21"
+      : accent === "nt"
+      ? "hr-headerAccentNT"
+      : "hr-headerAccentGlobal";
+
   return (
     <div className="hr-page">
       <div className="hr-shell">
@@ -18,7 +25,7 @@ export default function AppLayout({ children, title, subtitle, actions }) {
         </nav>
 
         {(title || subtitle || actions) && (
-          <header className="hr-header">
+          <header className={`hr-header ${accentClass}`}>
             <div className="hr-headerRow">
               <div>
                 {title ? <h1 className="hr-title">{title}</h1> : null}
