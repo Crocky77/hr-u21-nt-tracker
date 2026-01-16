@@ -1,36 +1,30 @@
-import Link from 'next/link';
-import { useRouter } from 'next/router';
+import Link from "next/link";
+import { useRouter } from "next/router";
 
-function TopNav() {
+export default function AppLayout({ children, variant = "default" }) {
+  const router = useRouter();
+
+  const isHome = router.pathname === "/";
+  const isU21 = router.asPath.startsWith("/team/u21");
+  const isNT = router.asPath.startsWith("/team/nt");
+
+  const ShellClass = variant === "home" ? "homeHero" : "shell";
+
   return (
-    <nav className="topnav" aria-label="Glavna navigacija">
-      <div className="topnav-inner">
-        <Link className="topnav-link" href="/">
+    <div className={ShellClass}>
+      <div className="topNav">
+        <Link className={`pill ${isHome ? "pillActive" : ""}`} href="/">
           Naslovna
         </Link>
-        <Link className="topnav-link" href="/team/u21">
+        <Link className={`pill ${isU21 ? "pillActive" : ""}`} href="/team/u21">
           Hrvatska U21
         </Link>
-        <Link className="topnav-link" href="/team/nt">
+        <Link className={`pill ${isNT ? "pillActive" : ""}`} href="/team/nt">
           Hrvatska NT
         </Link>
       </div>
-    </nav>
-  );
-}
 
-export default function AppLayout({ children }) {
-  const router = useRouter();
-
-  // asPath je pouzdan za "/" (i kad ima query string)
-  const isHome = router.asPath === '/' || router.pathname === '/';
-
-  return (
-    <div className={isHome ? 'app app-home' : 'app app-light'}>
-      <TopNav />
-      <main className={isHome ? 'page page-home' : 'page page-light'}>
-        <div className="page-inner">{children}</div>
-      </main>
+      <div className="container">{children}</div>
     </div>
   );
 }
