@@ -1,13 +1,9 @@
-import { useEffect } from "react";
-import { useRouter } from "next/router";
-
-export default function DashboardLegacy() {
-  const router = useRouter();
-
-  useEffect(() => {
-    // default: u21 dashboard
-    router.replace("/team/u21/dashboard");
-  }, [router]);
-
+// pages/dashboard.js
+export async function getServerSideProps() {
+  return {
+    redirect: { destination: "/team/u21", permanent: false },
+  };
+}
+export default function DeadDashboard() {
   return null;
 }
