@@ -1,18 +1,25 @@
+// pages/donate.js
 import AppLayout from "../components/AppLayout";
 
 export default function Donate() {
   return (
-    <AppLayout title="Hrvatski U21/NT Tracker" subtitle="Donacije">
-      <div style={box}>
-        <h2 style={{ marginTop: 0 }}>Donacije</h2>
-        <p>
-          Ovdje ćemo kasnije dodati sustav donacija (npr. “support” za troškove hostinga) i eventualne premium opcije.
-        </p>
-        <p style={{ opacity: 0.75 }}>
-          Za V1: samo informativno – bez naplate.
-        </p>
+    <AppLayout
+      accent="global"
+      title="Hrvatski U21/NT Tracker"
+      subtitle="Donacije"
+    >
+      <div className="hr-header hr-headerAccentGlobal">
+        <div className="hr-headerRow">
+          <div>
+            <h2 className="hr-title" style={{ fontSize: 22, margin: 0 }}>
+              Donacije
+            </h2>
+            <p className="hr-subtitle">
+              Ovdje će biti info za podršku projektu. (Za sada placeholder.)
+            </p>
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
 }
-const box = { background:"#fff", border:"1px solid #e5e7eb", borderRadius:16, padding:16 };
