@@ -1,75 +1,70 @@
-// utils/useAuth.js
-import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import { useAuth } from "../utils/useAuth";
+import { safeUserLabel } from "../utils/privacy";
 
-let supabase = null;
-try {
-  // eslint-disable-next-line import/no-unresolved
-  supabase = require("./supabaseClient").supabase;
-} catch (e) {
-  supabase = null;
-}
+export default function AppLayout({ children }) {
+  const router = useRouter();
+  const { user, role, logout } = useAuth();
 
-export function useAuth() {
-  const [state, setState] = useState({
-    loading: true,
-    loggedIn: false,
-    userId: "",
-    email: "",
-    role: "",
-  });
+  const userLabel = safeUserLabel(user, role);
 
-  useEffect(() => {
-    let cancelled = false;
+  return (
+    <div className="app-root">
+      {/* HEADER */}
+      <header className="app-header">
+        <div className="app-header-inner">
+          <div className="app-left">
+            <Link href="/">
+              <a className="app-title">Hrvatski U21 / NT Tracker</a>
+            </Link>
+          </div>
 
-    async function load() {
-      try {
-        if (!supabase?.auth?.getSession) {
-          if (!cancelled) {
-            setState({ loading: false, loggedIn: false, userId: "", email: "", role: "" });
-          }
-          return;
-        }
+          <div className="app-center">
+            <Link href="/">
+              <a className={router.pathname === "/" ? "nav active" : "nav"}>
+                Naslovna
+              </a>
+            </Link>
+            <Link href="/team/u21">
+              <a
+                className={
+                  router.pathname.startsWith("/team/u21") ? "nav active" : "nav"
+                }
+              >
+                Hrvatska U21
+              </a>
+            </Link>
+            <Link href="/team/nt">
+              <a
+                className={
+                  router.pathname.startsWith("/team/nt") ? "nav active" : "nav"
+                }
+              >
+                Hrvatska NT
+              </a>
+            </Link>
+          </div>
 
-        const { data } = await supabase.auth.getSession();
-        const user = data?.session?.user;
+          <div className="app-right">
+            {user ? (
+              <>
+                <span className="user-label">{userLabel}</span>
+                <button className="btn-logout" onClick={logout}>
+                  Odjava
+                </button>
+              </>
+            ) : (
+              <Link href="/login">
+                <a className="btn-login">Prijava</a>
+              </Link>
+            )}
+          </div>
+        </div>
+      </header>
 
-        if (!user) {
-          if (!cancelled) setState({ loading: false, loggedIn: false, userId: "", email: "", role: "" });
-          return;
-        }
-
-        let role = "user";
-        try {
-          const { data: profile } = await supabase
-            .from("user_profiles")
-            .select("role")
-            .eq("user_id", user.id)
-            .maybeSingle();
-
-          if (profile?.role) role = profile.role;
-        } catch (e) {
-          // ignore if not ready
-        }
-
-        if (!cancelled) {
-          setState({
-            loading: false,
-            loggedIn: true,
-            userId: user.id,
-            email: user.email || "",
-            role,
-          });
-        }
-      } catch (e) {
-        if (!cancelled) setState({ loading: false, loggedIn: false, userId: "", email: "", role: "" });
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return state;
+      {/* CONTENT */}
+      <main className="app-content">{children}</main>
+    </div>
+  );
 }
