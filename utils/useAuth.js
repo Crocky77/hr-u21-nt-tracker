@@ -1,70 +1,48 @@
-import Link from "next/link";
-import { useRouter } from "next/router";
-import { useAuth } from "../utils/useAuth";
-import { safeUserLabel } from "../utils/privacy";
+// utils/useAuth.js
+import { useEffect, useMemo, useState } from "react";
+import supabase from "./supabaseClient";
+import { safeUserLabel } from "./privacy";
 
-export default function AppLayout({ children }) {
-  const router = useRouter();
-  const { user, role, logout } = useAuth();
+export function useAuth() {
+  const [session, setSession] = useState(null);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const userLabel = safeUserLabel(user, role);
+  useEffect(() => {
+    let mounted = true;
 
-  return (
-    <div className="app-root">
-      {/* HEADER */}
-      <header className="app-header">
-        <div className="app-header-inner">
-          <div className="app-left">
-            <Link href="/">
-              <a className="app-title">Hrvatski U21 / NT Tracker</a>
-            </Link>
-          </div>
+    async function init() {
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setSession(data?.session || null);
+        setUser(data?.session?.user || null);
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("[useAuth] getSession failed", e);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
 
-          <div className="app-center">
-            <Link href="/">
-              <a className={router.pathname === "/" ? "nav active" : "nav"}>
-                Naslovna
-              </a>
-            </Link>
-            <Link href="/team/u21">
-              <a
-                className={
-                  router.pathname.startsWith("/team/u21") ? "nav active" : "nav"
-                }
-              >
-                Hrvatska U21
-              </a>
-            </Link>
-            <Link href="/team/nt">
-              <a
-                className={
-                  router.pathname.startsWith("/team/nt") ? "nav active" : "nav"
-                }
-              >
-                Hrvatska NT
-              </a>
-            </Link>
-          </div>
+    init();
 
-          <div className="app-right">
-            {user ? (
-              <>
-                <span className="user-label">{userLabel}</span>
-                <button className="btn-logout" onClick={logout}>
-                  Odjava
-                </button>
-              </>
-            ) : (
-              <Link href="/login">
-                <a className="btn-login">Prijava</a>
-              </Link>
-            )}
-          </div>
-        </div>
-      </header>
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      if (!mounted) return;
+      setSession(newSession || null);
+      setUser(newSession?.user || null);
+      setLoading(false);
+    });
 
-      {/* CONTENT */}
-      <main className="app-content">{children}</main>
-    </div>
-  );
+    return () => {
+      mounted = false;
+      sub?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  const label = useMemo(() => safeUserLabel(user), [user]);
+
+  return { session, user, loading, label, isLoggedIn: !!user };
 }
+
+export default useAuth;
