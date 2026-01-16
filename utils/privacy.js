@@ -1,139 +1,67 @@
-/**
- * utils/privacy.js
- *
- * Centralni privacy guard za cijelu aplikaciju.
- * Cilj:
- *  - nikad ne prikazivati email, nick, userId, raw session podatke
- *  - maskirati sve osjetljivo u UI-ju i logovima
- *  - imati jedno mjesto kontrole
- */
+// utils/privacy.js
+// Privacy guard helpers: maskiranje + siguran label za UI (bez emaila)
 
-/* ===========================
-   REGEX DEFINICIJE
-=========================== */
+function isEmailLike(str) {
+  if (!str) return false;
+  return /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(String(str));
+}
 
-const EMAIL_REGEX =
-  /([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g;
-
-const UUID_REGEX =
-  /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
-
-/* ===========================
-   MASKIRANJE STRINGOVA
-=========================== */
-
-/**
- * Maskira email adresu
- * primjer:
- *   john.doe@gmail.com -> j***@gmail.com
- */
 export function maskEmail(email) {
   if (!email || typeof email !== "string") return "";
-
   const [user, domain] = email.split("@");
-  if (!user || !domain) return "";
-
-  return `${user.charAt(0)}***@${domain}`;
+  if (!domain) return "hidden";
+  const u = user || "";
+  const maskedUser = u.length <= 2 ? `${u[0] || ""}*` : `${u[0]}***${u[u.length - 1]}`;
+  const dParts = domain.split(".");
+  const d0 = dParts[0] || "domain";
+  const maskedDomain = d0.length <= 2 ? `${d0[0] || ""}*` : `${d0[0]}***${d0[d0.length - 1]}`;
+  const tld = dParts.slice(1).join(".") || "tld";
+  return `${maskedUser}@${maskedDomain}.${tld}`;
 }
 
-/**
- * Maskira generički string (nick, ime, id)
- * primjer:
- *   Crocky77 -> C*****7
- */
-export function maskString(value) {
-  if (!value || typeof value !== "string") return "";
+export function safeUserLabel(user) {
+  // GOLDEN RULE: nikad ne prikazuj email u UI
+  if (!user) return "Gost";
 
-  if (value.length <= 2) return "***";
+  // prefer nickname/display name
+  const meta = user.user_metadata || {};
+  const name =
+    meta.nickname ||
+    meta.username ||
+    meta.name ||
+    meta.full_name ||
+    meta.display_name ||
+    "";
 
-  return (
-    value.charAt(0) +
-    "*".repeat(Math.max(3, value.length - 2)) +
-    value.charAt(value.length - 1)
-  );
+  if (name && typeof name === "string") {
+    // ako je tester ubacio email u name, maskiraj
+    if (isEmailLike(name)) return "Korisnik";
+    return name.trim();
+  }
+
+  // fallback: ID skraćeno
+  const id = user.id || "";
+  if (id && typeof id === "string") {
+    const short = id.replace(/[^a-zA-Z0-9]/g, "").slice(-6);
+    return short ? `Korisnik#${short}` : "Korisnik";
+  }
+
+  // fallback bez emaila
+  return "Korisnik";
 }
 
-/* ===========================
-   DETEKCIJA OSJETLJIVIH PODATAKA
-=========================== */
-
-/**
- * Provjerava sadrži li string email
- */
-export function containsEmail(text) {
-  if (!text || typeof text !== "string") return false;
-  return EMAIL_REGEX.test(text);
+export function detectPII(text) {
+  const s = String(text || "");
+  const matches = [];
+  const emailRe = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+  let m;
+  while ((m = emailRe.exec(s))) {
+    matches.push({ type: "email", value: m[0] });
+  }
+  return matches;
 }
 
-/**
- * Provjerava sadrži li UUID / session id
- */
-export function containsUUID(text) {
-  if (!text || typeof text !== "string") return false;
-  return UUID_REGEX.test(text);
-}
-
-/* ===========================
-   SANITIZACIJA OUTPUTA
-=========================== */
-
-/**
- * Sanitizira bilo koji tekst prije rendera u UI
- */
-export function sanitizeText(text) {
-  if (!text || typeof text !== "string") return text;
-
-  let sanitized = text;
-
-  sanitized = sanitized.replace(EMAIL_REGEX, (_, user, domain) => {
-    return `${user.charAt(0)}***@${domain}`;
-  });
-
-  sanitized = sanitized.replace(UUID_REGEX, "***");
-
-  return sanitized;
-}
-
-/* ===========================
-   SAFE USER OBJECT
-=========================== */
-
-/**
- * Iz user objekta vraća samo SIGURNE podatke
- * NIKAD email, id, provider id
- */
-export function getSafeUser(user) {
-  if (!user) return null;
-
-  return {
-    role: user.role || "guest",
-    displayName: user.displayName
-      ? maskString(user.displayName)
-      : "User",
-    isAdmin: Boolean(user.isAdmin),
-  };
-}
-
-/* ===========================
-   SAFE LOGGING (OPTIONAL)
-=========================== */
-
-/**
- * Debug log koji automatski sanitizira output
- */
-export function safeLog(...args) {
-  if (process.env.NODE_ENV === "production") return;
-
-  const safeArgs = args.map((arg) => {
-    if (typeof arg === "string") return sanitizeText(arg);
-    if (typeof arg === "object")
-      return JSON.parse(
-        JSON.stringify(arg, (_key, value) =>
-          typeof value === "string" ? sanitizeText(value) : value
-        )
-      );
-    return arg;
-  });
-
-  console.log("[SAFE LOG]", ...safeArgs);
+export function maskPII(text) {
+  const s = String(text || "");
+  return s.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[hidden-email]");
 }
