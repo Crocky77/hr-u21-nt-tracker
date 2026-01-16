@@ -1,30 +1,36 @@
+// components/AppLayout.js
 import Link from "next/link";
-import { useRouter } from "next/router";
 
-export default function AppLayout({ children, variant = "default" }) {
-  const router = useRouter();
-
-  const isHome = router.pathname === "/";
-  const isU21 = router.asPath.startsWith("/team/u21");
-  const isNT = router.asPath.startsWith("/team/nt");
-
-  const ShellClass = variant === "home" ? "homeHero" : "shell";
-
+export default function AppLayout({ children, title, subtitle, actions }) {
   return (
-    <div className={ShellClass}>
-      <div className="topNav">
-        <Link className={`pill ${isHome ? "pillActive" : ""}`} href="/">
-          Naslovna
-        </Link>
-        <Link className={`pill ${isU21 ? "pillActive" : ""}`} href="/team/u21">
-          Hrvatska U21
-        </Link>
-        <Link className={`pill ${isNT ? "pillActive" : ""}`} href="/team/nt">
-          Hrvatska NT
-        </Link>
-      </div>
+    <div className="hr-page">
+      <div className="hr-shell">
+        <nav className="hr-topnav">
+          <Link className="hr-pill" href="/">
+            Naslovna
+          </Link>
+          <Link className="hr-pill" href="/team/u21">
+            Hrvatska U21
+          </Link>
+          <Link className="hr-pill" href="/team/nt">
+            Hrvatska NT
+          </Link>
+        </nav>
 
-      <div className="container">{children}</div>
+        {(title || subtitle || actions) && (
+          <header className="hr-header">
+            <div className="hr-headerRow">
+              <div>
+                {title ? <h1 className="hr-title">{title}</h1> : null}
+                {subtitle ? <p className="hr-subtitle">{subtitle}</p> : null}
+              </div>
+              {actions ? <div className="hr-actions">{actions}</div> : null}
+            </div>
+          </header>
+        )}
+
+        {children}
+      </div>
     </div>
   );
 }
