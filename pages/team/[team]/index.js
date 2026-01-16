@@ -18,6 +18,7 @@ export default function TeamHome() {
 
   return (
     <AppLayout
+      accent={team === "u21" ? "u21" : team === "nt" ? "nt" : "global"}
       title={label}
       subtitle="Pregled modula. Igrači i skillovi su zaključani bez prijave (preview)."
       actions={
@@ -25,7 +26,6 @@ export default function TeamHome() {
           <Link className="hr-btn" href="/">
             ← Natrag na naslovnicu
           </Link>
-          {/* Dashboard NE postoji - zato nema linka */}
         </>
       }
     >
@@ -34,14 +34,12 @@ export default function TeamHome() {
           title="Zahtjevi"
           description="Filter builder + spremanje upita + “dodaj u listu”."
           badge="Otvoreno"
-          // trenutno nema team-based requests stranice -> placeholder (disabled)
           disabled
         />
         <HrCard
           title="Popisi (Liste)"
           description="Organiziraj igrače po listama: DEF/IM/WING/FWD..."
           badge="Otvoreno"
-          // trenutno nema team-based lists stranice -> placeholder (disabled)
           disabled
         />
         <HrCard
