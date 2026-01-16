@@ -1,104 +1,78 @@
-// pages/team/[team]/index.js
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { HrHero, HrCardLink } from "../../../components/HrCard";
-import { useAuth } from "../../../utils/useAuth";
+import AppLayout from "../../../components/AppLayout";
 
-export default function TeamDashboard() {
+export default function TeamHome() {
   const router = useRouter();
-  const team = String(router.query.team || "").toLowerCase(); // u21 | nt
-
-  const auth = useAuth();
-  const isAdmin = auth.loggedIn && auth.role === "admin";
-  const teamLabel = team === "u21" ? "Hrvatska U21" : "Hrvatska NT";
-
-  function gatedHref(realHref) {
-    return isAdmin ? realHref : "/login";
-  }
-
-  function gatedTag() {
-    return isAdmin ? "Otvoreno" : "Zaključano";
-  }
-
-  function gatedSubtitle(base) {
-    return isAdmin
-      ? base
-      : "Struktura modula je vidljiva, ali sadržaj traži prijavu.";
-  }
+  const team = String(router.query.team || "").toLowerCase();
+  const title = team === "nt" ? "Hrvatska NT" : "Hrvatska U21";
 
   return (
-    <div style={{ padding: "24px 16px", maxWidth: 980, margin: "0 auto" }}>
-      <HrHero
-        title={teamLabel}
-        subtitle="Pregled modula (preview). Igrači i skilovi su zaključani bez prijave."
-        right={
-          <Link href="/" style={{ color: "#111", fontWeight: 900, textDecoration: "underline" }}>
-            ← Natrag na naslovnicu
-          </Link>
-        }
-      />
-
-      <div
-        style={{
-          marginTop: 14,
-          display: "grid",
-          gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-          gap: 14,
-        }}
-      >
-        <HrCardLink
-          title="Zahtjevi"
-          subtitle={gatedSubtitle("Filter builder + spremanje upita + “dodaj u listu”.")}
-          tag={gatedTag()}
-          href={gatedHref(`/team/${team}/requirements`)}
-        />
-        <HrCardLink
-          title="Popisi (Liste)"
-          subtitle={gatedSubtitle("Organiziraj igrače po listama: DEF/IM/WING/FWD…")}
-          tag={gatedTag()}
-          href={gatedHref(`/team/${team}/lists`)}
-        />
-        <HrCardLink
-          title="Igrači"
-          subtitle={gatedSubtitle("Lista igrača u timu + detalji profila, snapshotovi, bilješke.")}
-          tag={gatedTag()}
-          href={gatedHref(`/team/${team}/players`)}
-        />
-        <HrCardLink
-          title="Upozorenja"
-          subtitle={gatedSubtitle("Crveni karton, ozljede, krivi trening/stamina (skeleton u V1).")}
-          tag={gatedTag()}
-          href={gatedHref(`/team/${team}/alerts`)}
-        />
-        <HrCardLink
-          title="Kalendar natjecanja"
-          subtitle="Pregled ciklusa i datuma (Euro / SP / Kup nacija)."
-          tag="Otvoreno"
-          href={`/team/${team}/calendar`}
-        />
-        <HrCardLink
-          title="Postavke treninga"
-          subtitle={gatedSubtitle("Ciljevi treninga po poziciji i procjena odstupanja (MVP skeleton).")}
-          tag={gatedTag()}
-          href={gatedHref(`/team/${team}/training`)}
-        />
+    <AppLayout>
+      <div className="card headerCard">
+        <div className="row">
+          <div>
+            <h1 className="h1" style={{ fontSize: 32 }}>{title}</h1>
+            <p className="p">
+              Pregled modula. Igrači i skillovi su zaključani bez prijave (preview).
+            </p>
+          </div>
+          <div className="actions">
+            <Link className="btn" href="/">← Natrag na naslovnicu</Link>
+            <Link className="btn btnPrimary" href={`/team/${team}/dashboard`}>Dashboard</Link>
+          </div>
+        </div>
       </div>
 
-      {auth.loading ? (
-        <div style={{ marginTop: 14, opacity: 0.85, color: "#fff" }}>Učitavam uloge…</div>
-      ) : !isAdmin ? (
-        <div style={{ marginTop: 14, color: "rgba(255,255,255,0.95)", fontWeight: 800 }}>
-          Gost pregled: kartice su zaključane.{" "}
-          <Link href="/login" style={{ color: "#fff", textDecoration: "underline" }}>
-            Prijavi se
-          </Link>
-          .
+      <div style={{ marginTop: 14 }} className="grid2">
+        <div className="card tile">
+          <div className="tileFooter" style={{ marginTop: 0 }}>
+            <h3 className="tileTitle">Zahtjevi</h3>
+            <span className="badge">Otvoreno</span>
+          </div>
+          <p className="tileText">Filter builder + spremanje upita + “dodaj u listu”.</p>
+          <div className="tileFooter">
+            <span />
+            <Link className="link" href={`/team/${team}/zahtjevi`}>Otvori →</Link>
+          </div>
         </div>
-      ) : (
-        <div style={{ marginTop: 14, color: "rgba(255,255,255,0.95)", fontWeight: 900 }}>
-          Admin mode: kartice su otključane ✅
+
+        <div className="card tile">
+          <div className="tileFooter" style={{ marginTop: 0 }}>
+            <h3 className="tileTitle">Popisi (Liste)</h3>
+            <span className="badge">Otvoreno</span>
+          </div>
+          <p className="tileText">Organiziraj igrače po listama: DEF/IM/WING/FWD…</p>
+          <div className="tileFooter">
+            <span />
+            <Link className="link" href={`/team/${team}/liste`}>Otvori →</Link>
+          </div>
         </div>
-      )}
-    </div>
+
+        <div className="card tile">
+          <div className="tileFooter" style={{ marginTop: 0 }}>
+            <h3 className="tileTitle">Igrači</h3>
+            <span className="badge">Otvoreno</span>
+          </div>
+          <p className="tileText">Lista igrača + detalji profila, snapshotovi, bilješke.</p>
+          <div className="tileFooter">
+            <span />
+            <Link className="link" href={`/team/${team}/players`}>Otvori →</Link>
+          </div>
+        </div>
+
+        <div className="card tile">
+          <div className="tileFooter" style={{ marginTop: 0 }}>
+            <h3 className="tileTitle">Upozorenja</h3>
+            <span className="badge">Otvoreno</span>
+          </div>
+          <p className="tileText">Crveni karton, ozljede, krivi trening/stamina (skeleton).</p>
+          <div className="tileFooter">
+            <span />
+            <Link className="link" href={`/team/${team}/alerts`}>Otvori →</Link>
+          </div>
+        </div>
+      </div>
+    </AppLayout>
   );
 }
