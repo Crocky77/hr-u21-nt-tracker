@@ -12,26 +12,15 @@ export default function Home() {
 
       <div className="hr-homeContent">
         <div className="hr-homeCenter">
-          <nav className="hr-topnav">
-            <Link className="hr-pill" href="/">
-              Naslovna
-            </Link>
-            <Link className="hr-pill" href="/team/u21">
-              Hrvatska U21
-            </Link>
-            <Link className="hr-pill" href="/team/nt">
-              Hrvatska NT
-            </Link>
-          </nav>
+          {/* NEMA gornja 3 linka na naslovnici (po tvom zahtjevu) */}
 
           <div className="hr-homeModules">
-            <header className="hr-header" style={{ marginBottom: 14 }}>
+            <header className="hr-header hr-headerAccentGlobal" style={{ marginBottom: 14 }}>
               <div className="hr-headerRow">
                 <div>
                   <h1 className="hr-title">Hrvatski U21/NT Tracker</h1>
                   <p className="hr-subtitle">
-                    Javni pregled strukture i “preview”. Igrači i skillovi su
-                    zaključani bez prijave.
+                    Javni pregled strukture i “preview”. Igrači i skillovi su zaključani bez prijave.
                   </p>
                 </div>
                 <div className="hr-actions">
@@ -45,15 +34,14 @@ export default function Home() {
               </div>
             </header>
 
-            <div className="hr-header" style={{ marginBottom: 14 }}>
+            <div className="hr-header hr-headerAccentGlobal" style={{ marginBottom: 14 }}>
               <div className="hr-headerRow">
                 <div>
                   <h2 className="hr-title" style={{ fontSize: 22, margin: 0 }}>
                     Moji igrači u Hrvatskom trackeru
                   </h2>
                   <p className="hr-subtitle">
-                    CHPP spajanje dolazi kasnije. Za sada pripremamo UI + DB za
-                    “moji igrači” u globalnom trackeru.
+                    CHPP spajanje dolazi kasnije. Za sada pripremamo UI + DB za “moji igrači” u globalnom trackeru.
                   </p>
                 </div>
                 <div className="hr-actions">
@@ -82,14 +70,13 @@ export default function Home() {
             </div>
 
             <div style={{ marginTop: 14, color: "rgba(255,255,255,0.9)" }}>
-              <div style={{ fontWeight: 800, textDecoration: "underline" }}>
+              <div style={{ fontWeight: 900, textDecoration: "underline" }}>
                 <Link href="/about">O alatu</Link> {" → "}
                 <Link href="/help">Pomoć</Link> {" → "}
                 <Link href="/donate">Donacije</Link> {" → "}
               </div>
               <div style={{ marginTop: 6, fontSize: 12, opacity: 0.9 }}>
-                Napomena: u V1 gost vidi “preview” modula, ali sve stranice koje
-                prikazuju igrače/skillove traže prijavu.
+                Napomena: u V1 gost vidi “preview” modula, ali sve stranice koje prikazuju igrače/skillove traže prijavu.
               </div>
             </div>
           </div>
