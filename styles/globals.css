@@ -287,3 +287,66 @@ button.hr-pillBtn { cursor: pointer; }
   justify-content: space-between;
   width: 100%;
 }
+/* ===== HOME TUNING (fixes) ===== */
+
+/* 1) Manje crne boje na naslovnici */
+.hr-homeBg {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(0,0,0,0.10), rgba(0,0,0,0.55)),
+    url("/backgrounds/hr-hero.jpg") top center / cover no-repeat;
+}
+
+/* 3) Spusti module da se vidi vrh slike (više prostora gore) */
+.hr-homeBg .hr-main {
+  padding-top: 160px !important;
+  padding-bottom: 90px !important;
+}
+
+/* 7) Pregledni linkovi (O nama / Pomoć / Donacije / Privacy / Terms) */
+.hr-homeNav {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.hr-homeNavLink {
+  font-size: 12px;
+  font-weight: 900;
+  color: rgba(255,255,255,0.95);
+  text-decoration: underline;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.75);
+}
+
+/* 6) U21/NT malo boje */
+.hr-homeBtnU21 { background: rgba(30, 64, 175, 0.92); }
+.hr-homeBtnNT  { background: rgba(2, 132, 199, 0.92); }
+
+/* Klikabilne mini kartice kao prave kartice (ne obični div) */
+.hr-homeMiniCard {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+
+  background: rgba(255,255,255,0.92);
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow:
+    0 18px 40px rgba(0,0,0,0.22),
+    0 2px 0 rgba(255,255,255,0.65) inset;
+  backdrop-filter: blur(6px);
+
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+}
+
+.hr-homeMiniCard:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 24px 56px rgba(0,0,0,0.28),
+    0 2px 0 rgba(255,255,255,0.75) inset;
+  filter: saturate(1.05);
+}
+
+/* Blaga nijansa po kartici */
+.hr-homeMiniCardU21 { background: rgba(240, 248, 255, 0.92); }
+.hr-homeMiniCardNT  { background: rgba(240, 253, 250, 0.92); }
