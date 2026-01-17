@@ -1,19 +1,17 @@
-/* RESET */
 html, body {
   margin: 0;
   padding: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background: #000;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-/* ===== LAYOUT ROOT ===== */
+/* ===== ROOT BACKGROUNDS ===== */
 .hr-homeBg {
   min-height: 100vh;
-  background: #0b0b0b;
+  background:
+    radial-gradient(circle at 50% 30%, rgba(0,0,0,0.15), rgba(0,0,0,0.75)),
+    url("/backgrounds/hr-hero.jpg") center/cover no-repeat;
 }
 
 .hr-appBg {
@@ -21,29 +19,21 @@ html, body {
   background: #f3f4f6;
 }
 
-/* ===== TOP BAR ===== */
+/* ===== TOPBAR ===== */
 .hr-topbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   padding: 14px 18px;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.85);
   color: #fff;
 }
 
-.hr-brand {
-  font-weight: 700;
-}
+.hr-brand { font-weight: 800; }
+.hr-subbrand { font-size: 12px; opacity: 0.85; margin-top: 2px; }
 
-.hr-subbrand {
-  font-size: 12px;
-  opacity: 0.8;
-}
-
-.hr-topbarRight {
-  display: flex;
-  gap: 10px;
-}
+.hr-topbarRight { display: flex; gap: 10px; align-items: center; }
 
 .hr-pillBtn,
 .hr-userPill {
@@ -56,27 +46,26 @@ html, body {
   text-decoration: none;
 }
 
+button.hr-pillBtn {
+  cursor: pointer;
+}
+
 /* ===== MAIN ===== */
 .hr-main {
   padding: 24px;
 }
 
-/* ===== HOME CONTAINER (OVO JE KLJUČNO) ===== */
+/* Home: centriraj sadržaj */
 .hr-homeBg .hr-main {
   display: flex;
   justify-content: center;
-}
-
-.hr-homeBg .hr-main > * {
-  width: 100%;
-  max-width: 1200px;
 }
 
 /* ===== FOOTER ===== */
 .hr-footer {
   margin-top: 40px;
   padding: 16px 18px;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,0.85);
   color: #fff;
 }
 
@@ -91,4 +80,154 @@ html, body {
 .hr-footerLink {
   color: #fff;
   text-decoration: underline;
+}
+
+.hr-dot { opacity: 0.7; }
+
+/* ===== HOME UI ===== */
+.hr-homeWrap {
+  width: 100%;
+  max-width: 1050px;
+}
+
+.hr-homeCardStack {
+  width: 100%;
+}
+
+.hr-homeCard {
+  background: rgba(255,255,255,0.92);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.35);
+  margin-bottom: 12px;
+}
+
+.hr-homeHero {
+  border-top: 4px solid rgba(30, 64, 175, 0.8);
+}
+
+.hr-homeHeroTitle {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.hr-homeHeroSub {
+  margin-top: 6px;
+  opacity: 0.85;
+  font-size: 13px;
+}
+
+.hr-homeHeroBtns {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hr-homeBtn {
+  display: inline-block;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.hr-homeMyPlayers {
+  border-top: 4px solid rgba(220, 38, 38, 0.8);
+}
+
+.hr-homeRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.hr-homeRight { display: flex; align-items: center; }
+
+.hr-homePill {
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(30, 64, 175, 0.9);
+  color: #fff;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.hr-homeCardTitle { font-weight: 800; }
+.hr-homeCardText { font-size: 13px; opacity: 0.85; margin-top: 4px; }
+
+.hr-homeGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 820px) {
+  .hr-homeGrid { grid-template-columns: 1fr; }
+}
+
+.hr-homeMiniCard {
+  background: rgba(255,255,255,0.92);
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.35);
+}
+
+.hr-homeMiniHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.hr-homeMiniTitle { font-weight: 800; }
+
+.hr-homeTag {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.9);
+  color: #fff;
+}
+
+.hr-homeMiniText {
+  margin-top: 6px;
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.hr-homeMiniLink {
+  margin-top: 10px;
+  font-weight: 800;
+}
+
+.hr-homeMiniLink a {
+  color: #0f172a;
+  text-decoration: underline;
+}
+
+.hr-homeLinks {
+  margin-top: 8px;
+  color: rgba(255,255,255,0.95);
+  font-weight: 800;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+}
+
+.hr-homeLinks a {
+  color: rgba(255,255,255,0.98);
+  text-decoration: underline;
+}
+
+.hr-homeNote {
+  margin-top: 8px;
+  color: rgba(255,255,255,0.92);
+  font-size: 12px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.8);
 }
