@@ -1,133 +1,94 @@
-/* Base */
+/* RESET */
 html, body {
-  padding: 0;
   margin: 0;
+  padding: 0;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background: #000;
 }
 
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
-/* HOME background (only on /) */
+/* ===== LAYOUT ROOT ===== */
 .hr-homeBg {
   min-height: 100vh;
   background: #0b0b0b;
-  position: relative;
 }
 
-/* APP background (all other pages) */
 .hr-appBg {
   min-height: 100vh;
-  background: #f3f4f6; /* svijetlo siva radi čitljivosti */
+  background: #f3f4f6;
 }
 
-/* Topbar */
+/* ===== TOP BAR ===== */
 .hr-topbar {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   padding: 14px 18px;
-  background: rgba(0,0,0,0.75);
+  background: rgba(0,0,0,0.8);
   color: #fff;
 }
 
-.hr-topbarLeft .hr-brand {
+.hr-brand {
   font-weight: 700;
-  font-size: 16px;
-  line-height: 1.2;
 }
 
-.hr-topbarLeft .hr-subbrand {
+.hr-subbrand {
   font-size: 12px;
-  opacity: 0.85;
-  margin-top: 2px;
+  opacity: 0.8;
 }
 
 .hr-topbarRight {
   display: flex;
-  align-items: center;
   gap: 10px;
 }
 
-.hr-pillBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
+.hr-pillBtn,
+.hr-userPill {
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 13px;
   border: 1px solid rgba(255,255,255,0.25);
   background: rgba(255,255,255,0.08);
   color: #fff;
-  padding: 7px 12px;
-  border-radius: 999px;
-  cursor: pointer;
   text-decoration: none;
-  font-size: 13px;
 }
 
-.hr-pillBtn:hover {
-  background: rgba(255,255,255,0.14);
-}
-
-.hr-userPill {
-  display: inline-flex;
-  align-items: center;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.06);
-  padding: 7px 12px;
-  border-radius: 999px;
-  font-size: 13px;
-  opacity: 0.95;
-}
-
-/* Main content */
+/* ===== MAIN ===== */
 .hr-main {
-  padding: 18px;
+  padding: 24px;
 }
 
-/* Footer */
+/* ===== HOME CONTAINER (OVO JE KLJUČNO) ===== */
+.hr-homeBg .hr-main {
+  display: flex;
+  justify-content: center;
+}
+
+.hr-homeBg .hr-main > * {
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* ===== FOOTER ===== */
 .hr-footer {
-  margin-top: 24px;
+  margin-top: 40px;
   padding: 16px 18px;
-  background: rgba(0,0,0,0.75);
+  background: rgba(0,0,0,0.8);
   color: #fff;
 }
 
 .hr-footerInner {
   display: flex;
-  align-items: center;
   justify-content: space-between;
-  gap: 14px;
   flex-wrap: wrap;
-}
-
-.hr-footerLeft {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  opacity: 0.95;
-}
-
-.hr-footerDot { opacity: 0.6; }
-
-.hr-footerRight {
-  display: flex;
-  align-items: center;
   gap: 10px;
   font-size: 12px;
 }
 
-.hr-footerSep { opacity: 0.6; }
-
 .hr-footerLink {
   color: #fff;
   text-decoration: underline;
-  opacity: 0.95;
-}
-
-.hr-footerLink:hover {
-  opacity: 1;
-}
-
-/* IMPORTANT: keep existing home image behavior if you already used .hr-homeBg with <img> */
-.hr-homeBg img {
-  max-width: 100%;
 }
