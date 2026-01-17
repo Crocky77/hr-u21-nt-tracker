@@ -347,6 +347,54 @@ button.hr-pillBtn { cursor: pointer; }
   filter: saturate(1.05);
 }
 
+/* ===== HOME FINAL POSITIONING ===== */
+
+/* Naslovnica: stavi sadržaj na "sivi dio" između igrača (responsive) */
+.hr-homeBg .hr-main {
+  padding-top: clamp(120px, 18vh, 190px) !important;
+  padding-bottom: clamp(70px, 14vh, 140px) !important;
+}
+
+/* Hero modul - malo boje (ne previše) */
+.hr-homeHeroCard {
+  background: rgba(240, 248, 255, 0.92);
+}
+
+/* My card - neutralna boja */
+.hr-homeMyCard {
+  background: rgba(255,255,255,0.92);
+}
+
+/* Mini kartice bez “otvori/preview” gumba - samo clean */
+.hr-homeMiniText {
+  margin-top: 6px;
+  font-size: 13px;
+  opacity: 0.85;
+  line-height: 1.25rem;
+}
+
+/* Sitni linkovi dolje (umjesto da ih trpamo gore) */
+.hr-homeBottomLinks {
+  margin-top: 10px;
+  font-weight: 900;
+  color: rgba(255,255,255,0.95);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.hr-homeBottomLinks a {
+  color: rgba(255,255,255,0.98);
+  text-decoration: underline;
+}
+
+/* Mob: makni prevelik razmak u karticama */
+@media (max-width: 520px) {
+  .hr-3dCardInner { padding: 14px 14px; }
+}
+
 /* Blaga nijansa po kartici */
 .hr-homeMiniCardU21 { background: rgba(240, 248, 255, 0.92); }
 .hr-homeMiniCardNT  { background: rgba(240, 253, 250, 0.92); }
