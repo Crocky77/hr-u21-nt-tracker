@@ -1,146 +1,94 @@
-// pages/team/[team]/players.js
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/router";
 import Link from "next/link";
-import AppLayout from "../../../components/AppLayout";
-import supabase from "../../../utils/supabaseClient";
-
-function teamAccent(team) {
-  const t = String(team || "").toLowerCase();
-  if (t === "u21") return "u21";
-  if (t === "nt") return "nt";
-  return "global";
-}
+import { useRouter } from "next/router";
 
 function teamLabel(team) {
-  const t = String(team || "").toLowerCase();
-  if (t === "u21") return "U21";
-  if (t === "nt") return "NT";
-  return team || "";
+  if (team === "u21") return "Hrvatska U21";
+  if (team === "nt") return "Hrvatska NT";
+  return "Tim";
 }
 
 export default function TeamPlayers() {
   const router = useRouter();
-  const team = String(router.query.team || "").toLowerCase();
-
-  const [loading, setLoading] = useState(true);
-  const [players, setPlayers] = useState([]);
-  const [q, setQ] = useState("");
-
-  async function load() {
-    if (!team) return;
-    setLoading(true);
-
-    // Ovdje koristimo tablicu "players" kao i do sada.
-    // Ako ti je schema drugačija, barem će UI biti dobar; poslije uskladimo query.
-    const { data, error } = await supabase
-      .from("players")
-      .select("*")
-      .eq("team", team)
-      .order("name", { ascending: true });
-
-    if (!error && Array.isArray(data)) setPlayers(data);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [team]);
-
-  const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase();
-    if (!s) return players;
-
-    return players.filter((p) => {
-      const name = String(p.name || "").toLowerCase();
-      const pos = String(p.pos || p.position || "").toLowerCase();
-      const status = String(p.status || "").toLowerCase();
-      const ht = String(p.ht_id || p.htid || p.htId || "").toLowerCase();
-      return (
-        name.includes(s) ||
-        pos.includes(s) ||
-        status.includes(s) ||
-        ht.includes(s)
-      );
-    });
-  }, [players, q]);
+  const { team } = router.query;
+  if (!team) return null;
 
   return (
-    <AppLayout
-      accent={teamAccent(team)}
-      title={`Igrači – ${teamLabel(team)}`}
-      subtitle="Search i tablica moraju biti čitljivi. Background nema ovdje."
-      actions={
-        <>
-          <button className="hr-btn" onClick={load} disabled={loading}>
+    <div className="hr-pageWrap">
+      <div className="hr-pageCard">
+        <div className="hr-pageHeaderRow">
+          <div>
+            <h1 className="hr-pageTitle">Igrači</h1>
+            <div className="hr-pageSub">Aktivni tim: {teamLabel(team)} (preview)</div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link className="hr-backBtn" href={`/team/${team}`}>
+              ← Natrag na module
+            </Link>
+            <Link className="hr-backBtn" href="/">
+              Naslovnica
+            </Link>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <input
+            placeholder="Search: ime, HT ID, pozicija..."
+            style={{
+              flex: "1",
+              minWidth: 240,
+              padding: "10px 12px",
+              borderRadius: 12,
+              border: "1px solid rgba(0,0,0,0.12)",
+              outline: "none",
+            }}
+          />
+          <button
+            type="button"
+            style={{
+              padding: "10px 14px",
+              borderRadius: 12,
+              border: "1px solid rgba(0,0,0,0.12)",
+              background: "rgba(255,255,255,0.9)",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+            onClick={() => alert("Učitavanje igrača dolazi kad spojimo DB/CHPP.")}
+          >
             Osvježi
           </button>
-          <Link className="hr-btn hr-btnPrimary" href={`/team/${team}`}>
-            Natrag na module
-          </Link>
-        </>
-      }
-    >
-      <div className="hr-toolbar">
-        <input
-          className="hr-input"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search: ime, HT ID, pozicija, status..."
-        />
-      </div>
+        </div>
 
-      <div className="hr-muted" style={{ marginBottom: 10 }}>
-        {loading ? "Učitavam..." : `Popis igrača (${filtered.length})`}
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontWeight: 1000, marginBottom: 8 }}>Popis igrača (0)</div>
+          <div
+            style={{
+              border: "1px solid rgba(0,0,0,0.10)",
+              borderRadius: 14,
+              overflow: "hidden",
+              background: "rgba(255,255,255,0.85)",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.4fr 0.8fr 0.8fr 1fr 1fr",
+                gap: 0,
+                padding: "10px 12px",
+                fontWeight: 900,
+                background: "rgba(0,0,0,0.04)",
+              }}
+            >
+              <div>Ime</div>
+              <div>Poz</div>
+              <div>Status</div>
+              <div>HT ID</div>
+              <div>Akcija</div>
+            </div>
+            <div style={{ padding: "12px", opacity: 0.7 }}>Nema rezultata.</div>
+          </div>
+        </div>
       </div>
-
-      <div className="hr-tableWrap">
-        <table className="hr-table">
-          <thead>
-            <tr>
-              <th>Ime</th>
-              <th>Poz</th>
-              <th>Status</th>
-              <th>HT ID</th>
-              <th>Akcija</th>
-            </tr>
-          </thead>
-          <tbody>
-            {!loading && filtered.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="hr-muted">
-                  Nema rezultata.
-                </td>
-              </tr>
-            ) : null}
-
-            {filtered.map((p) => {
-              const id = p.id ?? p.player_id ?? p.playerId ?? null;
-              return (
-                <tr key={String(id ?? p.name ?? Math.random())}>
-                  <td>{p.name ?? "—"}</td>
-                  <td>{p.pos ?? p.position ?? "—"}</td>
-                  <td>{p.status ?? "—"}</td>
-                  <td>{p.ht_id ?? p.htid ?? p.htId ?? "—"}</td>
-                  <td>
-                    {id ? (
-                      <Link
-                        href={`/team/${team}/players/${id}`}
-                        style={{ fontWeight: 900, textDecoration: "underline" }}
-                      >
-                        Detalji →
-                      </Link>
-                    ) : (
-                      <span className="hr-muted">—</span>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </AppLayout>
+    </div>
   );
 }
