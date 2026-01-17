@@ -6,7 +6,7 @@ export default function Footer() {
       <div className="hr-footerInner">
         <div>© {new Date().getFullYear()} Hrvatski U21/NT Tracker · Interni alat za skauting i praćenje razvoja</div>
 
-        <div className="hr-footerLinks">
+        <div>
           <Link className="hr-footerLink" href="/about">O alatu</Link>
           <span className="hr-dot"> · </span>
           <Link className="hr-footerLink" href="/help">Pomoć</Link>
