@@ -11,7 +11,6 @@ a { color: inherit; }
 /* ===== ROOT BACKGROUNDS ===== */
 .hr-homeBg {
   min-height: 100vh;
-  /* BITNO: vrh slike se vidi */
   background:
     radial-gradient(circle at 50% 22%, rgba(0,0,0,0.15), rgba(0,0,0,0.78)),
     url("/backgrounds/hr-hero.jpg") top center / cover no-repeat;
@@ -59,14 +58,12 @@ button.hr-pillBtn { cursor: pointer; }
   padding: 22px;
 }
 
-/* Home: centriraj sadržaj i da ne “pojede” vrh */
 .hr-homeBg .hr-main {
   display: flex;
   justify-content: center;
   padding-top: 18px;
 }
 
-/* App pages: centriraj i drži širinu */
 .hr-appBg .hr-main {
   display: flex;
   justify-content: center;
@@ -128,7 +125,7 @@ button.hr-pillBtn { cursor: pointer; }
   filter: saturate(1.05);
 }
 
-/* ===== HOME UI ===== */
+/* ===== HOME UI (ostaje kako si imao) ===== */
 .hr-homeWrap { width: 100%; max-width: 1050px; }
 .hr-homeCardStack { width: 100%; }
 
@@ -228,10 +225,12 @@ button.hr-pillBtn { cursor: pointer; }
   margin: 0 0 10px 0;
 }
 
+/* Ovo je ključ: 2 stupca, tile layout, jednake visine */
 .hr-teamGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+  align-items: stretch;
 }
 
 @media (max-width: 900px) {
@@ -254,6 +253,7 @@ button.hr-pillBtn { cursor: pointer; }
   margin-top: 6px;
   font-size: 13px;
   opacity: 0.8;
+  line-height: 1.25rem;
 }
 
 .hr-badge {
@@ -271,4 +271,18 @@ button.hr-pillBtn { cursor: pointer; }
   font-weight: 900;
   text-decoration: underline;
   display: inline-block;
+}
+
+/* TILE SHAPE: "kockasti/pravokutni" kao prije */
+.hr-moduleTile {
+  min-height: 140px;         /* pravokutni tile */
+  height: 140px;             /* jednaka visina svih kartica */
+  display: flex;
+}
+
+.hr-moduleTileInner {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between; /* title gore, link dolje */
+  width: 100%;
 }
