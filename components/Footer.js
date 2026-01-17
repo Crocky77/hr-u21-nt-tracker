@@ -1,21 +1,39 @@
 import Link from "next/link";
 
 export default function Footer() {
-  return (
-    <footer className="hr-footer">
-      <div className="hr-footerInner">
-        <div>© {new Date().getFullYear()} Hrvatski U21/NT Tracker · Interni alat za skauting i praćenje razvoja</div>
+  const year = new Date().getFullYear();
 
-        <div>
-          <Link className="hr-footerLink" href="/about">O alatu</Link>
-          <span className="hr-dot"> · </span>
-          <Link className="hr-footerLink" href="/help">Pomoć</Link>
-          <span className="hr-dot"> · </span>
-          <Link className="hr-footerLink" href="/donate">Donacije</Link>
-          <span className="hr-dot"> · </span>
-          <Link className="hr-footerLink" href="/privacy">Privacy</Link>
-          <span className="hr-dot"> · </span>
-          <Link className="hr-footerLink" href="/terms">Terms</Link>
+  return (
+    <footer
+      style={{
+        marginTop: "24px",
+        padding: "16px 20px",
+        borderTop: "1px solid rgba(0,0,0,0.08)",
+        color: "rgba(0,0,0,0.70)",
+        fontSize: "12px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          gap: "12px",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <Link href="/terms" style={{ color: "inherit", textDecoration: "underline" }}>
+            Uvjeti korištenja
+          </Link>
+          <Link href="/privacy" style={{ color: "inherit", textDecoration: "underline" }}>
+            Politika privatnosti
+          </Link>
+        </div>
+
+        <div style={{ textAlign: "right" }}>
+          © {year} Hrvatski U21/NT Tracker — Sva prava pridržana. Zabranjeno kopiranje i dijeljenje bez
+          dopuštenja.
         </div>
       </div>
     </footer>
