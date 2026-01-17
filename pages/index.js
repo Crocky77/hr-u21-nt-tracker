@@ -21,14 +21,16 @@ export default function HomePage() {
                       href="/team/u21"
                       className="hr-3dCard hr-3dHover hr-homeMiniCardU21"
                       style={{ textDecoration: "none" }}
+                      aria-label="Otvori Hrvatska U21"
+                      title="Otvori Hrvatska U21"
                     >
                       <div className="hr-3dCardInner">
                         <div className="hr-homeMiniHead">
                           <div className="hr-homeMiniTitle">Hrvatska U21</div>
-                          <div className="hr-homeTag">Preview</div>
                         </div>
-                        <div className="hr-homeMiniText">Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.</div>
-                        <div className="hr-homeMiniLink">Otvori →</div>
+                        <div className="hr-homeMiniText">
+                          Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.
+                        </div>
                       </div>
                     </Link>
 
@@ -36,25 +38,37 @@ export default function HomePage() {
                       href="/team/nt"
                       className="hr-3dCard hr-3dHover hr-homeMiniCardNT"
                       style={{ textDecoration: "none" }}
+                      aria-label="Otvori Hrvatska NT"
+                      title="Otvori Hrvatska NT"
                     >
                       <div className="hr-3dCardInner">
                         <div className="hr-homeMiniHead">
                           <div className="hr-homeMiniTitle">Hrvatska NT</div>
-                          <div className="hr-homeTag">Preview</div>
                         </div>
-                        <div className="hr-homeMiniText">Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.</div>
-                        <div className="hr-homeMiniLink">Otvori →</div>
+                        <div className="hr-homeMiniText">
+                          Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.
+                        </div>
                       </div>
                     </Link>
                   </div>
 
-                  {/* Linkovi (pregledno, bez ponavljanja naslova) */}
-                  <div className="hr-homeLinks" style={{ marginTop: 10 }}>
-                    <Link href="/about">O alatu</Link> <span className="hr-dot">•</span>{" "}
-                    <Link href="/help">Pomoć</Link> <span className="hr-dot">•</span>{" "}
-                    <Link href="/donate">Donacije</Link> <span className="hr-dot">•</span>{" "}
-                    <Link href="/privacy">Privacy</Link> <span className="hr-dot">•</span>{" "}
-                    <Link href="/terms">Terms</Link>
+                  {/* Linkovi (vidljiviji) */}
+                  <div className="hr-homeLinks hr-homeLinksPills" style={{ marginTop: 12 }}>
+                    <Link href="/about" className="hr-homeLinkPill">
+                      O alatu
+                    </Link>
+                    <Link href="/help" className="hr-homeLinkPill">
+                      Pomoć
+                    </Link>
+                    <Link href="/donate" className="hr-homeLinkPill">
+                      Donacije
+                    </Link>
+                    <Link href="/privacy" className="hr-homeLinkPill">
+                      Privacy
+                    </Link>
+                    <Link href="/terms" className="hr-homeLinkPill">
+                      Terms
+                    </Link>
                   </div>
                 </div>
               </div>
