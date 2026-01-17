@@ -1,4 +1,3 @@
-import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import Footer from "./Footer";
@@ -10,48 +9,47 @@ export default function AppLayout({ children }) {
   const { user, signOut } = useAuth();
 
   const isHome = router.pathname === "/";
+  const rootClass = isHome ? "hr-homeBg" : "hr-appBg";
 
-  // Privacy: nikad ne prikazuj email u UI
-  const safeUserLabel = user?.email ? maskEmail(user.email) : "Gost";
+  async function handleSignOut() {
+    try {
+      await signOut();
+      router.push("/");
+    } catch (e) {
+      console.error(e);
+      alert("Greška pri odjavi.");
+    }
+  }
 
   return (
-    <div className={isHome ? "hr-homeBg" : "hr-appBg"}>
-      {/* TOP BAR */}
+    <div className={rootClass}>
       <header className="hr-topbar">
-        <div className="hr-topbarLeft">
+        <div>
           <div className="hr-brand">Hrvatski U21/NT Tracker</div>
           <div className="hr-subbrand">Interni tracker · skauting · liste · upozorenja</div>
         </div>
 
-        <nav className="hr-topbarRight">
+        <div className="hr-topbarRight">
           <Link className="hr-pillBtn" href="/">
             Naslovnica
           </Link>
 
-          <span className="hr-userPill" title="Masked user (privacy)">
-            {safeUserLabel}
-          </span>
+          {user?.email ? (
+            <span className="hr-userPill" title="Prijavljen korisnik (maskirano)">
+              {maskEmail(user.email)}
+            </span>
+          ) : null}
 
-          <button
-            className="hr-pillBtn"
-            onClick={() => {
-              try {
-                signOut();
-              } catch (e) {
-                // silent
-              }
-              router.push("/");
-            }}
-          >
-            Odjava
-          </button>
-        </nav>
+          {user ? (
+            <button className="hr-pillBtn" onClick={handleSignOut} type="button">
+              Odjava
+            </button>
+          ) : null}
+        </div>
       </header>
 
-      {/* CONTENT */}
       <main className="hr-main">{children}</main>
 
-      {/* FOOTER (always visible) */}
       <Footer />
     </div>
   );
