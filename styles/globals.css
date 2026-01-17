@@ -6,12 +6,15 @@ html, body {
 
 * { box-sizing: border-box; }
 
+a { color: inherit; }
+
 /* ===== ROOT BACKGROUNDS ===== */
 .hr-homeBg {
   min-height: 100vh;
+  /* BITNO: vrh slike se vidi */
   background:
-    radial-gradient(circle at 50% 30%, rgba(0,0,0,0.15), rgba(0,0,0,0.75)),
-    url("/backgrounds/hr-hero.jpg") center/cover no-repeat;
+    radial-gradient(circle at 50% 22%, rgba(0,0,0,0.15), rgba(0,0,0,0.78)),
+    url("/backgrounds/hr-hero.jpg") top center / cover no-repeat;
 }
 
 .hr-appBg {
@@ -26,8 +29,11 @@ html, body {
   align-items: center;
   gap: 16px;
   padding: 14px 18px;
-  background: rgba(0,0,0,0.85);
+  background: rgba(0,0,0,0.88);
   color: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 50;
 }
 
 .hr-brand { font-weight: 800; }
@@ -46,26 +52,31 @@ html, body {
   text-decoration: none;
 }
 
-button.hr-pillBtn {
-  cursor: pointer;
-}
+button.hr-pillBtn { cursor: pointer; }
 
 /* ===== MAIN ===== */
 .hr-main {
-  padding: 24px;
+  padding: 22px;
 }
 
-/* Home: centriraj sadržaj */
+/* Home: centriraj sadržaj i da ne “pojede” vrh */
 .hr-homeBg .hr-main {
+  display: flex;
+  justify-content: center;
+  padding-top: 18px;
+}
+
+/* App pages: centriraj i drži širinu */
+.hr-appBg .hr-main {
   display: flex;
   justify-content: center;
 }
 
 /* ===== FOOTER ===== */
 .hr-footer {
-  margin-top: 40px;
-  padding: 16px 18px;
-  background: rgba(0,0,0,0.85);
+  margin-top: 28px;
+  padding: 14px 18px;
+  background: rgba(0,0,0,0.88);
   color: #fff;
 }
 
@@ -84,39 +95,45 @@ button.hr-pillBtn {
 
 .hr-dot { opacity: 0.7; }
 
-/* ===== HOME UI ===== */
-.hr-homeWrap {
+/* ===== COMMON CONTAINERS ===== */
+.hr-container {
   width: 100%;
-  max-width: 1050px;
+  max-width: 1100px;
 }
 
-.hr-homeCardStack {
-  width: 100%;
-}
-
-.hr-homeCard {
+/* ===== 3D CARD LOOK ===== */
+.hr-3dCard {
   background: rgba(255,255,255,0.92);
-  border-radius: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.45);
+  box-shadow:
+    0 18px 40px rgba(0,0,0,0.22),
+    0 2px 0 rgba(255,255,255,0.65) inset;
+  backdrop-filter: blur(6px);
+}
+
+.hr-3dCardInner {
   padding: 16px 18px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-  border: 1px solid rgba(255,255,255,0.35);
-  margin-bottom: 12px;
 }
 
-.hr-homeHero {
-  border-top: 4px solid rgba(30, 64, 175, 0.8);
+.hr-3dHover {
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+  cursor: pointer;
+}
+.hr-3dHover:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 24px 56px rgba(0,0,0,0.28),
+    0 2px 0 rgba(255,255,255,0.75) inset;
+  filter: saturate(1.05);
 }
 
-.hr-homeHeroTitle {
-  font-size: 22px;
-  font-weight: 800;
-}
+/* ===== HOME UI ===== */
+.hr-homeWrap { width: 100%; max-width: 1050px; }
+.hr-homeCardStack { width: 100%; }
 
-.hr-homeHeroSub {
-  margin-top: 6px;
-  opacity: 0.85;
-  font-size: 13px;
-}
+.hr-homeHeroTitle { font-size: 22px; font-weight: 900; }
+.hr-homeHeroSub { margin-top: 6px; opacity: 0.85; font-size: 13px; }
 
 .hr-homeHeroBtns {
   margin-top: 12px;
@@ -129,15 +146,11 @@ button.hr-pillBtn {
   display: inline-block;
   padding: 9px 14px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.92);
   color: #fff;
   text-decoration: none;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 13px;
-}
-
-.hr-homeMyPlayers {
-  border-top: 4px solid rgba(220, 38, 38, 0.8);
 }
 
 .hr-homeRow {
@@ -147,36 +160,24 @@ button.hr-pillBtn {
   gap: 12px;
 }
 
-.hr-homeRight { display: flex; align-items: center; }
-
 .hr-homePill {
   padding: 8px 12px;
   border-radius: 999px;
-  background: rgba(30, 64, 175, 0.9);
+  background: rgba(30, 64, 175, 0.92);
   color: #fff;
-  font-weight: 800;
+  font-weight: 900;
   font-size: 12px;
 }
-
-.hr-homeCardTitle { font-weight: 800; }
-.hr-homeCardText { font-size: 13px; opacity: 0.85; margin-top: 4px; }
 
 .hr-homeGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 12px;
+  margin-top: 12px;
 }
 
 @media (max-width: 820px) {
   .hr-homeGrid { grid-template-columns: 1fr; }
-}
-
-.hr-homeMiniCard {
-  background: rgba(255,255,255,0.92);
-  border-radius: 14px;
-  padding: 14px 16px;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-  border: 1px solid rgba(255,255,255,0.35);
 }
 
 .hr-homeMiniHead {
@@ -186,48 +187,88 @@ button.hr-pillBtn {
   gap: 10px;
 }
 
-.hr-homeMiniTitle { font-weight: 800; }
+.hr-homeMiniTitle { font-weight: 900; }
+.hr-homeMiniText { margin-top: 6px; font-size: 13px; opacity: 0.85; }
 
 .hr-homeTag {
   font-size: 11px;
-  font-weight: 800;
+  font-weight: 900;
   padding: 5px 10px;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.92);
   color: #fff;
-}
-
-.hr-homeMiniText {
-  margin-top: 6px;
-  font-size: 13px;
-  opacity: 0.85;
 }
 
 .hr-homeMiniLink {
   margin-top: 10px;
-  font-weight: 800;
-}
-
-.hr-homeMiniLink a {
-  color: #0f172a;
+  font-weight: 900;
   text-decoration: underline;
 }
 
 .hr-homeLinks {
-  margin-top: 8px;
+  margin-top: 10px;
   color: rgba(255,255,255,0.95);
-  font-weight: 800;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+  font-weight: 900;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.85);
 }
 
-.hr-homeLinks a {
-  color: rgba(255,255,255,0.98);
-  text-decoration: underline;
-}
+.hr-homeLinks a { color: rgba(255,255,255,0.98); text-decoration: underline; }
 
 .hr-homeNote {
   margin-top: 8px;
   color: rgba(255,255,255,0.92);
   font-size: 12px;
-  text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+}
+
+/* ===== TEAM DASHBOARD ===== */
+.hr-teamTitle {
+  font-size: 22px;
+  font-weight: 900;
+  margin: 0 0 10px 0;
+}
+
+.hr-teamGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .hr-teamGrid { grid-template-columns: 1fr; }
+}
+
+.hr-moduleTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+}
+
+.hr-moduleTitle {
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.hr-moduleDesc {
+  margin-top: 6px;
+  font-size: 13px;
+  opacity: 0.8;
+}
+
+.hr-badge {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  background: rgba(15,23,42,0.92);
+  color: #fff;
+  white-space: nowrap;
+}
+
+.hr-openLink {
+  margin-top: 10px;
+  font-weight: 900;
+  text-decoration: underline;
+  display: inline-block;
 }
