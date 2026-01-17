@@ -1,10 +1,13 @@
-import dynamic from "next/dynamic";
+// pages/requests.js
+import { useRouter } from "next/router";
+import RequestsClient from "../components/RequestsClient";
 
-const RequestsPage = dynamic(
-  () => import("../components/RequestsClient"),
-  { ssr: false }
-);
+export default function RequestsPage() {
+  const router = useRouter();
 
-export default function RequestsWrapper() {
-  return <RequestsPage />;
+  // Ako postoji team u query (npr ?team=u21), koristimo to.
+  // Inače default u21.
+  const team = (router.query.team === "nt" ? "nt" : "u21");
+
+  return <RequestsClient team={team} />;
 }
