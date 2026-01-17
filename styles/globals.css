@@ -474,3 +474,29 @@ button.hr-pillBtn { cursor: pointer; }
   font-size: 12px;
   opacity: 0.7;
 }
+
+/* ===== HOME LINKS: PILL STYLE (vidljivije) ===== */
+.hr-homeLinksPills {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.hr-homeLinkPill {
+  display: inline-block;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(255,255,255,0.28);
+  color: rgba(255,255,255,0.98);
+  text-decoration: none;
+  font-weight: 900;
+  font-size: 12px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+}
+
+.hr-homeLinkPill:hover {
+  background: rgba(0,0,0,0.45);
+}
