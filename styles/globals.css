@@ -1,94 +1,96 @@
-/* styles/globals.css */
-
-html,
-body {
+/* Base */
+html, body {
   padding: 0;
   margin: 0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica,
-    Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  background: #f3f4f6;
-  color: #111827;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-.hr-page {
+/* HOME background (only on /) */
+.hr-homeBg {
   min-height: 100vh;
-  padding: 18px 14px 40px;
-}
-
-.hr-shell {
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-.hr-topnav {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin: 6px 0 14px;
-  flex-wrap: wrap;
-}
-
-.hr-pill {
-  padding: 8px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(17, 24, 39, 0.18);
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(6px);
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.hr-pill:hover {
-  background: rgba(255, 255, 255, 0.9);
-}
-
-.hr-header {
-  border-radius: 18px;
-  padding: 18px 18px;
-  background: rgba(255, 255, 255, 0.68);
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(10px);
-  overflow: hidden;
-  margin-bottom: 14px;
+  background: #0b0b0b;
   position: relative;
 }
 
-/* COLOR ACCENTS (top stripe) */
-.hr-headerAccentGlobal::before,
-.hr-headerAccentU21::before,
-.hr-headerAccentNT::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 8px;
+/* APP background (all other pages) */
+.hr-appBg {
+  min-height: 100vh;
+  background: #f3f4f6; /* svijetlo siva radi čitljivosti */
+}
+
+/* Topbar */
+.hr-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+}
+
+.hr-topbarLeft .hr-brand {
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.2;
+}
+
+.hr-topbarLeft .hr-subbrand {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.hr-topbarRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hr-pillBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.hr-pillBtn:hover {
+  background: rgba(255,255,255,0.14);
+}
+
+.hr-userPill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 13px;
   opacity: 0.95;
 }
 
-.hr-headerAccentGlobal::before {
-  background: linear-gradient(90deg, #dc2626, #2563eb);
+/* Main content */
+.hr-main {
+  padding: 18px;
 }
 
-.hr-headerAccentU21::before {
-  background: linear-gradient(90deg, #dc2626, #f59e0b);
+/* Footer */
+.hr-footer {
+  margin-top: 24px;
+  padding: 16px 18px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
 }
 
-.hr-headerAccentNT::before {
-  background: linear-gradient(90deg, #2563eb, #111827);
-}
-
-.hr-headerRow {
+.hr-footerInner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -96,267 +98,36 @@ a {
   flex-wrap: wrap;
 }
 
-.hr-title {
-  margin: 0;
-  font-size: 34px;
-  line-height: 1.1;
-  letter-spacing: -0.4px;
-}
-
-.hr-subtitle {
-  margin: 6px 0 0;
-  opacity: 0.9;
-  font-size: 14px;
-  line-height: 1.3;
-}
-
-.hr-actions {
+.hr-footerLeft {
   display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  opacity: 0.95;
+}
+
+.hr-footerDot { opacity: 0.6; }
+
+.hr-footerRight {
+  display: flex;
+  align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
-}
-
-.hr-btn {
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(17, 24, 39, 0.18);
-  background: rgba(255, 255, 255, 0.72);
-  backdrop-filter: blur(8px);
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 14px;
-}
-
-.hr-btn:hover {
-  background: rgba(255, 255, 255, 0.92);
-}
-
-.hr-btnPrimary {
-  background: rgba(17, 24, 39, 0.9);
-  color: white;
-  border-color: rgba(17, 24, 39, 0.9);
-}
-
-.hr-btnPrimary:hover {
-  background: rgba(17, 24, 39, 1);
-}
-
-.hr-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-}
-
-@media (max-width: 860px) {
-  .hr-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* 3D module card */
-.hr-card {
-  position: relative;
-  border-radius: 18px;
-  padding: 14px 14px;
-  background: rgba(255, 255, 255, 0.66);
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(10px);
-  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
-  overflow: hidden;
-}
-
-.hr-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
-  background: rgba(255, 255, 255, 0.74);
-}
-
-.hr-card:active {
-  transform: translateY(0px);
-}
-
-.hr-cardTop {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.hr-cardTitle {
-  margin: 0;
-  font-size: 20px;
-  letter-spacing: -0.2px;
-}
-
-.hr-cardDesc {
-  margin: 6px 0 0;
-  font-size: 13px;
-  opacity: 0.9;
-  line-height: 1.35;
-}
-
-.hr-badge {
-  padding: 6px 10px;
-  border-radius: 999px;
-  background: rgba(17, 24, 39, 0.86);
-  color: white;
-  font-weight: 900;
   font-size: 12px;
 }
 
-.hr-openLink {
-  margin-top: 10px;
-  display: inline-flex;
-  gap: 8px;
-  align-items: center;
-  font-weight: 900;
-  font-size: 13px;
-  opacity: 0.9;
-  border-bottom: 1px solid rgba(17, 24, 39, 0.35);
-  padding-bottom: 2px;
+.hr-footerSep { opacity: 0.6; }
+
+.hr-footerLink {
+  color: #fff;
+  text-decoration: underline;
+  opacity: 0.95;
 }
 
-.hr-disabled {
-  opacity: 0.65;
-  filter: grayscale(20%);
+.hr-footerLink:hover {
+  opacity: 1;
 }
 
-.hr-disabled:hover {
-  transform: none;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.08);
-}
-
-/* HOME ONLY */
-.hr-home {
-  min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-}
-
-.hr-homeBg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: #0b1220;
-}
-
+/* IMPORTANT: keep existing home image behavior if you already used .hr-homeBg with <img> */
 .hr-homeBg img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-
-  /* bitno: “pomakni sliku gore” + vrh mora biti vidljiv */
-  object-position: 50% 0%;
-
-  display: block;
-}
-
-.hr-homeShade {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-
-  /* malo “tamnije” prema dolje da moduli bolje sjednu u sivu zonu */
-  background: radial-gradient(
-      circle at 50% 60%,
-      rgba(0, 0, 0, 0.18),
-      rgba(0, 0, 0, 0.58)
-    );
-}
-
-.hr-homeContent {
-  position: relative;
-  z-index: 2;
-  padding: 18px 14px 44px;
-}
-
-.hr-homeCenter {
-  max-width: 1100px;
-  margin: 0 auto;
-}
-
-/* moduli NIZE (u sivoj zoni između igrača) */
-.hr-homeModules {
-  max-width: 980px;
-  margin: 0 auto;
-
-  /* GLAVNO: spustiti dolje */
-  padding-top: 190px;
-}
-
-@media (max-width: 1100px) {
-  .hr-homeModules {
-    padding-top: 160px;
-  }
-}
-
-@media (max-width: 700px) {
-  .hr-homeModules {
-    padding-top: 110px;
-  }
-}
-
-/* TABLE + FILTER (players page) */
-.hr-toolbar {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  flex-wrap: wrap;
-  margin: 10px 0 14px;
-}
-
-.hr-input {
-  flex: 1;
-  min-width: 260px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(17, 24, 39, 0.16);
-  background: rgba(255, 255, 255, 0.75);
-  backdrop-filter: blur(8px);
-  outline: none;
-  font-weight: 600;
-}
-
-.hr-input:focus {
-  border-color: rgba(37, 99, 235, 0.45);
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
-}
-
-.hr-tableWrap {
-  border-radius: 18px;
-  border: 1px solid rgba(17, 24, 39, 0.12);
-  background: rgba(255, 255, 255, 0.68);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.08);
-  overflow: hidden;
-}
-
-.hr-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.hr-table thead th {
-  text-align: left;
-  font-size: 13px;
-  letter-spacing: 0.2px;
-  padding: 12px 14px;
-  background: rgba(17, 24, 39, 0.06);
-  border-bottom: 1px solid rgba(17, 24, 39, 0.12);
-}
-
-.hr-table tbody td {
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(17, 24, 39, 0.08);
-  font-weight: 600;
-}
-
-.hr-table tbody tr:hover {
-  background: rgba(37, 99, 235, 0.06);
-}
-
-.hr-muted {
-  opacity: 0.75;
-  font-weight: 600;
+  max-width: 100%;
 }
