@@ -6,36 +6,34 @@ export default function Footer() {
   return (
     <footer
       style={{
-        width: "100%",
-        marginTop: 18,
-        padding: "14px 16px",
+        marginTop: "24px",
+        padding: "16px 20px",
         borderTop: "1px solid rgba(0,0,0,0.08)",
-        background: "rgba(255,255,255,0.85)",
-        backdropFilter: "blur(6px)",
-        borderRadius: 14,
+        color: "rgba(0,0,0,0.70)",
+        fontSize: "12px",
       }}
     >
       <div
         style={{
           display: "flex",
+          gap: "12px",
           flexWrap: "wrap",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 10,
         }}
       >
-        <div style={{ fontSize: 13, opacity: 0.9 }}>
-          © {year} HR U21/NT Tracker — <b>Sva prava pridržana.</b> Zabranjeno kopiranje,
-          dijeljenje i distribucija bez pisanog dopuštenja autora.
-        </div>
-
-        <div style={{ display: "flex", gap: 12, fontSize: 13 }}>
-          <Link href="/privacy" style={{ textDecoration: "underline" }}>
-            Privatnost
-          </Link>
-          <Link href="/terms" style={{ textDecoration: "underline" }}>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <Link href="/terms" style={{ color: "inherit", textDecoration: "underline" }}>
             Uvjeti korištenja
           </Link>
+          <Link href="/privacy" style={{ color: "inherit", textDecoration: "underline" }}>
+            Politika privatnosti
+          </Link>
+        </div>
+
+        <div style={{ textAlign: "right" }}>
+          © {year} Hrvatski U21/NT Tracker — Sva prava pridržana. Zabranjeno kopiranje i dijeljenje bez
+          dopuštenja.
         </div>
       </div>
     </footer>
