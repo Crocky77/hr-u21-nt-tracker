@@ -1,76 +1,89 @@
-// pages/team/[team]/index.js
-import { useRouter } from "next/router";
 import Link from "next/link";
-import AppLayout from "../../../components/AppLayout";
-import HrCard from "../../../components/HrCard";
+import { useRouter } from "next/router";
 
 function teamLabel(team) {
-  const t = String(team || "").toLowerCase();
-  if (t === "u21") return "Hrvatska U21";
-  if (t === "nt") return "Hrvatska NT";
-  return `Team: ${team || ""}`;
+  if (team === "u21") return "Hrvatska U21";
+  if (team === "nt") return "Hrvatska NT";
+  return "Tim";
 }
 
-export default function TeamHome() {
+export default function TeamDashboard() {
   const router = useRouter();
-  const team = String(router.query.team || "").toLowerCase();
+  const { team } = router.query;
+
   const label = teamLabel(team);
 
+  // fallback dok Next ne učita router
+  if (!team) return null;
+
+  const base = `/team/${team}`;
+
+  const modules = [
+    {
+      title: "Zahtjevi",
+      desc: "Filter builder + spremanje upita + “dodaj u listu”.",
+      href: `${base}/requests`,
+      badge: "Otvoreno",
+    },
+    {
+      title: "Popisi (Liste)",
+      desc: "Organiziraj igrače po listama: DEF/IM/WING/FWD…",
+      href: `${base}/lists`,
+      badge: "Otvoreno",
+    },
+    {
+      title: "Igrači",
+      desc: "Lista igrača u timu + detalji profila.",
+      href: `${base}/players`,
+      badge: "Otvoreno",
+    },
+    {
+      title: "Upozorenja",
+      desc: "Kartoni, ozljede, krivi trening/stamina (skeleton).",
+      href: `${base}/alerts`,
+      badge: "Otvoreno",
+    },
+    {
+      title: "Kalendar natjecanja",
+      desc: "Pregled ciklusa i datuma (Euro / SP / Kup nacija).",
+      href: `${base}/calendar`,
+      badge: "Uskoro",
+    },
+    {
+      title: "Postavke treninga",
+      desc: "Ciljevi treninga po poziciji i procjena odstupanja (skeleton).",
+      href: `${base}/training`,
+      badge: "Uskoro",
+    },
+  ];
+
   return (
-    <AppLayout
-      accent={team === "u21" ? "u21" : team === "nt" ? "nt" : "global"}
-      title={label}
-      subtitle="Pregled modula. Igrači i skillovi su zaključani bez prijave (preview)."
-      actions={
-        <>
-          <Link className="hr-btn" href="/">
-            ← Natrag na naslovnicu
+    <div className="hr-container">
+      <h1 className="hr-teamTitle">{label}</h1>
+
+      <div className="hr-teamGrid">
+        {modules.map((m) => (
+          <Link
+            key={m.title}
+            href={m.href}
+            className="hr-3dCard hr-3dHover"
+            style={{ text-decoration: "none" }}
+          >
+            <div className="hr-3dCardInner">
+              <div className="hr-moduleTop">
+                <div className="hr-moduleTitle">{m.title}</div>
+                <span className="hr-badge">{m.badge}</span>
+              </div>
+              <div className="hr-moduleDesc">{m.desc}</div>
+              <div className="hr-openLink">Otvori →</div>
+            </div>
           </Link>
-        </>
-      }
-    >
-      <div className="hr-grid">
-        <HrCard
-          title="Zahtjevi"
-          description="Filter builder + spremanje upita + “dodaj u listu”."
-          badge="Otvoreno"
-          disabled
-        />
-        <HrCard
-          title="Popisi (Liste)"
-          description="Organiziraj igrače po listama: DEF/IM/WING/FWD..."
-          badge="Otvoreno"
-          disabled
-        />
-        <HrCard
-          title="Igrači"
-          description="Lista igrača u timu + detalji profila."
-          badge="Otvoreno"
-          href={`/team/${team}/players`}
-        />
-        <HrCard
-          title="Upozorenja"
-          description="Kartoni, ozljede, krivi trening/stamina (skeleton)."
-          badge="Otvoreno"
-          href={`/team/${team}/alerts`}
-        />
-        <HrCard
-          title="Kalendar natjecanja"
-          description="Pregled ciklusa i datuma (Euro / SP / Kup nacija)."
-          badge="Uskoro"
-          disabled
-        />
-        <HrCard
-          title="Postavke treninga"
-          description="Ciljevi treninga po poziciji i procjena odstupanja (skeleton)."
-          badge="Uskoro"
-          disabled
-        />
+        ))}
       </div>
 
-      <div style={{ marginTop: 14, fontSize: 12, opacity: 0.85 }}>
+      <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
         * “Uskoro” = UI placeholder dok ne napravimo team-based rute bez CHPP.
       </div>
-    </AppLayout>
+    </div>
   );
 }
