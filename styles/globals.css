@@ -34,7 +34,6 @@ a { color: inherit; }
 
 .hr-brand { font-weight: 800; }
 .hr-subbrand { font-size: 12px; opacity: 0.85; margin-top: 2px; }
-
 .hr-topbarRight { display: flex; gap: 10px; align-items: center; }
 
 .hr-pillBtn,
@@ -44,24 +43,21 @@ a { color: inherit; }
   font-size: 13px;
   text-decoration: none;
 }
-
 button.hr-pillBtn { cursor: pointer; }
 
 /* topbar kao glass */
 .hr-topbarLight {
-  background: rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.14);
   color: #fff;
-  border-bottom: 1px solid rgba(255,255,255,0.20);
+  border-bottom: 1px solid rgba(255,255,255,0.18);
   backdrop-filter: blur(10px);
 }
-
 .hr-pillBtnLight,
 .hr-userPillLight {
   border: 1px solid rgba(255,255,255,0.28);
   background: rgba(0,0,0,0.20);
   color: #fff;
 }
-
 .hr-pillBtnPrimary {
   border: 1px solid rgba(255,255,255,0.28);
   background: rgba(30, 64, 175, 0.92);
@@ -69,9 +65,7 @@ button.hr-pillBtn { cursor: pointer; }
 }
 
 /* ===== MAIN ===== */
-.hr-main {
-  padding: 22px;
-}
+.hr-main { padding: 22px; }
 
 .hr-homeBg .hr-main {
   display: flex;
@@ -110,8 +104,6 @@ button.hr-pillBtn { cursor: pointer; }
   font-weight: 900;
 }
 
-.hr-dot { opacity: 0.7; }
-
 .hr-footerCopy { opacity: 0.95; }
 
 /* ===== COMMON CONTAINERS ===== */
@@ -143,6 +135,52 @@ button.hr-pillBtn { cursor: pointer; }
     0 24px 56px rgba(0,0,0,0.28),
     0 2px 0 rgba(255,255,255,0.75) inset;
   filter: saturate(1.05);
+}
+
+/* ===== GENERIC PAGE CARD (za Players/Alerts itd.) ===== */
+.hr-pageWrap {
+  width: 100%;
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.hr-pageCard {
+  background: rgba(255,255,255,0.92);
+  border-radius: 18px;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.10);
+  padding: 18px;
+}
+
+.hr-pageHeaderRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.hr-pageTitle {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 1000;
+  letter-spacing: -0.2px;
+}
+
+.hr-pageSub {
+  margin-top: 6px;
+  opacity: 0.75;
+  font-size: 13px;
+}
+
+.hr-backBtn {
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.85);
+  text-decoration: none;
+  font-weight: 900;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.08);
 }
 
 /* ===== HOME UI ===== */
@@ -236,21 +274,90 @@ button.hr-pillBtn { cursor: pointer; }
   text-shadow: 0 2px 10px rgba(0,0,0,0.85);
 }
 
-/* opcionalne boje za mini kartice (ako ih koristiš na home) */
+/* ===== HOME: U21/NT TILE FIX (da se vidi dobro) ===== */
 .hr-homeMiniCardU21 {
-  background: rgba(30, 64, 175, 0.18);
-  border: 1px solid rgba(30, 64, 175, 0.22);
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(30, 64, 175, 0.18);
 }
 .hr-homeMiniCardNT {
-  background: rgba(3, 105, 161, 0.18);
-  border: 1px solid rgba(3, 105, 161, 0.22);
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(3, 105, 161, 0.18);
 }
 
-/* ===== TEAM DASHBOARD ===== */
-.hr-teamPage {
-  max-width: 1050px;
-  margin: 0 auto;
+/* ===== OLIMPIJSKI KRUGOVI (klikajući) ===== */
+.hr-ringRow {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
 }
+
+.hr-ringLink {
+  text-decoration: none;
+  display: inline-flex;
+}
+
+.hr-ring {
+  width: 128px;
+  height: 128px;
+  border-radius: 999px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(255,255,255,0.74);
+  backdrop-filter: blur(10px);
+
+  box-shadow: 0 16px 40px rgba(0,0,0,0.22);
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.hr-ring:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 56px rgba(0,0,0,0.28);
+}
+
+.hr-ring::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  padding: 6px; /* debljina ringa */
+  background: linear-gradient(135deg, rgba(255,255,255,0.60), rgba(255,255,255,0.10));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.hr-ringU21::before {
+  background: linear-gradient(135deg, rgba(30,64,175,0.95), rgba(30,64,175,0.10));
+}
+.hr-ringNT::before {
+  background: linear-gradient(135deg, rgba(3,105,161,0.95), rgba(3,105,161,0.10));
+}
+
+.hr-ringInner {
+  text-align: center;
+  padding: 12px;
+}
+
+.hr-ringTitle {
+  font-weight: 1000;
+  font-size: 14px;
+  line-height: 1.1rem;
+}
+
+.hr-ringSub {
+  margin-top: 6px;
+  font-size: 11px;
+  opacity: 0.72;
+  font-weight: 800;
+}
+
+/* ===== TEAM DASHBOARD (ostaje) ===== */
+.hr-teamPage { max-width: 1050px; margin: 0 auto; }
 
 .hr-teamTopRow {
   display: flex;
@@ -259,7 +366,6 @@ button.hr-pillBtn { cursor: pointer; }
   gap: 12px;
   margin-bottom: 12px;
 }
-
 @media (max-width: 900px) {
   .hr-teamTopRow { flex-direction: column; align-items: stretch; }
 }
@@ -286,29 +392,8 @@ button.hr-pillBtn { cursor: pointer; }
     linear-gradient(135deg, rgba(3,105,161,0.18), rgba(255,255,255,0.82));
 }
 
-.hr-teamHeroTitle {
-  font-size: 26px;
-  font-weight: 1000;
-  margin: 0;
-  letter-spacing: -0.2px;
-}
-
-.hr-teamHeroSub {
-  margin-top: 6px;
-  font-size: 13px;
-  opacity: 0.8;
-}
-
-.hr-backBtn {
-  align-self: center;
-  padding: 10px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(0,0,0,0.10);
-  background: rgba(255,255,255,0.85);
-  text-decoration: none;
-  font-weight: 900;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.08);
-}
+.hr-teamHeroTitle { font-size: 26px; font-weight: 1000; margin: 0; letter-spacing: -0.2px; }
+.hr-teamHeroSub { margin-top: 6px; font-size: 13px; opacity: 0.8; }
 
 .hr-teamGrid {
   display: grid;
@@ -353,7 +438,6 @@ button.hr-pillBtn { cursor: pointer; }
   display: inline-block;
 }
 
-/* TILE SHAPE */
 .hr-moduleTile {
   min-height: 140px;
   height: 140px;
@@ -361,7 +445,6 @@ button.hr-pillBtn { cursor: pointer; }
   position: relative;
   overflow: hidden;
 }
-
 .hr-moduleTileInner {
   display: flex;
   flex-direction: column;
@@ -370,7 +453,6 @@ button.hr-pillBtn { cursor: pointer; }
   position: relative;
 }
 
-/* Ikona/motiv u donjem desnom kutu */
 .hr-moduleTileWithIcon .hr-moduleIcon {
   position: absolute;
   right: 12px;
