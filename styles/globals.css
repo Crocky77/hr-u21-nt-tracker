@@ -58,10 +58,11 @@ button.hr-pillBtn { cursor: pointer; }
   padding: 22px;
 }
 
+/* bitno: na naslovnici malo više top paddinga da se “ne reže” vrh hero dojma */
 .hr-homeBg .hr-main {
   display: flex;
   justify-content: center;
-  padding-top: 18px;
+  padding-top: 32px;
 }
 
 .hr-appBg .hr-main {
@@ -125,7 +126,7 @@ button.hr-pillBtn { cursor: pointer; }
   filter: saturate(1.05);
 }
 
-/* ===== HOME UI (ostaje kako si imao) ===== */
+/* ===== HOME UI ===== */
 .hr-homeWrap { width: 100%; max-width: 1050px; }
 .hr-homeCardStack { width: 100%; }
 
@@ -225,7 +226,7 @@ button.hr-pillBtn { cursor: pointer; }
   margin: 0 0 10px 0;
 }
 
-/* Ovo je ključ: 2 stupca, tile layout, jednake visine */
+/* ključ: 2 stupca, tile layout, jednake visine */
 .hr-teamGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -273,16 +274,16 @@ button.hr-pillBtn { cursor: pointer; }
   display: inline-block;
 }
 
-/* TILE SHAPE: "kockasti/pravokutni" kao prije */
+/* TILE SHAPE: pravokutni kao prije */
 .hr-moduleTile {
-  min-height: 140px;         /* pravokutni tile */
-  height: 140px;             /* jednaka visina svih kartica */
+  min-height: 140px;
+  height: 140px;
   display: flex;
 }
 
 .hr-moduleTileInner {
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* title gore, link dolje */
+  justify-content: space-between;
   width: 100%;
 }
