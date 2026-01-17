@@ -11,11 +11,9 @@ export default function TeamDashboard() {
   const router = useRouter();
   const { team } = router.query;
 
-  const label = teamLabel(team);
-
-  // fallback dok Next ne učita router
   if (!team) return null;
 
+  const label = teamLabel(team);
   const base = `/team/${team}`;
 
   const modules = [
@@ -66,22 +64,24 @@ export default function TeamDashboard() {
           <Link
             key={m.title}
             href={m.href}
-            className="hr-3dCard hr-3dHover"
-            style={{ text-decoration: "none" }}
+            className="hr-3dCard hr-3dHover hr-moduleTile"
+            style={{ textDecoration: "none" }}
           >
-            <div className="hr-3dCardInner">
+            <div className="hr-3dCardInner hr-moduleTileInner">
               <div className="hr-moduleTop">
                 <div className="hr-moduleTitle">{m.title}</div>
                 <span className="hr-badge">{m.badge}</span>
               </div>
+
               <div className="hr-moduleDesc">{m.desc}</div>
+
               <div className="hr-openLink">Otvori →</div>
             </div>
           </Link>
         ))}
       </div>
 
-      <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
+      <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
         * “Uskoro” = UI placeholder dok ne napravimo team-based rute bez CHPP.
       </div>
     </div>
