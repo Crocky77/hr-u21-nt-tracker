@@ -1,117 +1,469 @@
-// components/RequestsClient.js
-import { useMemo, useState } from "react";
 import Link from "next/link";
-import AppLayout from "./AppLayout";
-import { useAuth } from "../utils/useAuth";
+import { useEffect, useMemo, useState } from "react";
 
-// Ovo je "skeleton" UI za zahtjeve (B faza),
-// ali mora graditi bez grešaka i bez CHPP.
+/**
+ * Supabase import – kompatibilno s više varijanti exporta:
+ * - export default supabase
+ * - export const supabase
+ * - export const supabaseClient
+ */
+import * as supabaseModule from "../utils/supabaseClient";
+const supabase =
+  supabaseModule?.default ||
+  supabaseModule?.supabase ||
+  supabaseModule?.supabaseClient;
 
-export default function RequestsClient({ team = "u21" }) {
-  const { loading, user, label } = useAuth({ requireAuth: false });
+function teamLabel(team) {
+  if (team === "u21") return "Hrvatska U21";
+  if (team === "nt") return "Hrvatska NT";
+  return "Tim";
+}
 
-  const teamTitle = useMemo(() => (team === "nt" ? "Zahtjevi (NT)" : "Zahtjevi (U21)"), [team]);
+function safeJsonParse(str) {
+  try {
+    const v = JSON.parse(str);
+    return { ok: true, value: v };
+  } catch (e) {
+    return { ok: false, error: e?.message || "Neispravan JSON" };
+  }
+}
 
-  const [draft, setDraft] = useState({
-    name: "",
-    position: "ANY",
-    ageMin: "",
-    ageMax: "",
-    gk: "",
-    def: "",
-    pm: "",
-    wing: "",
-    pass: "",
-    scor: "",
-    sp: ""
-  });
+export default function RequestsClient({ team }) {
+  const [loading, setLoading] = useState(true);
+  const [sessionUser, setSessionUser] = useState(null);
 
-  // MVP: još ne spremamo u DB (to ide u B fazi).
-  // Ovdje samo pokazujemo kako će izgledati builder.
+  const [teamId, setTeamId] = useState(null);
+  const [teamIdLoading, setTeamIdLoading] = useState(true);
 
-  return (
-    <AppLayout title={teamTitle} team={team} requireAuth={false}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-        <div style={{ fontSize: 13, opacity: 0.75 }}>
-          {loading ? "Učitavam korisnika…" : user ? `Ulogiran: ${label}` : "Nisi prijavljen (za kreiranje će trebati prijava)."}
-        </div>
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Link href={`/team/${team}`} style={btn()}>
-            ← Natrag
-          </Link>
-          <Link href="/login" style={btnDark()}>
-            Prijava
-          </Link>
+  const [rows, setRows] = useState([]);
+  const [error, setError] = useState("");
+
+  // Create form
+  const [createOpen, setCreateOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [status, setStatus] = useState("open");
+  const [priority, setPriority] = useState(50);
+  const [criteriaText, setCriteriaText] = useState(
+    JSON.stringify(
+      {
+        q: "spec",
+        age_min: null,
+        age_max: 21,
+        position: null,
+        skills: { goalkeeping: 8 },
+      },
+      null,
+      2
+    )
+  );
+
+  const base = useMemo(() => `/team/${team}`, [team]);
+  const title = useMemo(() => teamLabel(team), [team]);
+
+  // 1) get session user
+  useEffect(() => {
+    let mounted = true;
+
+    async function run() {
+      try {
+        if (!supabase?.auth?.getSession) {
+          // Ako supabaseClient nije dobro postavljen, pokaži jasnu grešku
+          if (mounted) {
+            setSessionUser(null);
+            setError(
+              "Supabase client nije dostupan. Provjeri utils/supabaseClient.js export."
+            );
+          }
+          return;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        const user = data?.session?.user || null;
+        if (mounted) setSessionUser(user);
+      } catch (e) {
+        if (mounted) setError(e?.message || "Greška kod čitanja sessiona.");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
+    run();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // 2) resolve teamId from teams.slug
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadTeamId() {
+      setTeamIdLoading(true);
+      setError("");
+
+      try {
+        if (!team) return;
+        if (!supabase?.from) return;
+
+        const { data, error: e } = await supabase
+          .from("teams")
+          .select("id, slug")
+          .eq("slug", team)
+          .maybeSingle();
+
+        if (e) throw e;
+
+        if (!data?.id) {
+          throw new Error(
+            `Ne mogu naći tim u tablici teams za slug="${team}".`
+          );
+        }
+
+        if (mounted) setTeamId(data.id);
+      } catch (e) {
+        if (mounted) setError(e?.message || "Greška kod dohvaćanja teamId.");
+      } finally {
+        if (mounted) setTeamIdLoading(false);
+      }
+    }
+
+    loadTeamId();
+
+    return () => {
+      mounted = false;
+    };
+  }, [team]);
+
+  async function refresh() {
+    setError("");
+    try {
+      if (!supabase?.from) return;
+      if (!teamId) return;
+
+      const { data, error: e } = await supabase
+        .from("team_requests")
+        .select(
+          "id, name, status, priority, created_at, updated_at, created_by"
+        )
+        .eq("team_id", teamId)
+        .order("priority", { ascending: false })
+        .order("created_at", { ascending: false });
+
+      if (e) throw e;
+      setRows(Array.isArray(data) ? data : []);
+    } catch (e) {
+      setError(e?.message || "Greška kod učitavanja zahtjeva.");
+    }
+  }
+
+  // 3) load requests
+  useEffect(() => {
+    if (!teamIdLoading && teamId) refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamIdLoading, teamId]);
+
+  async function createRequest() {
+    setError("");
+
+    if (!sessionUser?.id) {
+      setError("Moraš biti prijavljen da bi kreirao zahtjev.");
+      return;
+    }
+
+    if (!teamId) {
+      setError("teamId nije spreman (teams.slug lookup nije uspio).");
+      return;
+    }
+
+    if (!name.trim()) {
+      setError("Naziv zahtjeva je obavezan.");
+      return;
+    }
+
+    const parsed = safeJsonParse(criteriaText);
+    if (!parsed.ok) {
+      setError(`Criteria JSON error: ${parsed.error}`);
+      return;
+    }
+
+    const pr = Number(priority);
+    const prNorm = Number.isFinite(pr) ? pr : 50;
+
+    try {
+      const payload = {
+        team_id: teamId,
+        created_by: sessionUser.id,
+        name: name.trim(),
+        status,
+        priority: prNorm,
+        criteria: parsed.value,
+      };
+
+      const { error: e } = await supabase.from("team_requests").insert(payload);
+      if (e) throw e;
+
+      setCreateOpen(false);
+      setName("");
+      setStatus("open");
+      setPriority(50);
+      await refresh();
+    } catch (e) {
+      setError(e?.message || "Greška kod kreiranja zahtjeva.");
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="hr-pageWrap">
+        <div className="hr-pageCard">
+          <div style={{ fontWeight: 900 }}>Učitavam…</div>
         </div>
       </div>
+    );
+  }
 
-      <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div style={card()}>
-          <div style={{ fontWeight: 1000, marginBottom: 10 }}>Builder (preview)</div>
+  // Guest / not logged in: show preview only
+  const isLoggedIn = !!sessionUser?.id;
 
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <input
-              value={draft.name}
-              onChange={(e) => setDraft((p) => ({ ...p, name: e.target.value }))}
-              placeholder="Naziv zahtjeva (npr. GK 28-32, 18+)"
-              style={inp()}
-            />
+  return (
+    <div className="hr-pageWrap">
+      <div className="hr-pageCard">
+        <div className="hr-pageHeaderRow">
+          <div>
+            <h1 className="hr-pageTitle">Zahtjevi — {title}</h1>
+            <div className="hr-pageSub">
+              Zahtjevi su “srce” trackera: kasnije će filtrirati stranicu Igrači i
+              puniti liste.
+            </div>
+          </div>
 
-            <select value={draft.position} onChange={(e) => setDraft((p) => ({ ...p, position: e.target.value }))} style={inp()}>
-              <option value="ANY">Pozicija: bilo koja</option>
-              <option value="GK">GK</option>
-              <option value="DEF">DEF</option>
-              <option value="WB">WB</option>
-              <option value="IM">IM</option>
-              <option value="W">W</option>
-              <option value="FWD">FWD</option>
-            </select>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link className="hr-backBtn" href={base}>
+              ← Natrag
+            </Link>
 
-            <input value={draft.ageMin} onChange={(e) => setDraft((p) => ({ ...p, ageMin: e.target.value }))} placeholder="Dob min (HT)" style={inp()} />
-            <input value={draft.ageMax} onChange={(e) => setDraft((p) => ({ ...p, ageMax: e.target.value }))} placeholder="Dob max (HT)" style={inp()} />
+            {isLoggedIn ? (
+              <button
+                className="hr-backBtn"
+                type="button"
+                onClick={() => setCreateOpen((v) => !v)}
+              >
+                + Novi zahtjev
+              </button>
+            ) : (
+              <span
+                className="hr-backBtn"
+                style={{ opacity: 0.75, cursor: "default" }}
+              >
+                Zaključano bez prijave
+              </span>
+            )}
+          </div>
+        </div>
 
-            <input value={draft.gk} onChange={(e) => setDraft((p) => ({ ...p, gk: e.target.value }))} placeholder="Min GK" style={inp()} />
-            <input value={draft.def} onChange={(e) => setDraft((p) => ({ ...p, def: e.target.value }))} placeholder="Min DEF" style={inp()} />
-            <input value={draft.pm} onChange={(e) => setDraft((p) => ({ ...p, pm: e.target.value }))} placeholder="Min PM" style={inp()} />
-            <input value={draft.wing} onChange={(e) => setDraft((p) => ({ ...p, wing: e.target.value }))} placeholder="Min WING" style={inp()} />
-            <input value={draft.pass} onChange={(e) => setDraft((p) => ({ ...p, pass: e.target.value }))} placeholder="Min PASS" style={inp()} />
-            <input value={draft.scor} onChange={(e) => setDraft((p) => ({ ...p, scor: e.target.value }))} placeholder="Min SCOR" style={inp()} />
-            <input value={draft.sp} onChange={(e) => setDraft((p) => ({ ...p, sp: e.target.value }))} placeholder="Min SP" style={inp()} />
+        {error ? (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 12,
+              border: "1px solid rgba(220,38,38,0.25)",
+              background: "rgba(220,38,38,0.06)",
+              color: "rgba(220,38,38,0.95)",
+              fontWeight: 800,
+              fontSize: 13,
+            }}
+          >
+            {error}
+          </div>
+        ) : null}
+
+        {!isLoggedIn ? (
+          <div
+            style={{
+              marginTop: 14,
+              padding: 14,
+              borderRadius: 14,
+              border: "1px solid rgba(0,0,0,0.08)",
+              background: "rgba(0,0,0,0.03)",
+              fontSize: 13,
+              opacity: 0.9,
+            }}
+          >
+            Gost vidi samo “preview”. Za kreiranje zahtjeva treba prijava (auth
+            flow ćemo ispolirati kasnije).
+          </div>
+        ) : null}
+
+        {createOpen && isLoggedIn ? (
+          <div
+            style={{
+              marginTop: 14,
+              padding: 14,
+              borderRadius: 14,
+              border: "1px solid rgba(0,0,0,0.10)",
+              background: "rgba(255,255,255,0.85)",
+            }}
+          >
+            <div style={{ fontWeight: 1000, marginBottom: 8 }}>
+              Novi zahtjev
+            </div>
+
+            <div style={{ display: "grid", gap: 10 }}>
+              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
+                Naziv
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder='npr. "U21 GK (spec) 18+"'
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    outline: "none",
+                  }}
+                />
+              </label>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
+                  Status
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value)}
+                    style={{
+                      marginLeft: 8,
+                      padding: "8px 10px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                    }}
+                  >
+                    <option value="open">open</option>
+                    <option value="closed">closed</option>
+                    <option value="archived">archived</option>
+                  </select>
+                </label>
+
+                <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
+                  Priority
+                  <input
+                    type="number"
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    style={{
+                      width: 90,
+                      marginLeft: 8,
+                      padding: "8px 10px",
+                      borderRadius: 12,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                    }}
+                  />
+                </label>
+              </div>
+
+              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
+                Criteria (JSON)
+                <textarea
+                  value={criteriaText}
+                  onChange={(e) => setCriteriaText(e.target.value)}
+                  rows={8}
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    outline: "none",
+                    fontFamily:
+                      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+                    fontSize: 12,
+                  }}
+                />
+              </label>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button className="hr-backBtn" type="button" onClick={createRequest}>
+                  Spremi
+                </button>
+                <button
+                  className="hr-backBtn"
+                  type="button"
+                  onClick={() => setCreateOpen(false)}
+                  style={{ opacity: 0.8 }}
+                >
+                  Odustani
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div style={{ marginTop: 14 }}>
+          <div style={{ fontWeight: 1000, marginBottom: 8 }}>
+            Postojeći zahtjevi
+          </div>
+
+          <div
+            style={{
+              border: "1px solid rgba(0,0,0,0.08)",
+              borderRadius: 14,
+              overflow: "hidden",
+              background: "rgba(255,255,255,0.75)",
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1.2fr 0.6fr 0.4fr 0.8fr",
+                gap: 10,
+                padding: "10px 12px",
+                fontSize: 12,
+                fontWeight: 1000,
+                background: "rgba(0,0,0,0.04)",
+              }}
+            >
+              <div>Naziv</div>
+              <div>Status</div>
+              <div>Prio</div>
+              <div>Created</div>
+            </div>
+
+            {rows.length === 0 ? (
+              <div style={{ padding: 12, fontSize: 13, opacity: 0.75 }}>
+                Trenutno nema zahtjeva. {isLoggedIn ? "Klikni “Novi zahtjev”." : ""}
+              </div>
+            ) : (
+              rows.map((r) => (
+                <div
+                  key={r.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.2fr 0.6fr 0.4fr 0.8fr",
+                    gap: 10,
+                    padding: "10px 12px",
+                    borderTop: "1px solid rgba(0,0,0,0.06)",
+                    fontSize: 13,
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontWeight: 900 }}>{r.name}</div>
+                  <div style={{ opacity: 0.8 }}>{r.status}</div>
+                  <div style={{ opacity: 0.8 }}>{r.priority}</div>
+                  <div style={{ opacity: 0.7 }}>
+                    {r.created_at ? String(r.created_at).slice(0, 10) : "-"}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-            Ovo je samo UI skeleton. U B fazi spremamo zahtjeve u DB + na “Igrači” stranici biramo zahtjev i dobijemo rezultate.
+            Napomena: sljedeći korak je “Request → filtrira Players” + “Dodaj u listu”.
           </div>
         </div>
-
-        <div style={card()}>
-          <div style={{ fontWeight: 1000, marginBottom: 10 }}>Kako će raditi (logika)</div>
-          <ol style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
-            <li>Manager autorizira tracker → “Moji igrači” se sinkaju (bez prikaza tuđih skillova).</li>
-            <li>Izbornik kreira “Zahtjev” (dob + min skilovi).</li>
-            <li>Na “Igrači” odabere zahtjev → dobije listu igrača koji ga zadovoljavaju.</li>
-            <li>Izbornik dodaje igrače na “Liste” (DEF/IM/WING…) + bilješke.</li>
-          </ol>
-        </div>
       </div>
-    </AppLayout>
+    </div>
   );
-}
-
-function card() {
-  return {
-    background: "#fff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 14,
-    padding: 14
-  };
-}
-function inp() {
-  return { padding: 10, borderRadius: 10, border: "1px solid #e5e7eb" };
-}
-function btn() {
-  return { padding: "9px 12px", borderRadius: 12, border: "1px solid #e5e7eb", textDecoration: "none", fontWeight: 900, color: "#111", background: "#fff" };
-}
-function btnDark() {
-  return { padding: "9px 12px", borderRadius: 12, textDecoration: "none", fontWeight: 1000, color: "#fff", background: "#111" };
-}
+                }
