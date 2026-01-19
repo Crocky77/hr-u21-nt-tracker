@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 
 function teamLabel(team) {
@@ -8,7 +8,7 @@ function teamLabel(team) {
   return "Tim";
 }
 
-// ---- Columns (UI only, values are placeholders "—" until DB/CHPP wiring in 16.3+) ----
+// ---- Columns (UI only; values are placeholders until DB/CHPP wiring) ----
 const ALL_COLUMNS = [
   { key: "name", label: "Ime", always: true },
   { key: "pos", label: "Poz", always: true },
@@ -43,12 +43,17 @@ const PRESETS = [
   { key: "im", label: "IM preset", cols: ["pm", "pass", "def", "wing"] },
   { key: "wing", label: "WING preset", cols: ["wing", "pass", "pm", "score"] },
   { key: "fwd", label: "FWD preset", cols: ["score", "pass", "wing", "pm"] },
-  { key: "all", label: "Sve", cols: ["gk", "def", "pm", "wing", "pass", "score", "sp", "tsi", "wage", "form", "stamina", "stamina_pct", "training_last", "training_now", "ht_id"] },
+  {
+    key: "all",
+    label: "Sve",
+    cols: ["gk", "def", "pm", "wing", "pass", "score", "sp", "tsi", "wage", "form", "stamina", "stamina_pct", "training_last", "training_now", "ht_id"],
+  },
 ];
 
+const SKILL_KEYS = new Set(["gk", "def", "pm", "wing", "pass", "score", "sp"]);
+
 function buildDefaultVisibleCols(team) {
-  // Keep it readable: start with "portal-ish minimal"
-  // NOTE: name/pos/age/action are always shown.
+  // name/pos/age/action are always shown
   if (team === "nt") return new Set(["def", "pm", "pass", "score", "form", "stamina", "ht_id"]);
   if (team === "u21") return new Set(["def", "pm", "pass", "form", "stamina", "ht_id"]);
   return new Set(["def", "pm", "pass", "form", "stamina", "ht_id"]);
@@ -58,9 +63,22 @@ function fmtPlaceholder() {
   return "—";
 }
 
+function storageKey(team) {
+  return `hr_players_ui_v1_${team || "unknown"}`;
+}
+
+function safeJsonParse(str) {
+  try {
+    return JSON.parse(str);
+  } catch {
+    return null;
+  }
+}
+
 export default function TeamPlayers() {
   const router = useRouter();
   const { team } = router.query;
+  const teamKey = typeof team === "string" ? team : "";
 
   // UI state
   const [selectedRequestId, setSelectedRequestId] = useState("");
@@ -68,64 +86,89 @@ export default function TeamPlayers() {
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
   const [posFilter, setPosFilter] = useState("all");
+
   const [showSkillCols, setShowSkillCols] = useState(true);
   const [showColumnPicker, setShowColumnPicker] = useState(false);
 
-  const [visibleCols, setVisibleCols] = useState(() => buildDefaultVisibleCols(team));
+  const [visibleCols, setVisibleCols] = useState(() => buildDefaultVisibleCols(teamKey));
 
-  // when team appears (router hydration), ensure defaults apply once
-  // (avoid resetting user selection if team already set)
-  const teamKey = typeof team === "string" ? team : "";
-  const defaultCols = useMemo(() => buildDefaultVisibleCols(teamKey), [teamKey]);
-  const computedVisibleCols = useMemo(() => {
-    // If user hasn't interacted yet (empty set on first render), use defaults
-    // If user did interact, keep state. But we also re-init when team changes.
-    return visibleCols && visibleCols.size ? visibleCols : defaultCols;
-  }, [visibleCols, defaultCols]);
-
-  // Keep visibleCols in sync when team changes
-  // (only if user never customized; safest approach)
-  // For simplicity: if team changes, reset to defaults.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useMemo(() => {
+  // ---- Load from localStorage (once per team) ----
+  useEffect(() => {
     if (!teamKey) return;
-    setVisibleCols(buildDefaultVisibleCols(teamKey));
-    // also reset filters
-    setSelectedRequestId("");
-    setSearch("");
-    setAgeMin("");
-    setAgeMax("");
-    setPosFilter("all");
-    setShowSkillCols(true);
-    setShowColumnPicker(false);
+    if (typeof window === "undefined") return;
+
+    const raw = window.localStorage.getItem(storageKey(teamKey));
+    const saved = safeJsonParse(raw);
+
+    // If no saved state, ensure defaults
+    if (!saved) {
+      setVisibleCols(buildDefaultVisibleCols(teamKey));
+      setSelectedRequestId("");
+      setSearch("");
+      setAgeMin("");
+      setAgeMax("");
+      setPosFilter("all");
+      setShowSkillCols(true);
+      setShowColumnPicker(false);
+      return;
+    }
+
+    // Restore (with safety)
+    const nextCols = Array.isArray(saved.visibleCols) ? new Set(saved.visibleCols) : buildDefaultVisibleCols(teamKey);
+
+    setVisibleCols(nextCols);
+    setSelectedRequestId(typeof saved.selectedRequestId === "string" ? saved.selectedRequestId : "");
+    setSearch(typeof saved.search === "string" ? saved.search : "");
+    setAgeMin(typeof saved.ageMin === "string" ? saved.ageMin : "");
+    setAgeMax(typeof saved.ageMax === "string" ? saved.ageMax : "");
+    setPosFilter(typeof saved.posFilter === "string" ? saved.posFilter : "all");
+    setShowSkillCols(typeof saved.showSkillCols === "boolean" ? saved.showSkillCols : true);
+    setShowColumnPicker(typeof saved.showColumnPicker === "boolean" ? saved.showColumnPicker : false);
   }, [teamKey]);
 
-  const columnsToRender = useMemo(() => {
-    const base = ALL_COLUMNS.filter((c) => c.always);
-    const optional = ALL_COLUMNS.filter((c) => !c.always);
+  // ---- Save to localStorage (whenever state changes) ----
+  useEffect(() => {
+    if (!teamKey) return;
+    if (typeof window === "undefined") return;
 
-    // If user hides skill columns entirely, we remove skill columns (gk..sp)
-    const SKILL_KEYS = new Set(["gk", "def", "pm", "wing", "pass", "score", "sp"]);
-    const filteredOptional = optional.filter((c) => {
+    const payload = {
+      visibleCols: Array.from(visibleCols || []),
+      selectedRequestId,
+      search,
+      ageMin,
+      ageMax,
+      posFilter,
+      showSkillCols,
+      showColumnPicker,
+    };
+
+    window.localStorage.setItem(storageKey(teamKey), JSON.stringify(payload));
+  }, [teamKey, visibleCols, selectedRequestId, search, ageMin, ageMax, posFilter, showSkillCols, showColumnPicker]);
+
+  const computedVisibleCols = useMemo(() => {
+    // If state is empty (edge), fallback to default
+    if (!visibleCols || visibleCols.size === 0) return buildDefaultVisibleCols(teamKey);
+    return visibleCols;
+  }, [visibleCols, teamKey]);
+
+  const columnsToRender = useMemo(() => {
+    // always columns are always included
+    const alwaysOrdered = ALL_COLUMNS.filter((c) => c.always);
+
+    // optional keys: apply "showSkillCols" first
+    const optional = ALL_COLUMNS.filter((c) => !c.always).filter((c) => {
       if (!showSkillCols && SKILL_KEYS.has(c.key)) return false;
       return true;
     });
 
-    // Now apply column picker visibility
-    const picked = filteredOptional.filter((c) => computedVisibleCols.has(c.key));
-
-    // Always include always columns in a fixed order
-    // Final order: always columns in ALL_COLUMNS order, then picked in ALL_COLUMNS order
-    const alwaysOrdered = ALL_COLUMNS.filter((c) => c.always);
-    const pickedOrdered = ALL_COLUMNS.filter((c) => !c.always).filter((c) => picked.some((p) => p.key === c.key));
+    // apply picker
+    const pickedOrdered = optional.filter((c) => computedVisibleCols.has(c.key));
 
     return [...alwaysOrdered, ...pickedOrdered];
   }, [computedVisibleCols, showSkillCols]);
 
   // Fake preview data (until 16.3 connects requests + players)
   const requestsPreview = useMemo(() => {
-    // If user already has requests in DB, in 16.3 we’ll fetch them.
-    // For now keep minimal “skeleton” options so UI behaves.
     return [
       { id: "req-1", title: "NT GK (test)", status: "open", criteria: { q: "spec", positions: ["GK"], skills: { goalkeeping: 8 }, age_min: 17, age_max: 21 } },
       { id: "req-2", title: "Test zahtjev (NT) - spec", status: "open", criteria: { q: "spec", training: { min_percent: 50, allow_no_training: false }, nt_only: true } },
@@ -133,7 +176,6 @@ export default function TeamPlayers() {
   }, []);
 
   const playersPreview = useMemo(() => {
-    // One row like in your screenshot; real data later.
     return [
       {
         id: "p-1",
@@ -141,7 +183,6 @@ export default function TeamPlayers() {
         pos: "GK",
         age: 19,
         ht_id: "—",
-        // skills/info placeholders
         gk: fmtPlaceholder(),
         def: fmtPlaceholder(),
         pm: fmtPlaceholder(),
@@ -170,14 +211,7 @@ export default function TeamPlayers() {
   function applyPreset(presetKey) {
     const preset = PRESETS.find((p) => p.key === presetKey);
     if (!preset) return;
-
-    setVisibleCols((prev) => {
-      const next = new Set(prev);
-      // clear all optional keys first (but keep always columns separate anyway)
-      next.clear();
-      preset.cols.forEach((k) => next.add(k));
-      return next;
-    });
+    setVisibleCols(new Set(preset.cols));
   }
 
   function toggleColumn(key) {
@@ -189,8 +223,25 @@ export default function TeamPlayers() {
     });
   }
 
-  function resetColumns() {
+  function resetColumnsOnly() {
     setVisibleCols(buildDefaultVisibleCols(teamKey));
+  }
+
+  function resetAll() {
+    setSelectedRequestId("");
+    setSearch("");
+    setAgeMin("");
+    setAgeMax("");
+    setPosFilter("all");
+    setShowSkillCols(true);
+    setShowColumnPicker(false);
+    setVisibleCols(buildDefaultVisibleCols(teamKey));
+  }
+
+  function clearSavedUi() {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem(storageKey(teamKey));
+    resetAll();
   }
 
   if (!teamKey) return null;
@@ -327,12 +378,7 @@ export default function TeamPlayers() {
             Prikaži “skill” stupce (preview)
           </label>
 
-          <button
-            type="button"
-            className="hr-backBtn"
-            onClick={() => setShowColumnPicker((v) => !v)}
-            style={{ fontWeight: 1000 }}
-          >
+          <button type="button" className="hr-backBtn" onClick={() => setShowColumnPicker((v) => !v)} style={{ fontWeight: 1000 }}>
             {showColumnPicker ? "Sakrij kolone" : "Odaberi kolone"}
           </button>
 
@@ -345,20 +391,16 @@ export default function TeamPlayers() {
             Primijeni zahtjev → (skeleton)
           </button>
 
-          <button
-            type="button"
-            className="hr-backBtn"
-            onClick={() => {
-              setSelectedRequestId("");
-              setSearch("");
-              setAgeMin("");
-              setAgeMax("");
-              setPosFilter("all");
-              resetColumns();
-            }}
-            style={{ fontWeight: 1000 }}
-          >
+          <button type="button" className="hr-backBtn" onClick={resetAll} style={{ fontWeight: 1000 }}>
             Reset filtera
+          </button>
+
+          <button type="button" className="hr-backBtn" onClick={resetColumnsOnly} style={{ fontWeight: 1000 }}>
+            Reset kolona
+          </button>
+
+          <button type="button" className="hr-backBtn" onClick={clearSavedUi} style={{ fontWeight: 1000 }}>
+            Obriši spremljeno (UI)
           </button>
         </div>
 
@@ -377,17 +419,11 @@ export default function TeamPlayers() {
               <div style={{ fontWeight: 1000 }}>Kolone (odabir)</div>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {PRESETS.map((p) => (
-                  <button
-                    key={p.key}
-                    type="button"
-                    className="hr-backBtn"
-                    style={{ fontWeight: 900 }}
-                    onClick={() => applyPreset(p.key)}
-                  >
+                  <button key={p.key} type="button" className="hr-backBtn" style={{ fontWeight: 900 }} onClick={() => applyPreset(p.key)}>
                     {p.label}
                   </button>
                 ))}
-                <button type="button" className="hr-backBtn" style={{ fontWeight: 900 }} onClick={resetColumns}>
+                <button type="button" className="hr-backBtn" style={{ fontWeight: 900 }} onClick={resetColumnsOnly}>
                   Default
                 </button>
               </div>
@@ -395,7 +431,7 @@ export default function TeamPlayers() {
 
             <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10 }}>
               {ALL_COLUMNS.filter((c) => !c.always).map((c) => {
-                const isSkill = ["gk", "def", "pm", "wing", "pass", "score", "sp"].includes(c.key);
+                const isSkill = SKILL_KEYS.has(c.key);
                 const disabled = !showSkillCols && isSkill;
                 const checked = computedVisibleCols.has(c.key) && !disabled;
 
@@ -415,12 +451,7 @@ export default function TeamPlayers() {
                     }}
                     title={disabled ? "Uključi 'Prikaži skill stupce' da bi birao skillove." : ""}
                   >
-                    <input
-                      type="checkbox"
-                      disabled={disabled}
-                      checked={checked}
-                      onChange={() => toggleColumn(c.key)}
-                    />
+                    <input type="checkbox" disabled={disabled} checked={checked} onChange={() => toggleColumn(c.key)} />
                     {c.label}
                   </label>
                 );
@@ -428,7 +459,7 @@ export default function TeamPlayers() {
             </div>
 
             <div style={{ marginTop: 10, opacity: 0.75, fontSize: 12 }}>
-              Napomena: vrijednosti su trenutno “—”. U Task 16.3 spajamo DB (team_requests + players + snapshots).
+              Spremanje: automatski se pamti po timu (NT/U21). “Obriši spremljeno (UI)” briše localStorage.
             </div>
           </div>
         )}
@@ -511,35 +542,18 @@ export default function TeamPlayers() {
                     if (c.key === "action") {
                       return (
                         <div key={c.key} style={{ display: "flex", gap: 10, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                          <button
-                            type="button"
-                            className="hr-backBtn"
-                            style={{ fontWeight: 1000 }}
-                            onClick={() => alert("Liste dolaze kasnije (Task 17+).")}
-                          >
+                          <button type="button" className="hr-backBtn" style={{ fontWeight: 1000 }} onClick={() => alert("Liste dolaze kasnije (Task 17+).")}>
                             + U listu
                           </button>
-                          <button
-                            type="button"
-                            className="hr-backBtn"
-                            style={{ fontWeight: 1000 }}
-                            onClick={() => alert("Detalji dolaze kad spojimo stvarne podatke (Task 16.3+).")}
-                          >
+                          <button type="button" className="hr-backBtn" style={{ fontWeight: 1000 }} onClick={() => alert("Detalji dolaze kad spojimo stvarne podatke (Task 16.3+).")}>
                             Detalji →
                           </button>
                         </div>
                       );
                     }
 
-                    if (c.key === "name") {
-                      return (
-                        <div key={c.key} style={{ fontWeight: 1000 }}>
-                          {p.name}
-                        </div>
-                      );
-                    }
+                    if (c.key === "name") return <div key={c.key} style={{ fontWeight: 1000 }}>{p.name}</div>;
 
-                    // safe field output
                     return <div key={c.key}>{p[c.key] ?? fmtPlaceholder()}</div>;
                   })}
                 </div>
@@ -554,4 +568,4 @@ export default function TeamPlayers() {
       </div>
     </div>
   );
-}
+      }
