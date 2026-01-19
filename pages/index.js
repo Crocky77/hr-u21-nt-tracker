@@ -1,6 +1,40 @@
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export default function HomePage() {
+  const [u21, setU21] = useState({ count: 0, fetchedAt: null });
+  const [nt, setNT] = useState({ count: 0, fetchedAt: null });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function load() {
+      try {
+        const [ru21, rnt] = await Promise.all([
+          fetch("/api/transfers/u21").then((r) => r.json()),
+          fetch("/api/transfers/nt").then((r) => r.json()),
+        ]);
+
+        if (!alive) return;
+
+        setU21({ count: Number(ru21?.count || 0), fetchedAt: ru21?.fetchedAt || null });
+        setNT({ count: Number(rnt?.count || 0), fetchedAt: rnt?.fetchedAt || null });
+      } catch (e) {
+        // Ako API padne, samo ostavi 0 i ne ruši dizajn
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const total = (u21.count || 0) + (nt.count || 0);
+
   return (
     <div className="hr-homeBg">
       <main className="hr-main">
@@ -100,21 +134,11 @@ export default function HomePage() {
 
                   {/* Linkovi (pills) */}
                   <div className="hr-homeLinks hr-homeLinksPills" style={{ marginTop: 12 }}>
-                    <Link href="/about" className="hr-homeLinkPill">
-                      O alatu
-                    </Link>
-                    <Link href="/help" className="hr-homeLinkPill">
-                      Pomoć
-                    </Link>
-                    <Link href="/donate" className="hr-homeLinkPill">
-                      Donacije
-                    </Link>
-                    <Link href="/privacy" className="hr-homeLinkPill">
-                      Privacy
-                    </Link>
-                    <Link href="/terms" className="hr-homeLinkPill">
-                      Terms
-                    </Link>
+                    <Link href="/about" className="hr-homeLinkPill">O alatu</Link>
+                    <Link href="/help" className="hr-homeLinkPill">Pomoć</Link>
+                    <Link href="/donate" className="hr-homeLinkPill">Donacije</Link>
+                    <Link href="/privacy" className="hr-homeLinkPill">Privacy</Link>
+                    <Link href="/terms" className="hr-homeLinkPill">Terms</Link>
                   </div>
                 </div>
               </div>
@@ -149,12 +173,15 @@ export default function HomePage() {
                 <div className="hr-3dCardInner">
                   <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
                     <div>
-                      <div style={{ fontWeight: 1000 }}>
-                        Hrvatski U21/NT igrači na transfer listi
-                      </div>
+                      <div style={{ fontWeight: 1000 }}>Hrvatski U21/NT igrači na transfer listi</div>
                       <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>
                         Live (privremeno): Toxttrick scraping — samo hrvatski igrači, rotacija svakih 6h
                       </div>
+                      {!loading && (u21.fetchedAt || nt.fetchedAt) ? (
+                        <div style={{ marginTop: 6, opacity: 0.75, fontSize: 12 }}>
+                          Zadnje osvježenje: {String(u21.fetchedAt || nt.fetchedAt)}
+                        </div>
+                      ) : null}
                     </div>
 
                     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -168,8 +195,9 @@ export default function HomePage() {
                           cursor: "default",
                         }}
                       >
-                        U21 (0)
+                        U21 ({u21.count || 0})
                       </span>
+
                       <span
                         className="hr-homeLinkPill"
                         style={{
@@ -180,13 +208,11 @@ export default function HomePage() {
                           cursor: "default",
                         }}
                       >
-                        NT (0)
+                        NT ({nt.count || 0})
                       </span>
 
-                      {/* VAŽNO: držim link isti kao prije (da ne dobijemo 404).
-                          Ako je kod tebe druga ruta, samo mi reci koja je (npr. /transfers) */}
                       <Link
-                        href="/dashboard_nt"
+                        href="/transfers"
                         className="hr-homePill"
                         style={{
                           textDecoration: "none",
@@ -201,7 +227,11 @@ export default function HomePage() {
                   </div>
 
                   <div style={{ marginTop: 10, opacity: 0.85, fontSize: 13 }}>
-                    Nema hrvatskih igrača na TL (po izvoru).
+                    {total > 0 ? (
+                      <>Ukupno na TL: <b>{total}</b> (U21 {u21.count || 0} / NT {nt.count || 0})</>
+                    ) : (
+                      <>Nema hrvatskih igrača na TL (po izvoru).</>
+                    )}
                   </div>
                 </div>
               </div>
@@ -216,4 +246,4 @@ export default function HomePage() {
       </main>
     </div>
   );
-}
+                          }
