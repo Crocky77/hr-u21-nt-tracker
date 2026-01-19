@@ -1,5 +1,29 @@
 import Link from "next/link";
 
+function StaffPreview({ color }) {
+  return (
+    <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.25, color }}>
+      <div>
+        <strong>Izbornik:</strong> nepoznato
+      </div>
+      <div>
+        <strong>Pomoćnik izbornika:</strong> nepoznato
+      </div>
+      <div style={{ marginTop: 6 }}>
+        <strong>Osoblje:</strong>
+      </div>
+      <div style={{ paddingLeft: 10 }}>
+        <div>
+          <strong>Glavni skaut:</strong> nepoznato
+        </div>
+        <div>
+          <strong>Skaut(i):</strong> nepoznato
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
     <div className="hr-homeBg">
@@ -28,9 +52,13 @@ export default function HomePage() {
                         <div className="hr-homeMiniHead">
                           <div className="hr-homeMiniTitle">Hrvatska U21</div>
                         </div>
+
                         <div className="hr-homeMiniText">
                           Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.
                         </div>
+
+                        {/* OSOBLJE (U21 = crveno) */}
+                        <StaffPreview color="#b00020" />
                       </div>
                     </Link>
 
@@ -45,9 +73,13 @@ export default function HomePage() {
                         <div className="hr-homeMiniHead">
                           <div className="hr-homeMiniTitle">Hrvatska NT</div>
                         </div>
+
                         <div className="hr-homeMiniText">
                           Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.
                         </div>
+
+                        {/* OSOBLJE (NT = plavo) */}
+                        <StaffPreview color="#0b3d91" />
                       </div>
                     </Link>
                   </div>
@@ -91,101 +123,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* TRANSFER MODUL (HR boje) */}
-              <div className="hr-3dCard" style={{ marginTop: 12 }}>
-                <div
-                  className="hr-3dCardInner"
-                  style={{
-                    borderRadius: 18,
-                    border: "1px solid rgba(255,255,255,0.35)",
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-                    position: "relative",
-                    overflow: "hidden",
-                  }}
-                >
-                  {/* HR traka (crveno-bijelo-plavo) */}
-                  <div
-                    aria-hidden="true"
-                    style={{
-                      position: "absolute",
-                      left: 0,
-                      top: 0,
-                      right: 0,
-                      height: 6,
-                      background: "linear-gradient(90deg, #e11d48 0%, #ffffff 50%, #2563eb 100%)",
-                    }}
-                  />
-
-                  <div style={{ paddingTop: 6 }}>
-                    <div style={{ fontWeight: 1000 }}>Hrvatski U21/NT igrači na transfer listi</div>
-                    <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>
-                      Live (privremeno): Toxttrick scraping — samo hrvatski igrači, rotacija svakih 6h
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: 10,
-                        display: "flex",
-                        gap: 10,
-                        alignItems: "center",
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      {/* Brojači (trenutno placeholder dok scraping/API nije spojen) */}
-                      <span
-                        style={{
-                          fontWeight: 900,
-                          fontSize: 12,
-                          padding: "6px 10px",
-                          borderRadius: 999,
-                          background: "rgba(37,99,235,0.12)",
-                          border: "1px solid rgba(37,99,235,0.22)",
-                        }}
-                        title="Broj U21 igrača na transfer listi (privremeno 0)"
-                      >
-                        U21 (0)
-                      </span>
-
-                      <span
-                        style={{
-                          fontWeight: 900,
-                          fontSize: 12,
-                          padding: "6px 10px",
-                          borderRadius: 999,
-                          background: "rgba(225,29,72,0.12)",
-                          border: "1px solid rgba(225,29,72,0.22)",
-                        }}
-                        title="Broj NT igrača na transfer listi (privremeno 0)"
-                      >
-                        NT (0)
-                      </span>
-
-                      <div style={{ flex: 1 }} />
-
-                      {/* Link na popis (ako imamo posebnu stranicu kasnije ćemo promijeniti href) */}
-                      <Link
-                        href="/popisi"
-                        style={{
-                          textDecoration: "none",
-                          fontWeight: 900,
-                          padding: "8px 12px",
-                          borderRadius: 999,
-                          background: "rgba(255,255,255,0.16)",
-                          border: "1px solid rgba(255,255,255,0.25)",
-                        }}
-                        title="Otvori popis"
-                      >
-                        Otvori popis <span aria-hidden="true">→</span>
-                      </Link>
-                    </div>
-
-                    <div style={{ marginTop: 8, opacity: 0.75, fontSize: 12 }}>
-                      Nema hrvatskih igrača na TL (po izvoru).
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* NAPOMENA */}
               <div className="hr-homeNote">
                 Napomena: u V1 gost vidi “preview” modula, ali sve stranice koje prikazuju igrače/skillove traže prijavu.
@@ -196,4 +133,4 @@ export default function HomePage() {
       </main>
     </div>
   );
-}
+                        }
