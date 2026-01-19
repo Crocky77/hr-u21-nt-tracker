@@ -1,91 +1,92 @@
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../utils/supabaseClient";
 
-function normalizeTeamType(v) {
-  const s = String(v || "").toUpperCase().trim();
-  if (s === "U21") return "U21";
-  if (s === "NT") return "NT";
-  return s;
-}
+/**
+ * Home page je public (preview).
+ * Ovdje smijemo prikazati samo anonimizirane oznake osoblja (staff_label),
+ * NIKAD email/nick/identitet.
+ */
+export async function getStaticProps() {
+  try {
+    const { data, error } = await supabase
+      .from("staff_members_public")
+      .select("team_type, role, staff_label");
 
-function normalizeRole(v) {
-  return String(v || "").toLowerCase().trim();
-}
-
-function buildStaffLine(staffByTeam, teamType) {
-  const team = staffByTeam[teamType] || {};
-  const coach = team.coach || [];
-  const assistant = team.assistant || [];
-  const scout = team.scout || [];
-
-  const parts = [];
-
-  if (coach.length) parts.push(`Izbornik: ${coach.join(", ")}`);
-  if (assistant.length) parts.push(`Pomoćnik: ${assistant.join(", ")}`);
-
-  if (scout.length) {
-    // Ako su samo "Staff #1", "Staff #2" itd – prikazujemo ih sve
-    parts.push(`Skauti: ${scout.join(", ")}`);
-  }
-
-  if (!parts.length) return "Osoblje: (nema podataka)";
-  return parts.join(" • ");
-}
-
-export default function HomePage() {
-  const [staffRows, setStaffRows] = useState([]);
-  const [staffErr, setStaffErr] = useState(null);
-
-  useEffect(() => {
-    let alive = true;
-
-    async function loadStaff() {
-      setStaffErr(null);
-
-      const { data, error } = await supabase
-        .from("staff_members_public")
-        .select("team_type, role, staff_label")
-        .order("team_type", { ascending: true })
-        .order("role", { ascending: true })
-        .order("staff_label", { ascending: true });
-
-      if (!alive) return;
-
-      if (error) {
-        setStaffErr(error.message || "Greška kod učitavanja osoblja.");
-        setStaffRows([]);
-        return;
-      }
-
-      setStaffRows(Array.isArray(data) ? data : []);
+    if (error) {
+      // fallback na prazno ako DB iz bilo kojeg razloga ne da podatke
+      return {
+        props: { staffByTeam: { U21: {}, NT: {} } },
+        revalidate: 60,
+      };
     }
 
-    loadStaff();
-    return () => {
-      alive = false;
+    const staffByTeam = { U21: {}, NT: {} };
+
+    for (const row of data || []) {
+      const team = row.team_type;
+      const role = row.role;
+      const label = row.staff_label;
+
+      if (!team || !role || !label) continue;
+      if (!staffByTeam[team]) staffByTeam[team] = {};
+      if (!staffByTeam[team][role]) staffByTeam[team][role] = [];
+      staffByTeam[team][role].push(label);
+    }
+
+    return {
+      props: { staffByTeam },
+      // public stranica - dovoljno je osvježenje svaku minutu
+      revalidate: 60,
     };
-  }, []);
+  } catch (e) {
+    return {
+      props: { staffByTeam: { U21: {}, NT: {} } },
+      revalidate: 60,
+    };
+  }
+}
 
-  const staffByTeam = useMemo(() => {
-    const out = { U21: {}, NT: {} };
+function pickOne(arr) {
+  return Array.isArray(arr) && arr.length > 0 ? arr[0] : "(nema podataka)";
+}
 
-    for (const r of staffRows) {
-      const teamType = normalizeTeamType(r.team_type);
-      const role = normalizeRole(r.role);
-      const label = String(r.staff_label || "").trim();
+function pickNth(arr, idx) {
+  return Array.isArray(arr) && arr.length > idx ? arr[idx] : "(nema podataka)";
+}
 
-      if (!label) continue;
-      if (!out[teamType]) out[teamType] = {};
-      if (!out[teamType][role]) out[teamType][role] = [];
-      out[teamType][role].push(label);
-    }
+function StaffBlock({ teamType, staff, color }) {
+  // roleovi koje želimo prikazati uvijek
+  const coach = pickOne(staff?.coach);
+  const assistant = pickOne(staff?.assistant);
+  const scout1 = pickNth(staff?.scout, 0);
+  const scout2 = pickNth(staff?.scout, 1);
 
-    return out;
-  }, [staffRows]);
+  return (
+    <div style={{ marginTop: 10, fontSize: 13, lineHeight: 1.35, color }}>
+      <div style={{ fontWeight: 800, marginBottom: 4 }}>
+        Osoblje ({teamType})
+      </div>
 
-  const u21StaffLine = buildStaffLine(staffByTeam, "U21");
-  const ntStaffLine = buildStaffLine(staffByTeam, "NT");
+      <div>
+        <span style={{ fontWeight: 700 }}>Izbornik:</span> {coach}
+      </div>
+      <div>
+        <span style={{ fontWeight: 700 }}>Pomoćnik izbornika:</span>{" "}
+        {assistant}
+      </div>
+      <div>
+        <span style={{ fontWeight: 700 }}>Skaut #1:</span> {scout1}
+      </div>
+      <div>
+        <span style={{ fontWeight: 700 }}>Skaut #2:</span> {scout2}
+      </div>
+    </div>
+  );
+}
+
+export default function HomePage({ staffByTeam }) {
+  const u21Staff = staffByTeam?.U21 || {};
+  const ntStaff = staffByTeam?.NT || {};
 
   return (
     <div className="hr-homeBg">
@@ -98,58 +99,98 @@ export default function HomePage() {
                 <div className="hr-3dCardInner">
                   <div className="hr-homeHeroTitle">Hrvatski U21/NT Tracker</div>
                   <div className="hr-homeHeroSub">
-                    Javni pregled strukture i “preview”. Igrači i skillovi su zaključani bez prijave.
+                    Javni pregled strukture i “preview”. Igrači i skillovi su
+                    zaključani bez prijave.
                   </div>
 
-                  {/* U21 / NT - 3D KVADRATI (klikajući) */}
-                  <div className="hr-homeGrid" style={{ marginTop: 12 }}>
+                  {/* U21 / NT - VEĆE KARTICE */}
+                  <div className="hr-homeGrid" style={{ marginTop: 14 }}>
                     <Link
                       href="/team/u21"
                       className="hr-3dCard hr-3dHover hr-homeMiniCardU21"
-                      style={{ textDecoration: "none" }}
+                      style={{
+                        textDecoration: "none",
+                        display: "block",
+                        minHeight: 170,
+                      }}
                       aria-label="Otvori Hrvatska U21"
                       title="Otvori Hrvatska U21"
                     >
-                      <div className="hr-3dCardInner">
+                      <div
+                        className="hr-3dCardInner"
+                        style={{ padding: 18 }}
+                      >
                         <div className="hr-homeMiniHead">
-                          <div className="hr-homeMiniTitle">Hrvatska U21</div>
+                          <div
+                            className="hr-homeMiniTitle"
+                            style={{ fontSize: 20 }}
+                          >
+                            Hrvatska U21
+                          </div>
                         </div>
 
-                        <div className="hr-homeMiniText">
-                          Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.
+                        <div
+                          className="hr-homeMiniText"
+                          style={{ fontSize: 14, marginTop: 6 }}
+                        >
+                          Pregled modula (preview). Igrači i skillovi su
+                          zaključani bez prijave.
                         </div>
 
-                        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9, lineHeight: 1.35 }}>
-                          {staffErr ? `Osoblje: greška (${staffErr})` : u21StaffLine}
-                        </div>
+                        <StaffBlock
+                          teamType="U21"
+                          staff={u21Staff}
+                          color="#c62828"
+                        />
                       </div>
                     </Link>
 
                     <Link
                       href="/team/nt"
                       className="hr-3dCard hr-3dHover hr-homeMiniCardNT"
-                      style={{ textDecoration: "none" }}
+                      style={{
+                        textDecoration: "none",
+                        display: "block",
+                        minHeight: 170,
+                      }}
                       aria-label="Otvori Hrvatska NT"
                       title="Otvori Hrvatska NT"
                     >
-                      <div className="hr-3dCardInner">
+                      <div
+                        className="hr-3dCardInner"
+                        style={{ padding: 18 }}
+                      >
                         <div className="hr-homeMiniHead">
-                          <div className="hr-homeMiniTitle">Hrvatska NT</div>
+                          <div
+                            className="hr-homeMiniTitle"
+                            style={{ fontSize: 20 }}
+                          >
+                            Hrvatska NT
+                          </div>
                         </div>
 
-                        <div className="hr-homeMiniText">
-                          Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.
+                        <div
+                          className="hr-homeMiniText"
+                          style={{ fontSize: 14, marginTop: 6 }}
+                        >
+                          Pregled modula (preview). Igrači i skillovi su
+                          zaključani bez prijave.
                         </div>
 
-                        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9, lineHeight: 1.35 }}>
-                          {staffErr ? `Osoblje: greška (${staffErr})` : ntStaffLine}
-                        </div>
+                        <StaffBlock
+                          teamType="NT"
+                          staff={ntStaff}
+                          color="#1565c0"
+                        />
                       </div>
                     </Link>
                   </div>
 
                   {/* Linkovi (vidljiviji) */}
-                  <div className="hr-homeLinks hr-homeLinksPills" style={{ marginTop: 12 }}>
+                  <div
+                    className="hr-homeLinks hr-homeLinksPills"
+                    style={{ marginTop: 14 }}
+                  >
                     <Link href="/about" className="hr-homeLinkPill">
                       O alatu
                     </Link>
@@ -174,13 +215,20 @@ export default function HomePage() {
                 <div className="hr-3dCardInner">
                   <div className="hr-homeRow">
                     <div>
-                      <div style={{ fontWeight: 1000 }}>Moji igrači u Hrvatskom trackeru</div>
+                      <div style={{ fontWeight: 1000 }}>
+                        Moji igrači u Hrvatskom trackeru
+                      </div>
                       <div style={{ marginTop: 4, opacity: 0.8, fontSize: 13 }}>
-                        CHPP spajanje dolazi kasnije. Za sada pripremamo UI + DB za “moji igrači”.
+                        CHPP spajanje dolazi kasnije. Za sada pripremamo UI + DB
+                        za “moji igrači”.
                       </div>
                     </div>
 
-                    <Link className="hr-homePill" href="/my-players" style={{ textDecoration: "none" }}>
+                    <Link
+                      className="hr-homePill"
+                      href="/my-players"
+                      style={{ textDecoration: "none" }}
+                    >
                       Prijava (CHPP kasnije)
                     </Link>
                   </div>
@@ -189,7 +237,8 @@ export default function HomePage() {
 
               {/* NAPOMENA */}
               <div className="hr-homeNote">
-                Napomena: u V1 gost vidi “preview” modula, ali sve stranice koje prikazuju igrače/skillove traže prijavu.
+                Napomena: u V1 gost vidi “preview” modula, ali sve stranice koje
+                prikazuju igrače/skillove traže prijavu.
               </div>
             </div>
           </div>
@@ -197,4 +246,4 @@ export default function HomePage() {
       </main>
     </div>
   );
-                        }
+                            }
