@@ -1,6 +1,92 @@
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "../utils/supabaseClient";
+
+function normalizeTeamType(v) {
+  const s = String(v || "").toUpperCase().trim();
+  if (s === "U21") return "U21";
+  if (s === "NT") return "NT";
+  return s;
+}
+
+function normalizeRole(v) {
+  return String(v || "").toLowerCase().trim();
+}
+
+function buildStaffLine(staffByTeam, teamType) {
+  const team = staffByTeam[teamType] || {};
+  const coach = team.coach || [];
+  const assistant = team.assistant || [];
+  const scout = team.scout || [];
+
+  const parts = [];
+
+  if (coach.length) parts.push(`Izbornik: ${coach.join(", ")}`);
+  if (assistant.length) parts.push(`Pomoćnik: ${assistant.join(", ")}`);
+
+  if (scout.length) {
+    // Ako su samo "Staff #1", "Staff #2" itd – prikazujemo ih sve
+    parts.push(`Skauti: ${scout.join(", ")}`);
+  }
+
+  if (!parts.length) return "Osoblje: (nema podataka)";
+  return parts.join(" • ");
+}
 
 export default function HomePage() {
+  const [staffRows, setStaffRows] = useState([]);
+  const [staffErr, setStaffErr] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+
+    async function loadStaff() {
+      setStaffErr(null);
+
+      const { data, error } = await supabase
+        .from("staff_members_public")
+        .select("team_type, role, staff_label")
+        .order("team_type", { ascending: true })
+        .order("role", { ascending: true })
+        .order("staff_label", { ascending: true });
+
+      if (!alive) return;
+
+      if (error) {
+        setStaffErr(error.message || "Greška kod učitavanja osoblja.");
+        setStaffRows([]);
+        return;
+      }
+
+      setStaffRows(Array.isArray(data) ? data : []);
+    }
+
+    loadStaff();
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const staffByTeam = useMemo(() => {
+    const out = { U21: {}, NT: {} };
+
+    for (const r of staffRows) {
+      const teamType = normalizeTeamType(r.team_type);
+      const role = normalizeRole(r.role);
+      const label = String(r.staff_label || "").trim();
+
+      if (!label) continue;
+      if (!out[teamType]) out[teamType] = {};
+      if (!out[teamType][role]) out[teamType][role] = [];
+      out[teamType][role].push(label);
+    }
+
+    return out;
+  }, [staffRows]);
+
+  const u21StaffLine = buildStaffLine(staffByTeam, "U21");
+  const ntStaffLine = buildStaffLine(staffByTeam, "NT");
+
   return (
     <div className="hr-homeBg">
       <main className="hr-main">
@@ -28,8 +114,13 @@ export default function HomePage() {
                         <div className="hr-homeMiniHead">
                           <div className="hr-homeMiniTitle">Hrvatska U21</div>
                         </div>
+
                         <div className="hr-homeMiniText">
                           Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.
+                        </div>
+
+                        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9, lineHeight: 1.35 }}>
+                          {staffErr ? `Osoblje: greška (${staffErr})` : u21StaffLine}
                         </div>
                       </div>
                     </Link>
@@ -45,8 +136,13 @@ export default function HomePage() {
                         <div className="hr-homeMiniHead">
                           <div className="hr-homeMiniTitle">Hrvatska NT</div>
                         </div>
+
                         <div className="hr-homeMiniText">
                           Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.
+                        </div>
+
+                        <div style={{ marginTop: 8, fontSize: 12, opacity: 0.9, lineHeight: 1.35 }}>
+                          {staffErr ? `Osoblje: greška (${staffErr})` : ntStaffLine}
                         </div>
                       </div>
                     </Link>
@@ -101,4 +197,4 @@ export default function HomePage() {
       </main>
     </div>
   );
-}
+                        }
