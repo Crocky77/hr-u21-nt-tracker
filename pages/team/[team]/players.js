@@ -1,10 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-
-// VAŽNO: u projektu smo standardizirali da supabaseClient exporta NAMED export.
-// Ako tvoj file exporta default, javi i odmah ću ti dati FULL FIX i za supabaseClient.
-import { supabase } from "../../../utils/supabaseClient";
+import { useMemo, useState } from "react";
 
 function teamLabel(team) {
   if (team === "u21") return "Hrvatska U21";
@@ -12,101 +8,82 @@ function teamLabel(team) {
   return "Tim";
 }
 
-function safeJson(obj) {
-  try {
-    return JSON.stringify(obj ?? {}, null, 2);
-  } catch {
-    return "{}";
-  }
+function safeTeam(team) {
+  return team === "u21" || team === "nt" ? team : "u21";
 }
 
 export default function TeamPlayers() {
   const router = useRouter();
-  const { team } = router.query;
+  const team = safeTeam(router.query.team);
 
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
-
-  const [teamId, setTeamId] = useState(null);
-
-  const [requests, setRequests] = useState([]);
-  const [selectedRequestId, setSelectedRequestId] = useState("");
-  const selectedRequest = useMemo(
-    () => requests.find((r) => r.id === selectedRequestId) || null,
-    [requests, selectedRequestId]
-  );
-
-  const [q, setQ] = useState("");
-
-  // FUTURE: kad dodamo tablicu igrača, ovdje će ići results
-  const [players, setPlayers] = useState([]);
-
-  useEffect(() => {
-    if (!team) return;
-
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setErr("");
-      setPlayers([]);
-      setRequests([]);
-      setSelectedRequestId("");
-      setTeamId(null);
-
-      try {
-        // 1) Dohvati team_id iz teams po slug-u (u21/nt)
-        const tRes = await supabase.from("teams").select("id, slug, name").eq("slug", team).single();
-
-        if (tRes.error) throw tRes.error;
-        if (!tRes.data?.id) throw new Error("Team nije pronađen u tablici teams.");
-
-        if (cancelled) return;
-        setTeamId(tRes.data.id);
-
-        // 2) Dohvati zahtjeve za taj team
-        const rRes = await supabase
-          .from("team_requests")
-          .select("id, title, status, criteria, created_at")
-          .eq("team_id", tRes.data.id)
-          .order("created_at", { ascending: false });
-
-        if (rRes.error) throw rRes.error;
-
-        if (cancelled) return;
-        const list = Array.isArray(rRes.data) ? rRes.data : [];
-        setRequests(list);
-
-        // Auto-select prvi zahtjev (ako postoji)
-        if (list.length > 0) setSelectedRequestId(list[0].id);
-
-        // 3) FUTURE: ovdje ćemo napraviti query igrača po selectedRequest.criteria
-        // Za sada ostaje 0 rezultata, jer nemamo punu tablicu igrača/skillova u ovom flow-u.
-        setPlayers([]);
-      } catch (e) {
-        if (cancelled) return;
-        setErr(e?.message || "Greška pri učitavanju.");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  // === Skeleton data (dok ne spojimo DB/CHPP) ===
+  const requestOptions = useMemo(() => {
+    if (team === "u21") {
+      return [
+        { id: "u21_gk", name: "U21 GK (test)" },
+        { id: "u21_def", name: "U21 DEF (test)" },
+        { id: "u21_any", name: "U21 bilo tko (preview)" },
+      ];
     }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
+    return [
+      { id: "nt_gk", name: "NT GK (test)" },
+      { id: "nt_def", name: "NT DEF (test)" },
+      { id: "nt_any", name: "NT bilo tko (preview)" },
+    ];
   }, [team]);
 
-  if (!team) return null;
+  const [selectedRequestId, setSelectedRequestId] = useState(requestOptions[0]?.id || "");
+  const [q, setQ] = useState("");
+  const [ageMin, setAgeMin] = useState("");
+  const [ageMax, setAgeMax] = useState("");
+  const [pos, setPos] = useState("");
+  const [showSkills, setShowSkills] = useState(true);
+
+  // Placeholder "rezultati"
+  const results = useMemo(() => {
+    // U ovom skeletonu samo filtriramo fake listu (da UI “diše”).
+    // Kasnije: ovdje ide DB query prema odabranom zahtjevu + dodatni filteri.
+    const fake = [
+      { id: "101", name: "Igrač A", pos: "GK", age: 19, status: "OK", ht_id: "123456789" },
+      { id: "102", name: "Igrač B", pos: "DEF", age: 20, status: "OK", ht_id: "223456789" },
+      { id: "103", name: "Igrač C", pos: "IM", age: 21, status: "Watch", ht_id: "323456789" },
+      { id: "104", name: "Igrač D", pos: "WING", age: 22, status: "OK", ht_id: "423456789" },
+    ];
+
+    let rows = fake;
+
+    if (pos) rows = rows.filter((r) => r.pos === pos);
+    if (ageMin) rows = rows.filter((r) => r.age >= Number(ageMin));
+    if (ageMax) rows = rows.filter((r) => r.age <= Number(ageMax));
+    if (q.trim()) {
+      const s = q.trim().toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          r.name.toLowerCase().includes(s) ||
+          String(r.ht_id || "").includes(s) ||
+          String(r.pos || "").toLowerCase().includes(s)
+      );
+    }
+
+    // “Zahtjev” u skeletonu samo mijenja naslov (kasnije ide DB filter)
+    if (selectedRequestId.endsWith("_gk")) rows = rows.filter((r) => r.pos === "GK");
+    if (selectedRequestId.endsWith("_def")) rows = rows.filter((r) => r.pos === "DEF");
+
+    return rows;
+  }, [q, ageMin, ageMax, pos, selectedRequestId]);
+
+  const label = teamLabel(team);
 
   return (
     <div className="hr-pageWrap">
       <div className="hr-pageCard">
+        {/* HEADER */}
         <div className="hr-pageHeaderRow">
           <div>
             <h1 className="hr-pageTitle">Igrači</h1>
-            <div className="hr-pageSub">Aktivni tim: {teamLabel(team)} (prema zahtjevima)</div>
+            <div className="hr-pageSub">
+              Aktivni tim: <b>{label}</b> — odaberi zahtjev i filtriraj rezultate (skeleton)
+            </div>
           </div>
 
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -119,88 +96,126 @@ export default function TeamPlayers() {
           </div>
         </div>
 
-        {/* STATUS / ERROR */}
-        <div style={{ marginTop: 12 }}>
-          {loading ? (
-            <div style={{ opacity: 0.75, fontWeight: 900 }}>Učitavanje...</div>
-          ) : err ? (
-            <div
+        {/* REQUEST PICKER + FILTERS */}
+        <div
+          style={{
+            marginTop: 14,
+            display: "grid",
+            gridTemplateColumns: "1.1fr 1fr 1fr 1fr",
+            gap: 10,
+            alignItems: "end",
+          }}
+        >
+          <div style={{ minWidth: 240 }}>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Zahtjev</div>
+            <select
+              value={selectedRequestId}
+              onChange={(e) => setSelectedRequestId(e.target.value)}
               style={{
-                padding: 12,
+                width: "100%",
+                padding: "10px 12px",
                 borderRadius: 12,
-                border: "1px solid rgba(239,68,68,0.35)",
-                background: "rgba(239,68,68,0.06)",
-                color: "rgba(153,27,27,0.95)",
-                fontWeight: 900,
-                whiteSpace: "pre-wrap",
+                border: "1px solid rgba(0,0,0,0.12)",
+                background: "rgba(255,255,255,0.92)",
+                fontWeight: 800,
               }}
             >
-              Greška: {err}
-            </div>
-          ) : (
-            <div style={{ opacity: 0.75, fontSize: 13 }}>
-              Team ID: <span style={{ fontWeight: 900 }}>{teamId || "—"}</span> · Zahtjeva:{" "}
-              <span style={{ fontWeight: 900 }}>{requests.length}</span>
-            </div>
-          )}
-        </div>
-
-        {/* REQUEST SELECT */}
-        <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-          <div style={{ minWidth: 220, fontWeight: 1000 }}>Odaberi zahtjev:</div>
-
-          <select
-            value={selectedRequestId}
-            onChange={(e) => setSelectedRequestId(e.target.value)}
-            style={{
-              flex: "1",
-              minWidth: 240,
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.12)",
-              outline: "none",
-              background: "rgba(255,255,255,0.95)",
-              fontWeight: 900,
-            }}
-            disabled={loading || !!err || requests.length === 0}
-          >
-            {requests.length === 0 ? (
-              <option value="">Nema zahtjeva (idi na “Zahtjevi” i kreiraj)</option>
-            ) : (
-              requests.map((r) => (
+              {requestOptions.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.title} {r.status ? `(${r.status})` : ""}
+                  {r.name}
                 </option>
-              ))
-            )}
-          </select>
+              ))}
+            </select>
+          </div>
 
-          <Link
-            className="hr-backBtn"
-            href={`/team/${team}/requests`}
-            style={{ fontSize: 13, padding: "10px 14px" }}
-          >
-            + Novi zahtjev
-          </Link>
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Pretraga</div>
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Ime, HT ID, pozicija…"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.12)",
+                outline: "none",
+                background: "rgba(255,255,255,0.92)",
+              }}
+            />
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Dob</div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <input
+                value={ageMin}
+                onChange={(e) => setAgeMin(e.target.value)}
+                placeholder="min"
+                inputMode="numeric"
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(0,0,0,0.12)",
+                  outline: "none",
+                  background: "rgba(255,255,255,0.92)",
+                }}
+              />
+              <input
+                value={ageMax}
+                onChange={(e) => setAgeMax(e.target.value)}
+                placeholder="max"
+                inputMode="numeric"
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 12,
+                  border: "1px solid rgba(0,0,0,0.12)",
+                  outline: "none",
+                  background: "rgba(255,255,255,0.92)",
+                }}
+              />
+            </div>
+          </div>
+
+          <div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>Pozicija</div>
+            <select
+              value={pos}
+              onChange={(e) => setPos(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 12,
+                border: "1px solid rgba(0,0,0,0.12)",
+                background: "rgba(255,255,255,0.92)",
+                fontWeight: 800,
+              }}
+            >
+              <option value="">Sve</option>
+              <option value="GK">GK</option>
+              <option value="DEF">DEF</option>
+              <option value="IM">IM</option>
+              <option value="WING">WING</option>
+              <option value="FWD">FWD</option>
+            </select>
+          </div>
         </div>
 
-        {/* QUICK FILTER (lokalno) */}
-        <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search (kasnije): ime, HT ID, pozicija..."
-            style={{
-              flex: "1",
-              minWidth: 240,
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.12)",
-              outline: "none",
-            }}
-          />
+        <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <label style={{ display: "flex", gap: 8, alignItems: "center", fontWeight: 900 }}>
+            <input
+              type="checkbox"
+              checked={showSkills}
+              onChange={(e) => setShowSkills(e.target.checked)}
+            />
+            Prikaži “skill” stupce (preview)
+          </label>
+
           <button
             type="button"
+            onClick={() => alert("U 16.3 spajamo ovo na DB (team_requests → query → players).")}
             style={{
               padding: "10px 14px",
               borderRadius: 12,
@@ -209,60 +224,51 @@ export default function TeamPlayers() {
               fontWeight: 900,
               cursor: "pointer",
             }}
-            onClick={() => alert("Učitavanje igrača dolazi kad spojimo tablicu igrača + query po criteria.")}
           >
-            Osvježi
+            Primijeni zahtjev → (skeleton)
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setQ("");
+              setAgeMin("");
+              setAgeMax("");
+              setPos("");
+            }}
+            style={{
+              padding: "10px 14px",
+              borderRadius: 12,
+              border: "1px solid rgba(0,0,0,0.12)",
+              background: "rgba(255,255,255,0.9)",
+              fontWeight: 900,
+              cursor: "pointer",
+            }}
+          >
+            Reset filtera
           </button>
         </div>
 
-        {/* REQUEST DETAILS (da potvrdiš da radi “zahtjev → criteria”) */}
+        {/* RESULTS TABLE */}
         <div style={{ marginTop: 14 }}>
-          <div style={{ fontWeight: 1000, marginBottom: 8 }}>Odabrani zahtjev (criteria preview)</div>
-
-          <div
-            style={{
-              border: "1px solid rgba(0,0,0,0.10)",
-              borderRadius: 14,
-              overflow: "hidden",
-              background: "rgba(255,255,255,0.85)",
-            }}
-          >
-            <div style={{ padding: 12, background: "rgba(0,0,0,0.04)", fontWeight: 900 }}>
-              {selectedRequest ? selectedRequest.title : "—"}
-            </div>
-            <pre
-              style={{
-                margin: 0,
-                padding: 12,
-                fontSize: 12,
-                lineHeight: "1.25rem",
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-word",
-                opacity: 0.9,
-              }}
-            >
-              {selectedRequest ? safeJson(selectedRequest.criteria) : "Nema odabranog zahtjeva."}
-            </pre>
+          <div style={{ fontWeight: 1000, marginBottom: 8 }}>
+            Rezultati ({results.length})
           </div>
-        </div>
-
-        {/* PLAYERS TABLE (placeholder dok ne dođe full DB) */}
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontWeight: 1000, marginBottom: 8 }}>Popis igrača ({players.length})</div>
 
           <div
             style={{
               border: "1px solid rgba(0,0,0,0.10)",
               borderRadius: 14,
               overflow: "hidden",
-              background: "rgba(255,255,255,0.85)",
+              background: "rgba(255,255,255,0.92)",
             }}
           >
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1.4fr 0.8fr 0.8fr 1fr 1fr",
-                gap: 0,
+                gridTemplateColumns: showSkills
+                  ? "1.4fr 0.7fr 0.7fr 0.9fr 0.9fr 0.9fr 1fr"
+                  : "1.6fr 0.8fr 0.8fr 1.2fr 1fr",
                 padding: "10px 12px",
                 fontWeight: 900,
                 background: "rgba(0,0,0,0.04)",
@@ -270,50 +276,111 @@ export default function TeamPlayers() {
             >
               <div>Ime</div>
               <div>Poz</div>
-              <div>Status</div>
-              <div>HT ID</div>
-              <div>Akcija</div>
+              <div>Dob</div>
+              {showSkills ? (
+                <>
+                  <div>GK</div>
+                  <div>DEF</div>
+                  <div>PM</div>
+                  <div>Akcija</div>
+                </>
+              ) : (
+                <>
+                  <div>HT ID</div>
+                  <div>Akcija</div>
+                </>
+              )}
             </div>
 
-            {players.length === 0 ? (
-              <div style={{ padding: "12px", opacity: 0.7 }}>
-                Nema rezultata — trenutno je ovo “skeleton”.
-                <br />
-                Sljedeći korak: dodati tablicu igrača + query “criteria → rezultati”.
-              </div>
+            {results.length === 0 ? (
+              <div style={{ padding: "12px", opacity: 0.7 }}>Nema rezultata.</div>
             ) : (
-              players
-                .filter((p) => {
-                  if (!q.trim()) return true;
-                  const s = q.trim().toLowerCase();
-                  return (
-                    (p.name || "").toLowerCase().includes(s) ||
-                    String(p.ht_player_id || "").includes(s) ||
-                    (p.position || "").toLowerCase().includes(s)
-                  );
-                })
-                .map((p) => (
-                  <div
-                    key={p.id}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1.4fr 0.8fr 0.8fr 1fr 1fr",
-                      padding: "10px 12px",
-                      borderTop: "1px solid rgba(0,0,0,0.06)",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ fontWeight: 900 }}>{p.name}</div>
-                    <div>{p.position || "—"}</div>
-                    <div>{p.status || "—"}</div>
-                    <div>{p.ht_player_id || "—"}</div>
-                    <div style={{ fontWeight: 900, textDecoration: "underline" }}>Otvori →</div>
-                  </div>
-                ))
+              results.map((r) => (
+                <div
+                  key={r.id}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: showSkills
+                      ? "1.4fr 0.7fr 0.7fr 0.9fr 0.9fr 0.9fr 1fr"
+                      : "1.6fr 0.8fr 0.8fr 1.2fr 1fr",
+                    padding: "10px 12px",
+                    borderTop: "1px solid rgba(0,0,0,0.06)",
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={{ fontWeight: 900 }}>{r.name}</div>
+                  <div>{r.pos}</div>
+                  <div>{r.age}</div>
+
+                  {showSkills ? (
+                    <>
+                      <div style={{ opacity: 0.75 }}>—</div>
+                      <div style={{ opacity: 0.75 }}>—</div>
+                      <div style={{ opacity: 0.75 }}>—</div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => alert("Dodavanje u listu dolazi u Task 17 (Lists).")}
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 12,
+                            border: "1px solid rgba(0,0,0,0.12)",
+                            background: "rgba(255,255,255,0.9)",
+                            fontWeight: 900,
+                            cursor: "pointer",
+                          }}
+                        >
+                          + U listu
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => alert("Detalji igrača dolaze kad napravimo players/[id] + DB.")}
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 12,
+                            border: "1px solid rgba(0,0,0,0.12)",
+                            background: "rgba(255,255,255,0.9)",
+                            fontWeight: 900,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Detalji →
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+                        {r.ht_id || "—"}
+                      </div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => alert("Dodavanje u listu dolazi u Task 17 (Lists).")}
+                          style={{
+                            padding: "8px 10px",
+                            borderRadius: 12,
+                            border: "1px solid rgba(0,0,0,0.12)",
+                            background: "rgba(255,255,255,0.9)",
+                            fontWeight: 900,
+                            cursor: "pointer",
+                          }}
+                        >
+                          + U listu
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))
             )}
+          </div>
+
+          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
+            * U Task 16.3 spajamo “Zahtjev” na DB (team_requests) i stvarne igrače (bez CHPP još).
           </div>
         </div>
       </div>
     </div>
   );
-                   }
+                        }
