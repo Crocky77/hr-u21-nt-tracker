@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 function hattrickPlayerUrl(htId) {
   const id = String(htId || "").trim();
   if (!id) return null;
-  // Hattrick public player page (ne treba CHPP)
   return `https://www.hattrick.org/Club/Players/Player.aspx?playerId=${encodeURIComponent(id)}`;
 }
 
@@ -66,6 +65,12 @@ export default function TeamTransfersPage() {
     };
   }, [team]);
 
+  const noResults = !loading && (!data.players || data.players.length === 0);
+
+  // TEST: poznati HT ID (samo za provjeru klika kad nema rezultata)
+  const testHtId = "453285255";
+  const testHtUrl = hattrickPlayerUrl(testHtId);
+
   return (
     <div className="hr-homeBg">
       <main className="hr-main">
@@ -120,7 +125,7 @@ export default function TeamTransfersPage() {
                   </thead>
 
                   <tbody>
-                    {!loading && (!data.players || data.players.length === 0) ? (
+                    {noResults ? (
                       <tr>
                         <td style={tdStyleMuted} colSpan={5}>
                           Nema rezultata.
@@ -181,6 +186,50 @@ export default function TeamTransfersPage() {
                   </tbody>
                 </table>
               </div>
+
+              {/* TEST BLOK - samo kad nema rezultata */}
+              {noResults ? (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: 12,
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.08)",
+                    background: "rgba(0,0,0,0.02)",
+                  }}
+                >
+                  <div style={{ fontWeight: 1000, marginBottom: 6 }}>Test linkovi (provjera klika)</div>
+                  <div style={{ opacity: 0.85, fontSize: 13 }}>
+                    Kad nema HR igrača na TL, ovdje možeš provjeriti otvaranje Hattrick player stranice:
+                  </div>
+
+                  <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                    <a
+                      href={testHtUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="hr-homePill"
+                      style={{ textDecoration: "none" }}
+                      title="Test: otvori Hattrick igrača"
+                    >
+                      Test: Hattrick player ({testHtId}) ↗
+                    </a>
+
+                    {data.source ? (
+                      <a
+                        href={data.source}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="hr-homePill"
+                        style={{ textDecoration: "none" }}
+                        title="Otvori izvor"
+                      >
+                        Izvor: Toxttrick ↗
+                      </a>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
 
               <div style={{ marginTop: 12, opacity: 0.8 }}>
                 Napomena: ovo je privremeno (scrape). Kad dođe CHPP licenca, zamjenjujemo izvor podataka.
