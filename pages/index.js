@@ -18,8 +18,14 @@ export default function HomePage() {
 
         if (!alive) return;
 
-        setU21({ count: Number(ru21?.count || 0), fetchedAt: ru21?.fetchedAt || null });
-        setNT({ count: Number(rnt?.count || 0), fetchedAt: rnt?.fetchedAt || null });
+        setU21({
+          count: Number(ru21?.count || 0),
+          fetchedAt: ru21?.fetchedAt || null,
+        });
+        setNT({
+          count: Number(rnt?.count || 0),
+          fetchedAt: rnt?.fetchedAt || null,
+        });
       } catch (e) {
         // Ako API padne, samo ostavi 0 i ne ruši dizajn
       } finally {
@@ -171,11 +177,11 @@ export default function HomePage() {
                 }}
               >
                 <div className="hr-3dCardInner">
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" }}>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
                     <div>
                       <div style={{ fontWeight: 1000 }}>Hrvatski U21/NT igrači na transfer listi</div>
                       <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>
-                        Live (privremeno): Toxttrick scraping — samo hrvatski igrači, rotacija svakih 6h
+                        Live (privremeno): izvorna stranica (bez CHPP) — samo hrvatski igrači
                       </div>
                       {!loading && (u21.fetchedAt || nt.fetchedAt) ? (
                         <div style={{ marginTop: 6, opacity: 0.75, fontSize: 12 }}>
@@ -184,7 +190,7 @@ export default function HomePage() {
                       ) : null}
                     </div>
 
-                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
                       <span
                         className="hr-homeLinkPill"
                         style={{
@@ -212,7 +218,7 @@ export default function HomePage() {
                       </span>
 
                       <Link
-                        href="/transfers"
+                        href="/team/u21/transfers"
                         className="hr-homePill"
                         style={{
                           textDecoration: "none",
@@ -221,14 +227,29 @@ export default function HomePage() {
                           fontWeight: 900,
                         }}
                       >
-                        Otvori popis →
+                        U21 popis →
+                      </Link>
+
+                      <Link
+                        href="/team/nt/transfers"
+                        className="hr-homePill"
+                        style={{
+                          textDecoration: "none",
+                          background: "linear-gradient(90deg, rgba(10,63,168,0.14), rgba(195,0,47,0.14))",
+                          border: "1px solid rgba(0,0,0,0.08)",
+                          fontWeight: 900,
+                        }}
+                      >
+                        NT popis →
                       </Link>
                     </div>
                   </div>
 
                   <div style={{ marginTop: 10, opacity: 0.85, fontSize: 13 }}>
                     {total > 0 ? (
-                      <>Ukupno na TL: <b>{total}</b> (U21 {u21.count || 0} / NT {nt.count || 0})</>
+                      <>
+                        Ukupno na TL: <b>{total}</b> (U21 {u21.count || 0} / NT {nt.count || 0})
+                      </>
                     ) : (
                       <>Nema hrvatskih igrača na TL (po izvoru).</>
                     )}
@@ -246,4 +267,4 @@ export default function HomePage() {
       </main>
     </div>
   );
-                          }
+                              }
