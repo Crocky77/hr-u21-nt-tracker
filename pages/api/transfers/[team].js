@@ -3,19 +3,41 @@
 const TOXTTRICK_URL = "https://www.toxttrick.com/index.php?lang=en";
 
 // “Croatia” se na Toxttrick često prikazuje kao “Hrvatska”
-const CRO_TOKENS = ["Hrvatska", "Croatia"];
+const CRO_REGEX = /\b(Hrvatska|Croatia)\b/i;
+
+// Mogući naslovi sekcija na Toxttrick (ovisno o jeziku/labelama)
+const SECTION_MARKERS = {
+  u21: [
+    "Selección Sub21",
+    "Selection U21",
+    "U21 Selection",
+    "U21 National Team",
+    "National Team U21",
+    "Nazionale U21",
+    "Under 21",
+  ],
+  nt: [
+    "Selección Absoluta",
+    "Selection Senior",
+    "Senior Selection",
+    "National Team",
+    "Senior National Team",
+    "Nazionali",
+    "Senior",
+  ],
+};
 
 // Super jednostavan “HTML -> text” (dovoljno dobro za Toxttrick listu)
 function htmlToText(html) {
   return (
     html
-      // makni script/style blokove
       .replace(/<script[\s\S]*?<\/script>/gi, " ")
       .replace(/<style[\s\S]*?<\/style>/gi, " ")
       // razbij na “linije” oko važnih tagova
       .replace(/<\/tr>/gi, "\n")
+      .replace(/<\/td>/gi, " ") // bitno: ćelije razdvojimo razmakom
       .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<\/(p|div|h1|h2|h3|table|thead|tbody|tfoot)>/gi, "\n")
+      .replace(/<\/(p|div|h1|h2|h3|table|thead|tbody|tfoot|li)>/gi, "\n")
       // makni sve ostale tagove
       .replace(/<[^>]+>/g, " ")
       // decode par čestih entiteta
@@ -31,24 +53,52 @@ function htmlToText(html) {
   );
 }
 
-function pickSectionText(fullText, team) {
-  // Na stranici se pojavljuju sekcije:
-  // “Selección Sub21” i “Selección Absoluta”
-  const keyU21 = "Selección Sub21";
-  const keyNT = "Selección Absoluta";
+function findFirstMarkerIndex(fullText, markers) {
+  let best = -1;
+  for (const m of markers) {
+    const i = fullText.toLowerCase().indexOf(m.toLowerCase());
+    if (i !== -1 && (best === -1 || i < best)) best = i;
+  }
+  return best;
+}
 
-  const iU21 = fullText.indexOf(keyU21);
-  const iNT = fullText.indexOf(keyNT);
+function pickSectionText(fullText, team) {
+  // Pokušaj pronaći početak U21/NT sekcije po više mogućih marker-a.
+  // Ako ništa ne nađe, NE REŽI — vrati cijeli tekst (pa će Croatia filter odraditi svoje).
+  const iU21 = findFirstMarkerIndex(fullText, SECTION_MARKERS.u21);
+  const iNT = findFirstMarkerIndex(fullText, SECTION_MARKERS.nt);
 
   if (team === "u21") {
     if (iU21 === -1) return fullText;
     if (iNT === -1) return fullText.slice(iU21);
-    return fullText.slice(iU21, iNT);
+    return iU21 < iNT ? fullText.slice(iU21, iNT) : fullText.slice(iU21);
   }
 
   // team === "nt"
   if (iNT === -1) return fullText;
   return fullText.slice(iNT);
+}
+
+// pokušaj parsiranja dobi iz teksta nakon zemlje:
+// - "20 45"
+// - "20y 45d"
+// - "20y45d"
+function parseAge(afterCountry) {
+  const s = afterCountry.trim();
+
+  // 20 45
+  let m = s.match(/^(\d{1,2})\s+(\d{1,3})\b/);
+  if (m) return { ageYears: Number(m[1]), ageDays: Number(m[2]) };
+
+  // 20y45d ili 20y 45d
+  m = s.match(/^(\d{1,2})\s*y\s*(\d{1,3})\s*d\b/i);
+  if (m) return { ageYears: Number(m[1]), ageDays: Number(m[2]) };
+
+  // samo godine
+  m = s.match(/^(\d{1,2})\b/);
+  if (m) return { ageYears: Number(m[1]), ageDays: null };
+
+  return { ageYears: null, ageDays: null };
 }
 
 function parsePlayersFromText(sectionText) {
@@ -58,47 +108,56 @@ function parsePlayersFromText(sectionText) {
     .filter(Boolean);
 
   const players = [];
+  const seen = new Set();
 
-  for (const line of lines) {
-    // očekujemo da redak s igračem počinje s ID-jem (samo brojke)
-    // pa negdje kasnije ima zemlju (Hrvatska/Croatia)
-    // primjer (otprilike): "484961789 Drago Španjol Hrvatska 20 45 4 3 83,240 ..."
-    if (!/^\d{6,}\s/.test(line)) continue;
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
 
-    // mora sadržavati Croatia token
-    if (!CRO_TOKENS.some((t) => line.includes(` ${t} `) || line.endsWith(` ${t}`))) continue;
+    // mora sadržavati Croatia/Hrvatska kao riječ (ne ovisi o razmacima oko nje)
+    if (!CRO_REGEX.test(line)) continue;
 
-    // pokušaj izvući: id, name, country, ageYears, ageDays, tsi, salary, deadline, asking
-    // Minimalno: id + name + country + years
-    const idMatch = line.match(/^(\d{6,})\s+(.*)$/);
-    if (!idMatch) continue;
+    // očekujemo da redak s igračem počinje s HT ID (broj) — ali dozvoli i slučaj da ima vodeći tekst pa uhvati prvi veliki broj
+    // Primarno: ^(\d{6,})
+    // Fallback: bilo gdje (\b\d{6,}\b)
+    let idMatch = line.match(/^(\d{6,})\b\s+(.*)$/);
+    if (!idMatch) {
+      const anyId = line.match(/\b(\d{6,})\b/);
+      if (!anyId) continue;
+      const htId = anyId[1];
+      // pokušaj odrezati sve prije ID-a da dobijemo “rest”
+      const idx = line.indexOf(htId);
+      const rest2 = line.slice(idx + htId.length).trim();
+      idMatch = [line, htId, rest2];
+    }
 
-    const htId = idMatch[1];
-    const rest = idMatch[2];
+    const htId = Number(idMatch[1]);
+    const rest = (idMatch[2] || "").trim();
 
-    // pronađi country token poziciju
-    const countryToken = CRO_TOKENS.find((t) => rest.includes(` ${t} `) || rest.endsWith(` ${t}`));
-    if (!countryToken) continue;
+    if (!htId || seen.has(htId)) continue;
 
-    const parts = rest.split(countryToken);
-    const name = (parts[0] || "").trim();
-    const afterCountry = (parts[1] || "").trim();
+    // pronađi točan token zemlje u rest (sačuvaj izvorni oblik Croatia/Hrvatska)
+    const countryMatch = rest.match(CRO_REGEX);
+    if (!countryMatch) continue;
 
-    // godina je prva brojka nakon zemlje
-    const yearsMatch = afterCountry.match(/^(\d{1,2})\s+(\d{1,3})?\s*/);
-    const ageYears = yearsMatch ? Number(yearsMatch[1]) : null;
-    const ageDays = yearsMatch && yearsMatch[2] ? Number(yearsMatch[2]) : null;
+    const countryToken = countryMatch[0];
+    const beforeCountry = rest.slice(0, countryMatch.index).trim();
+    const afterCountry = rest.slice(countryMatch.index + countryToken.length).trim();
 
-    // iz istog stringa možemo pokušati izvući "Deadline" kao datum/čas (YYYY-MM-DD ...)
+    const name = beforeCountry; // na Toxttrick listi je prije zemlje obično ime
+
+    const { ageYears, ageDays } = parseAge(afterCountry);
+
+    // Deadline (ako postoji)
     const deadlineMatch = line.match(/\b(20\d{2}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})\b/);
     const deadline = deadlineMatch ? deadlineMatch[1] : null;
 
-    // Asking price (često na kraju, format 3.450.000 ili 4.299.999)
-    const askingMatch = line.match(/(\d{1,3}(?:\.\d{3})+(?:\.\d{3})?)\s*$/);
-    const askingPrice = askingMatch ? askingMatch[1] : null;
+    // Asking price (razni formati: 3.450.000 ili 3,450,000 ili 3450000)
+    let askingPrice = null;
+    const askingMatch = line.match(/(\d{1,3}(?:[.,]\d{3})+|\b\d{7,}\b)\s*$/);
+    if (askingMatch) askingPrice = askingMatch[1];
 
     players.push({
-      htId: Number(htId),
+      htId,
       name,
       country: countryToken,
       ageYears,
@@ -107,11 +166,11 @@ function parsePlayersFromText(sectionText) {
       askingPrice,
       toxttrickPlayerUrl: `https://www.hattrick.org/Club/Players/Player.aspx?playerId=${htId}`,
     });
+
+    seen.add(htId);
   }
 
-  // ukloni duplikate po htId
-  const seen = new Set();
-  return players.filter((p) => (seen.has(p.htId) ? false : (seen.add(p.htId), true)));
+  return players;
 }
 
 export default async function handler(req, res) {
