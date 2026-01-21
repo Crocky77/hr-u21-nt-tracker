@@ -10,7 +10,6 @@ function teamLabel(team) {
 }
 
 const DEFAULT_COLUMNS = {
-  // osnovno
   full_name: true,
   pos: true,
   age: true,
@@ -24,7 +23,6 @@ const DEFAULT_COLUMNS = {
   training_last: false,
   training_now: false,
 
-  // skills
   skill_gk: true,
   skill_def: true,
   skill_pm: true,
@@ -48,7 +46,6 @@ function colLabel(key) {
     stamina_pct: "% Stam",
     training_last: "Zadnji trening",
     training_now: "Trenutni trening",
-
     skill_gk: "GK",
     skill_def: "DEF",
     skill_pm: "PM",
@@ -65,8 +62,24 @@ function isAuthError(err) {
   return msg.includes("not authenticated") || msg.includes("jwt") || msg.includes("auth");
 }
 
+// koje kolone su “sortabilne”
+const SORTABLE = new Set([
+  "age",
+  "tsi",
+  "wage",
+  "form",
+  "stamina",
+  "stamina_pct",
+  "skill_gk",
+  "skill_def",
+  "skill_pm",
+  "skill_wing",
+  "skill_pass",
+  "skill_score",
+  "skill_sp",
+]);
+
 function colTemplateForKey(k) {
-  // Šire ime + stabilne akcije; ostalo normalno
   if (k === "full_name") return "minmax(320px, 2.4fr)";
   if (k === "ht_player_id") return "minmax(130px, 1fr)";
   if (k === "pos") return "minmax(90px, 0.8fr)";
@@ -78,9 +91,14 @@ function colTemplateForKey(k) {
 
 function buildGridTemplate(visibleKeys) {
   const cols = visibleKeys.map((k) => colTemplateForKey(k));
-  // Akcija uvijek zadnja:
   cols.push("minmax(170px, 1.1fr)");
   return cols.join(" ");
+}
+
+function normalizeNumber(v) {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
 }
 
 export default function TeamPlayers() {
@@ -98,9 +116,14 @@ export default function TeamPlayers() {
   const [ageMax, setAgeMax] = useState("");
 
   const [rows, setRows] = useState([]);
+  const [baseRows, setBaseRows] = useState([]); // originalni poredak (za reset sort)
 
   const [showCols, setShowCols] = useState(false);
   const [columns, setColumns] = useState(DEFAULT_COLUMNS);
+
+  // sorting state
+  const [sortKey, setSortKey] = useState(""); // npr "skill_def"
+  const [sortDir, setSortDir] = useState(""); // "asc" | "desc" | ""
 
   const label = useMemo(() => teamLabel(team), [team]);
 
@@ -165,6 +188,50 @@ export default function TeamPlayers() {
     };
   }, [team]);
 
+  function applySort(nextKey, nextDir, sourceRows) {
+    if (!nextKey || !nextDir) {
+      // reset
+      setRows(sourceRows);
+      return;
+    }
+
+    const sorted = [...sourceRows].sort((a, b) => {
+      const av = normalizeNumber(a?.[nextKey]);
+      const bv = normalizeNumber(b?.[nextKey]);
+
+      // nullovi idu na kraj
+      if (av === null && bv === null) return 0;
+      if (av === null) return 1;
+      if (bv === null) return -1;
+
+      if (nextDir === "asc") return av - bv;
+      return bv - av;
+    });
+
+    setRows(sorted);
+  }
+
+  function toggleSort(k) {
+    // samo ako je sortabilno
+    if (!SORTABLE.has(k)) return;
+
+    let nextKey = k;
+    let nextDir = "asc";
+
+    if (sortKey !== k) {
+      nextDir = "asc";
+    } else {
+      if (sortDir === "asc") nextDir = "desc";
+      else if (sortDir === "desc") nextDir = "";
+      else nextDir = "asc";
+    }
+
+    setSortKey(nextDir === "" ? "" : nextKey);
+    setSortDir(nextDir);
+
+    applySort(nextKey, nextDir, baseRows);
+  }
+
   async function loadPlayers() {
     setLoading(true);
     setLoadError("");
@@ -173,6 +240,7 @@ export default function TeamPlayers() {
       if (!teamId) {
         setLoadError("Nema team_id. Pričekaj da se učita tim ili provjeri tablicu teams.");
         setRows([]);
+        setBaseRows([]);
         setLoading(false);
         return;
       }
@@ -194,20 +262,30 @@ export default function TeamPlayers() {
             "Zaključano bez prijave. (Auth nije spojen u UI još). Kad spojimo login, ovo će se automatski otvoriti."
           );
           setRows([]);
+          setBaseRows([]);
           setLoading(false);
           return;
         }
         setLoadError(error.message);
         setRows([]);
+        setBaseRows([]);
         setLoading(false);
         return;
       }
 
-      setRows(Array.isArray(data) ? data : []);
+      const arr = Array.isArray(data) ? data : [];
+      setBaseRows(arr);
+
+      // nakon novog loada reset sort
+      setSortKey("");
+      setSortDir("");
+
+      setRows(arr);
       setLoading(false);
     } catch (e) {
       setLoadError(String(e?.message || e));
       setRows([]);
+      setBaseRows([]);
       setLoading(false);
     }
   }
@@ -430,6 +508,7 @@ export default function TeamPlayers() {
               background: "rgba(255,255,255,0.85)",
             }}
           >
+            {/* HEADER */}
             <div
               style={{
                 minWidth: 1100,
@@ -439,20 +518,39 @@ export default function TeamPlayers() {
                 padding: "10px 12px",
                 fontWeight: 900,
                 background: "rgba(0,0,0,0.04)",
+                userSelect: "none",
               }}
             >
-              {visibleKeys.map((k) => (
-                <div key={k}>{colLabel(k)}</div>
-              ))}
+              {visibleKeys.map((k) => {
+                const sortable = SORTABLE.has(k);
+                const active = sortKey === k && sortDir;
+                const arrow = active ? (sortDir === "asc" ? " ▲" : " ▼") : "";
+                return (
+                  <div
+                    key={k}
+                    onClick={() => sortable && toggleSort(k)}
+                    title={sortable ? "Klik za sortiranje" : ""}
+                    style={{
+                      cursor: sortable ? "pointer" : "default",
+                      opacity: sortable ? 1 : 0.9,
+                      fontWeight: active ? 1000 : 900,
+                    }}
+                  >
+                    {colLabel(k)}
+                    {arrow}
+                  </div>
+                );
+              })}
               <div>Akcija</div>
             </div>
 
+            {/* BODY */}
             {rows.length === 0 ? (
               <div style={{ padding: "12px", opacity: 0.7 }}>{loading ? "Učitavam..." : "Nema rezultata."}</div>
             ) : (
-              rows.map((p) => (
+              rows.map((p, idx) => (
                 <div
-                  key={p.id}
+                  key={`${p.ht_player_id || p.full_name || "row"}_${idx}`}
                   style={{
                     minWidth: 1100,
                     display: "grid",
@@ -483,7 +581,7 @@ export default function TeamPlayers() {
                   <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <Link
                       className="hr-backBtn"
-                      href={`/team/${team}/players/${p.id}`}
+                      href={`/team/${team}/players/${p.ht_player_id || ""}`}
                       style={{ padding: "8px 10px" }}
                     >
                       Detalji
@@ -504,11 +602,6 @@ export default function TeamPlayers() {
                 </div>
               ))
             )}
-          </div>
-
-          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-            Napomena: “Detalji” je idući korak (16.3.4). Auth/CHPP nije spojen, pa DB može vratiti “Not authenticated”
-            dok ne povežemo login.
           </div>
         </div>
       </div>
