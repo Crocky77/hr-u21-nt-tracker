@@ -65,6 +65,24 @@ function isAuthError(err) {
   return msg.includes("not authenticated") || msg.includes("jwt") || msg.includes("auth");
 }
 
+function colTemplateForKey(k) {
+  // Šire ime + stabilne akcije; ostalo normalno
+  if (k === "full_name") return "minmax(320px, 2.4fr)";
+  if (k === "ht_player_id") return "minmax(130px, 1fr)";
+  if (k === "pos") return "minmax(90px, 0.8fr)";
+  if (k === "age") return "minmax(80px, 0.7fr)";
+  if (k === "nationality") return "minmax(110px, 0.9fr)";
+  if (k === "training_last" || k === "training_now") return "minmax(160px, 1.2fr)";
+  return "minmax(110px, 1fr)";
+}
+
+function buildGridTemplate(visibleKeys) {
+  const cols = visibleKeys.map((k) => colTemplateForKey(k));
+  // Akcija uvijek zadnja:
+  cols.push("minmax(170px, 1.1fr)");
+  return cols.join(" ");
+}
+
 export default function TeamPlayers() {
   const router = useRouter();
   const { team } = router.query;
@@ -204,9 +222,10 @@ export default function TeamPlayers() {
   if (!team) return null;
 
   const visibleKeys = Object.keys(columns).filter((k) => columns[k]);
+  const gridTemplate = buildGridTemplate(visibleKeys);
 
   return (
-    <div className="hr-pageWrap">
+    <div className="hr-pageWrap" style={{ maxWidth: 1280 }}>
       <div className="hr-pageCard">
         <div className="hr-pageHeaderRow">
           <div>
@@ -413,9 +432,9 @@ export default function TeamPlayers() {
           >
             <div
               style={{
-                minWidth: 980,
+                minWidth: 1100,
                 display: "grid",
-                gridTemplateColumns: `repeat(${visibleKeys.length + 1}, minmax(110px, 1fr))`,
+                gridTemplateColumns: gridTemplate,
                 gap: 0,
                 padding: "10px 12px",
                 fontWeight: 900,
@@ -429,17 +448,15 @@ export default function TeamPlayers() {
             </div>
 
             {rows.length === 0 ? (
-              <div style={{ padding: "12px", opacity: 0.7 }}>
-                {loading ? "Učitavam..." : "Nema rezultata."}
-              </div>
+              <div style={{ padding: "12px", opacity: 0.7 }}>{loading ? "Učitavam..." : "Nema rezultata."}</div>
             ) : (
               rows.map((p) => (
                 <div
                   key={p.id}
                   style={{
-                    minWidth: 980,
+                    minWidth: 1100,
                     display: "grid",
-                    gridTemplateColumns: `repeat(${visibleKeys.length + 1}, minmax(110px, 1fr))`,
+                    gridTemplateColumns: gridTemplate,
                     gap: 0,
                     padding: "10px 12px",
                     borderTop: "1px solid rgba(0,0,0,0.06)",
@@ -448,7 +465,17 @@ export default function TeamPlayers() {
                   }}
                 >
                   {visibleKeys.map((k) => (
-                    <div key={k} style={{ fontWeight: k === "full_name" ? 900 : 700 }}>
+                    <div
+                      key={k}
+                      style={{
+                        fontWeight: k === "full_name" ? 900 : 700,
+                        whiteSpace: k === "full_name" ? "nowrap" : "normal",
+                        overflow: k === "full_name" ? "hidden" : "visible",
+                        textOverflow: k === "full_name" ? "ellipsis" : "clip",
+                        paddingRight: 8,
+                      }}
+                      title={k === "full_name" ? p?.[k] ?? "" : undefined}
+                    >
                       {p?.[k] ?? ""}
                     </div>
                   ))}
