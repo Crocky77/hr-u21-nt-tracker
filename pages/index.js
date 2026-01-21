@@ -1,46 +1,6 @@
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 export default function HomePage() {
-  const [u21, setU21] = useState({ count: 0, fetchedAt: null });
-  const [nt, setNT] = useState({ count: 0, fetchedAt: null });
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let alive = true;
-
-    async function load() {
-      try {
-        const [ru21, rnt] = await Promise.all([
-          fetch("/api/transfers/u21").then((r) => r.json()),
-          fetch("/api/transfers/nt").then((r) => r.json()),
-        ]);
-
-        if (!alive) return;
-
-        setU21({
-          count: Number(ru21?.count || 0),
-          fetchedAt: ru21?.fetchedAt || null,
-        });
-        setNT({
-          count: Number(rnt?.count || 0),
-          fetchedAt: rnt?.fetchedAt || null,
-        });
-      } catch (e) {
-        // Ako API padne, samo ostavi 0 i ne ruši dizajn
-      } finally {
-        if (alive) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const total = (u21.count || 0) + (nt.count || 0);
-
   return (
     <div className="hr-homeBg">
       <main className="hr-main">
@@ -79,14 +39,10 @@ export default function HomePage() {
                           <div style={{ color: "#c3002f", fontWeight: 800 }}>Izbornik:</div>
                           <div style={{ opacity: 0.85 }}>nepoznato</div>
 
-                          <div style={{ marginTop: 6, color: "#c3002f", fontWeight: 800 }}>
-                            Pomoćnik izbornika:
-                          </div>
+                          <div style={{ marginTop: 6, color: "#c3002f", fontWeight: 800 }}>Pomoćnik izbornika:</div>
                           <div style={{ opacity: 0.85 }}>nepoznato</div>
 
-                          <div style={{ marginTop: 6, color: "#c3002f", fontWeight: 900 }}>
-                            Osoblje:
-                          </div>
+                          <div style={{ marginTop: 6, color: "#c3002f", fontWeight: 900 }}>Osoblje:</div>
                           <div style={{ opacity: 0.9 }}>
                             <span style={{ fontWeight: 800 }}>Glavni skaut:</span> nepoznato
                           </div>
@@ -119,14 +75,10 @@ export default function HomePage() {
                           <div style={{ color: "#0a3fa8", fontWeight: 800 }}>Izbornik:</div>
                           <div style={{ opacity: 0.85 }}>nepoznato</div>
 
-                          <div style={{ marginTop: 6, color: "#0a3fa8", fontWeight: 800 }}>
-                            Pomoćnik izbornika:
-                          </div>
+                          <div style={{ marginTop: 6, color: "#0a3fa8", fontWeight: 800 }}>Pomoćnik izbornika:</div>
                           <div style={{ opacity: 0.85 }}>nepoznato</div>
 
-                          <div style={{ marginTop: 6, color: "#0a3fa8", fontWeight: 900 }}>
-                            Osoblje:
-                          </div>
+                          <div style={{ marginTop: 6, color: "#0a3fa8", fontWeight: 900 }}>Osoblje:</div>
                           <div style={{ opacity: 0.9 }}>
                             <span style={{ fontWeight: 800 }}>Glavni skaut:</span> nepoznato
                           </div>
@@ -138,128 +90,60 @@ export default function HomePage() {
                     </Link>
                   </div>
 
-                  {/* Linkovi (pills) */}
-                  <div className="hr-homeLinks hr-homeLinksPills" style={{ marginTop: 12 }}>
-                    <Link href="/about" className="hr-homeLinkPill">O alatu</Link>
-                    <Link href="/help" className="hr-homeLinkPill">Pomoć</Link>
-                    <Link href="/donate" className="hr-homeLinkPill">Donacije</Link>
-                    <Link href="/privacy" className="hr-homeLinkPill">Privacy</Link>
-                    <Link href="/terms" className="hr-homeLinkPill">Terms</Link>
-                  </div>
-                </div>
-              </div>
-
-              {/* MOJI IGRACI */}
-              <div className="hr-3dCard" style={{ marginTop: 12 }}>
-                <div className="hr-3dCardInner">
-                  <div className="hr-homeRow">
-                    <div>
-                      <div style={{ fontWeight: 1000 }}>Moji igrači u Hrvatskom trackeru</div>
-                      <div style={{ marginTop: 4, opacity: 0.8, fontSize: 13 }}>
-                        CHPP spajanje dolazi kasnije. Za sada pripremamo UI + DB za “moji igrači”.
-                      </div>
-                    </div>
-
-                    <Link className="hr-homePill" href="/my-players" style={{ textDecoration: "none" }}>
-                      Prijava (CHPP kasnije)
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
-              {/* TRANSFER MODUL (HR boje) */}
-              <div
-                className="hr-3dCard"
-                style={{
-                  marginTop: 12,
-                  border: "2px solid rgba(195,0,47,0.35)",
-                  boxShadow: "0 10px 25px rgba(10,63,168,0.10)",
-                }}
-              >
-                <div className="hr-3dCardInner">
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
-                    <div>
-                      <div style={{ fontWeight: 1000 }}>Hrvatski U21/NT igrači na transfer listi</div>
-                      <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>
-                        Live (privremeno): izvorna stranica (bez CHPP) — samo hrvatski igrači
-                      </div>
-                      {!loading && (u21.fetchedAt || nt.fetchedAt) ? (
-                        <div style={{ marginTop: 6, opacity: 0.75, fontSize: 12 }}>
-                          Zadnje osvježenje: {String(u21.fetchedAt || nt.fetchedAt)}
+                  {/* TRANSFER MODUL (PRIVREMENO ISKLJUČEN) */}
+                  <div style={{ marginTop: 14 }}>
+                    <div className="hr-3dCard">
+                      <div className="hr-3dCardInner">
+                        <div style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                          <div>
+                            <div style={{ fontWeight: 1000 }}>Hrvatski U21/NT igrači na transfer listi</div>
+                            <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>
+                              Modul je privremeno isključen do dobivanja službene CHPP licence.
+                            </div>
+                          </div>
                         </div>
-                      ) : null}
+
+                        <div
+                          style={{
+                            marginTop: 12,
+                            padding: 14,
+                            borderRadius: 14,
+                            background: "rgba(10,63,168,0.08)",
+                            border: "1px solid rgba(10,63,168,0.18)",
+                          }}
+                        >
+                          <div style={{ fontWeight: 1000, fontSize: 16 }}>Privremeno nedostupno</div>
+                          <div style={{ marginTop: 6, opacity: 0.9, lineHeight: 1.4 }}>
+                            Transfer modul je privremeno isključen.
+                            <br />
+                            Aktivirat će se nakon dobivanja službene <b>CHPP licence</b> (službeni izvor podataka).
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
-                    <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                      <span
-                        className="hr-homeLinkPill"
-                        style={{
-                          background: "rgba(10,63,168,0.10)",
-                          border: "1px solid rgba(10,63,168,0.25)",
-                          color: "#0a3fa8",
-                          fontWeight: 900,
-                          cursor: "default",
-                        }}
-                      >
-                        U21 ({u21.count || 0})
-                      </span>
-
-                      <span
-                        className="hr-homeLinkPill"
-                        style={{
-                          background: "rgba(195,0,47,0.10)",
-                          border: "1px solid rgba(195,0,47,0.25)",
-                          color: "#c3002f",
-                          fontWeight: 900,
-                          cursor: "default",
-                        }}
-                      >
-                        NT ({nt.count || 0})
-                      </span>
-
-                      <Link
-                        href="/team/u21/transfers"
-                        className="hr-homePill"
-                        style={{
-                          textDecoration: "none",
-                          background: "linear-gradient(90deg, rgba(195,0,47,0.14), rgba(10,63,168,0.14))",
-                          border: "1px solid rgba(0,0,0,0.08)",
-                          fontWeight: 900,
-                        }}
-                      >
-                        U21 popis →
-                      </Link>
-
-                      <Link
-                        href="/team/nt/transfers"
-                        className="hr-homePill"
-                        style={{
-                          textDecoration: "none",
-                          background: "linear-gradient(90deg, rgba(10,63,168,0.14), rgba(195,0,47,0.14))",
-                          border: "1px solid rgba(0,0,0,0.08)",
-                          fontWeight: 900,
-                        }}
-                      >
-                        NT popis →
-                      </Link>
+                    {/* NAPOMENA */}
+                    <div className="hr-homeNote">
+                      Napomena: u V1 gost vidi “preview” modula, ali sve stranice koje prikazuju igrače/skillove traže prijavu.
                     </div>
-                  </div>
-
-                  <div style={{ marginTop: 10, opacity: 0.85, fontSize: 13 }}>
-                    {total > 0 ? (
-                      <>
-                        Ukupno na TL: <b>{total}</b> (U21 {u21.count || 0} / NT {nt.count || 0})
-                      </>
-                    ) : (
-                      <>Nema hrvatskih igrača na TL (po izvoru).</>
-                    )}
                   </div>
                 </div>
               </div>
 
-              {/* NAPOMENA */}
-              <div className="hr-homeNote">
-                Napomena: u V1 gost vidi “preview” modula, ali sve stranice koje prikazuju igrače/skillove traže prijavu.
+              {/* FOOTER LINKS */}
+              <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <Link className="hr-homePill" href="/login" style={{ textDecoration: "none" }}>
+                  Login
+                </Link>
+                <Link className="hr-homePill" href="/help" style={{ textDecoration: "none" }}>
+                  Help
+                </Link>
+                <Link className="hr-homePill" href="/privacy" style={{ textDecoration: "none" }}>
+                  Privacy
+                </Link>
+                <Link className="hr-homePill" href="/terms" style={{ textDecoration: "none" }}>
+                  Terms
+                </Link>
               </div>
             </div>
           </div>
@@ -267,4 +151,4 @@ export default function HomePage() {
       </main>
     </div>
   );
-                              }
+}
