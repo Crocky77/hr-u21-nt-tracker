@@ -1,199 +1,238 @@
-import { useEffect, useState } from "react";
+// pages/team/[team]/players/[id].js
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import Link from "next/link";
-import supabase from "../../../../lib/supabaseClient";
+import { supabase } from "../../../../lib/supabaseClient";
 
-export default function PlayerDetail() {
+function toMaybeNumber(v) {
+  if (v === undefined || v === null) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  // allow only digits for numeric
+  if (!/^\d+$/.test(s)) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+export default function PlayerDetailsPage() {
   const router = useRouter();
   const { team, id } = router.query;
 
-  const [teamName, setTeamName] = useState("");
-  const [player, setPlayer] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [errMsg, setErrMsg] = useState("");
+  const [teamRow, setTeamRow] = useState(null);
+  const [player, setPlayer] = useState(null);
+  const [tags, setTags] = useState([]);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const htPlayerId = useMemo(() => toMaybeNumber(id), [id]);
 
   useEffect(() => {
     if (!team || !id) return;
-    loadPlayer().catch((e) => {
-      console.error(e);
-      setErrMsg("Greška kod učitavanja igrača.");
+
+    let cancelled = false;
+
+    async function run() {
+      setLoading(true);
+      setErrorMsg("");
+      setTeamRow(null);
+      setPlayer(null);
+      setTags([]);
+
+      // 1) team by slug
+      const teamRes = await supabase
+        .from("teams")
+        .select("id, slug, name")
+        .eq("slug", team)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (teamRes.error) {
+        setErrorMsg(`Greška: ne mogu učitati tim (teams). ${teamRes.error.message}`);
+        setLoading(false);
+        return;
+      }
+      if (!teamRes.data) {
+        setErrorMsg("Tim nije pronađen (krivi slug).");
+        setLoading(false);
+        return;
+      }
+
+      const t = teamRes.data;
+      setTeamRow(t);
+
+      // 2) player lookup (robust)
+      //    a) try by ht_player_id (BIGINT) if URL id is numeric
+      //    b) fallback: try by internal uuid id
+      let p = null;
+
+      if (htPlayerId !== null) {
+        const pRes = await supabase
+          .from("players")
+          .select("*")
+          .eq("team_id", t.id)
+          .eq("ht_player_id", htPlayerId)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        if (pRes.error) {
+          setErrorMsg(`Greška: ne mogu učitati igrača (players by ht_player_id). ${pRes.error.message}`);
+          setLoading(false);
+          return;
+        }
+        p = pRes.data || null;
+      }
+
+      if (!p) {
+        const pRes2 = await supabase
+          .from("players")
+          .select("*")
+          .eq("team_id", t.id)
+          .eq("id", id)
+          .maybeSingle();
+
+        if (cancelled) return;
+
+        if (pRes2.error) {
+          setErrorMsg(`Greška: ne mogu učitati igrača (players by id). ${pRes2.error.message}`);
+          setLoading(false);
+          return;
+        }
+        p = pRes2.data || null;
+      }
+
+      if (!p) {
+        setErrorMsg("Igrač nije pronađen (krivi ID ili ne pripada ovom timu).");
+        setLoading(false);
+        return;
+      }
+
+      setPlayer(p);
+
+      // 3) requirement tags (optional) - only if ht_player_id exists
+      //    (ovo neće rušiti stranicu ako RPC još nije spreman)
+      const htIdForTags = p.ht_player_id ?? htPlayerId;
+      if (htIdForTags != null) {
+        const tagsRes = await supabase.rpc("list_player_requirement_tags", {
+          p_team_id: t.id,
+          p_ht_player_id: htIdForTags,
+        });
+
+        if (!cancelled) {
+          if (!tagsRes.error && Array.isArray(tagsRes.data)) {
+            setTags(tagsRes.data);
+          }
+          // ako baci grešku, samo ignoriramo (ne rušimo UI)
+        }
+      }
+
       setLoading(false);
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [team, id]);
-
-  async function loadPlayer() {
-    setLoading(true);
-    setErrMsg("");
-    setPlayer(null);
-
-    // 1) Team by slug
-    const { data: teamRow, error: teamErr } = await supabase
-      .from("teams")
-      .select("id,name,slug")
-      .eq("slug", team)
-      .maybeSingle();
-
-    if (teamErr) {
-      setErrMsg("Greška kod učitavanja tima.");
-      setLoading(false);
-      return;
     }
-    if (!teamRow) {
-      setErrMsg("Tim nije pronađen.");
-      setLoading(false);
-      return;
-    }
 
-    setTeamName(teamRow.name || teamRow.slug);
+    run();
 
-    // 2) Player lookup
-    // U listi igrača u URL-u najčešće šaljemo HT player id (npr. 469897495),
-    // ali u bazi postoji i interni players.id.
-    // Zato tražimo po OBA: players.id i players.ht_player_id.
-    const pid = Number(id);
-    if (!Number.isFinite(pid)) {
-      setErrMsg("Igrač nije pronađen (neispravan ID).");
-      setLoading(false);
-      return;
-    }
-
-    const { data: pRows, error: pErr } = await supabase
-      .from("players")
-      .select(
-        `
-        id,
-        ht_player_id,
-        team_id,
-        full_name,
-        age_years,
-        age_days,
-        position,
-        salary,
-        tsi,
-        specialty,
-        experience,
-        form,
-        stamina,
-        htms,
-        htms28,
-        skill_gk,
-        skill_def,
-        skill_pm,
-        skill_wing,
-        skill_pass,
-        skill_score,
-        skill_sp
-      `
-      )
-      .eq("team_id", teamRow.id)
-      .or(`id.eq.${pid},ht_player_id.eq.${pid}`)
-      .limit(1);
-
-    if (pErr) {
-      setErrMsg("Greška kod učitavanja igrača.");
-      setLoading(false);
-      return;
-    }
-
-    const found = (pRows && pRows.length > 0) ? pRows[0] : null;
-
-    if (!found) {
-      setErrMsg("Igrač nije pronađen (krivi ID ili ne pripada ovom timu).");
-      setLoading(false);
-      return;
-    }
-
-    setPlayer(found);
-    setLoading(false);
-  }
+    return () => {
+      cancelled = true;
+    };
+  }, [team, id, htPlayerId]);
 
   return (
-    <div className="page">
-      <div className="topbar">
-        <h1>Detalji igrača</h1>
-        <div className="links">
-          <Link href={`/team/${team}/players`}>← Natrag na igrače</Link>
-          <Link href={`/team/${team}`}>Moduli</Link>
-          <Link href={`/`}>Naslovnica</Link>
+    <div style={{ maxWidth: 1100, margin: "0 auto", padding: 16 }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 12 }}>
+        <button
+          onClick={() => router.back()}
+          style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #ddd", background: "#fff" }}
+        >
+          ← Natrag na igrače
+        </button>
+        <button
+          onClick={() => router.push("/")}
+          style={{ padding: "8px 12px", borderRadius: 10, border: "1px solid #ddd", background: "#fff" }}
+        >
+          Naslovnica
+        </button>
+        <div style={{ marginLeft: "auto", opacity: 0.75 }}>
+          {teamRow ? `Tim: ${teamRow.name || teamRow.slug}` : ""}
         </div>
       </div>
 
-      <div className="subtitle">Tim: {teamName || "-"}</div>
+      <h1 style={{ fontSize: 28, margin: "6px 0 12px" }}>Detalji igrača</h1>
 
-      {loading && <div className="card">Učitavanje...</div>}
-
-      {!loading && errMsg && (
-        <div className="card error">
-          {errMsg}
+      {loading && (
+        <div style={{ padding: 14, border: "1px solid #eee", borderRadius: 12, background: "#fafafa" }}>
+          Učitavam...
         </div>
       )}
 
-      {!loading && player && (
-        <div className="card">
-          <h2 style={{ marginTop: 0 }}>{player.full_name}</h2>
-
-          <div className="grid">
-            <div>
-              <b>HT ID</b>: {player.ht_player_id ?? "-"}
-            </div>
-            <div>
-              <b>Dob</b>: {player.age_years ?? "-"} ({player.age_days ?? "-"}d)
-            </div>
-            <div>
-              <b>Poz</b>: {player.position ?? "-"}
-            </div>
-            <div>
-              <b>TSI</b>: {player.tsi ?? "-"}
-            </div>
-            <div>
-              <b>Plaća</b>: {player.salary ?? "-"}
-            </div>
-            <div>
-              <b>Spec</b>: {player.specialty ?? "-"}
-            </div>
-            <div>
-              <b>Forma</b>: {player.form ?? "-"}
-            </div>
-            <div>
-              <b>Stamina</b>: {player.stamina ?? "-"}
-            </div>
-            <div>
-              <b>Experience</b>: {player.experience ?? "-"}
-            </div>
-            <div>
-              <b>HTMS</b>: {player.htms ?? "-"}
-            </div>
-            <div>
-              <b>HTMS28</b>: {player.htms28 ?? "-"}
-            </div>
-          </div>
-
-          <hr />
-
-          <h3>Skills</h3>
-          <div className="grid">
-            <div><b>GK</b>: {player.skill_gk ?? "-"}</div>
-            <div><b>DEF</b>: {player.skill_def ?? "-"}</div>
-            <div><b>PM</b>: {player.skill_pm ?? "-"}</div>
-            <div><b>WG</b>: {player.skill_wing ?? "-"}</div>
-            <div><b>PS</b>: {player.skill_pass ?? "-"}</div>
-            <div><b>SC</b>: {player.skill_score ?? "-"}</div>
-            <div><b>SP</b>: {player.skill_sp ?? "-"}</div>
-          </div>
+      {!loading && errorMsg && (
+        <div style={{ padding: 14, border: "1px solid #f3c2c2", borderRadius: 12, background: "#fff5f5" }}>
+          {errorMsg}
         </div>
       )}
 
-      <style jsx>{`
-        .page { padding: 18px; max-width: 1050px; margin: 0 auto; }
-        .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-        .links { display: flex; gap: 14px; }
-        .subtitle { margin: 8px 0 14px; opacity: 0.8; }
-        .card { background: #fff; border: 1px solid #e7e7e7; border-radius: 12px; padding: 14px; }
-        .error { border-color: #ffb4b4; background: #fff5f5; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-        hr { border: 0; border-top: 1px solid #eee; margin: 14px 0; }
-      `}</style>
+      {!loading && !errorMsg && player && (
+        <>
+          <div style={{ padding: 14, border: "1px solid #eee", borderRadius: 12, background: "#fff" }}>
+            <div style={{ display: "flex", gap: 18, flexWrap: "wrap" }}>
+              <div style={{ minWidth: 260 }}>
+                <div style={{ fontSize: 20, fontWeight: 700 }}>{player.full_name || player.name || "—"}</div>
+                <div style={{ opacity: 0.75, marginTop: 4 }}>
+                  HT ID: <b>{player.ht_player_id ?? "—"}</b>
+                </div>
+                <div style={{ opacity: 0.75, marginTop: 4 }}>
+                  Dob: <b>{player.age ?? "—"}</b>
+                </div>
+                <div style={{ opacity: 0.75, marginTop: 4 }}>
+                  Pozicija: <b>{player.position ?? player.pos ?? "—"}</b>
+                </div>
+              </div>
+
+              <div style={{ minWidth: 320 }}>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>Skillovi</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(90px, 1fr))", gap: 10 }}>
+                  <div>GK: <b>{player.gk ?? player.skill_gk ?? "—"}</b></div>
+                  <div>DEF: <b>{player.def ?? player.skill_def ?? "—"}</b></div>
+                  <div>PM: <b>{player.pm ?? player.skill_pm ?? "—"}</b></div>
+                  <div>WING: <b>{player.wing ?? player.skill_wing ?? "—"}</b></div>
+                  <div>PASS: <b>{player.pass ?? player.skill_pass ?? "—"}</b></div>
+                  <div>SCOR: <b>{player.score ?? player.skill_score ?? "—"}</b></div>
+                  <div>SP: <b>{player.sp ?? player.skill_sp ?? "—"}</b></div>
+                  <div>STAM: <b>{player.stamina ?? player.skill_stamina ?? "—"}</b></div>
+                  <div>TSI: <b>{player.tsi ?? "—"}</b></div>
+                </div>
+              </div>
+
+              <div style={{ minWidth: 260 }}>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>HTMS</div>
+                <div>HTMS (Ability): <b>{player.htms ?? player.htms_points ?? "—"}</b></div>
+                <div style={{ marginTop: 6 }}>HTMS28 (Potential): <b>{player.htms28 ?? player.htms28_points ?? "—"}</b></div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 14, padding: 14, border: "1px solid #eee", borderRadius: 12, background: "#fff" }}>
+            <div style={{ fontWeight: 700, marginBottom: 8 }}>Zadovoljava uvjete (tagovi)</div>
+
+            {tags.length === 0 ? (
+              <div style={{ opacity: 0.7 }}>
+                Nema tagova (ili RPC još nije spreman / nema definiranih zahtjeva).
+              </div>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {tags.map((t, idx) => (
+                  <li key={t.requirement_id || idx}>
+                    <b>{t.requirement_name ?? "Zahtjev"}</b>{" "}
+                    {typeof t.is_match === "boolean" ? (t.is_match ? "✅" : "❌") : ""}
+                    {typeof t.rules_count === "number" && typeof t.matched_rules === "number"
+                      ? ` (${t.matched_rules}/${t.rules_count})`
+                      : ""}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
