@@ -18,7 +18,19 @@ function Pill({ children, tone = "neutral" }) {
   };
   const s = map[tone] || map.neutral;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", padding: "6px 10px", borderRadius: 999, background: s.bg, color: s.fg, border: `1px solid ${s.bd}`, fontSize: 12, fontWeight: 900 }}>
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        padding: "6px 10px",
+        borderRadius: 999,
+        background: s.bg,
+        color: s.fg,
+        border: `1px solid ${s.bd}`,
+        fontSize: 12,
+        fontWeight: 900
+      }}
+    >
       {children}
     </span>
   );
@@ -26,8 +38,18 @@ function Pill({ children, tone = "neutral" }) {
 
 function Card({ title, children }) {
   return (
-    <div style={{ background: "#fff", border: "1px solid #e5e7eb", borderRadius: 14, boxShadow: "0 10px 28px rgba(0,0,0,.08)", overflow: "hidden" }}>
-      <div style={{ padding: 14, background: "#f7f7f7", borderBottom: "1px solid #e5e7eb", fontWeight: 900 }}>{title}</div>
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 14,
+        boxShadow: "0 10px 28px rgba(0,0,0,.08)",
+        overflow: "hidden"
+      }}
+    >
+      <div style={{ padding: 14, background: "#f7f7f7", borderBottom: "1px solid #e5e7eb", fontWeight: 900 }}>
+        {title}
+      </div>
       <div style={{ padding: 14 }}>{children}</div>
     </div>
   );
@@ -76,6 +98,11 @@ export default function PlayerProfile() {
   const [noteRating, setNoteRating] = useState("3");
   const [noteTags, setNoteTags] = useState("watch");
 
+  // Task 5.1: requirement tags (debug)
+  const [reqTagsLoading, setReqTagsLoading] = useState(false);
+  const [reqTagsError, setReqTagsError] = useState(null);
+  const [reqTags, setReqTags] = useState([]);
+
   // Admin-only: quick snapshot form (minimalno, dok nema CHPP)
   const [snapEdit, setSnapEdit] = useState({
     form: "",
@@ -110,6 +137,52 @@ export default function PlayerProfile() {
     })();
   }, []);
 
+  async function fetchRequirementTagsForPlayer(prow) {
+    // Reset state first
+    setReqTagsError(null);
+    setReqTags([]);
+
+    if (!prow?.ht_player_id) {
+      // nema HT ID → nema tagova
+      return;
+    }
+    if (!prow?.team_type) {
+      setReqTagsError("Nedostaje team_type na playeru.");
+      return;
+    }
+
+    setReqTagsLoading(true);
+    try {
+      // map team_type ('nt'/'u21') -> teams.id
+      const { data: trow, error: terr } = await supabase
+        .from("teams")
+        .select("id, slug")
+        .eq("slug", prow.team_type)
+        .limit(1)
+        .maybeSingle();
+
+      if (terr || !trow?.id) {
+        setReqTagsError("Ne mogu dohvatiti teams.id za slug=" + prow.team_type + (terr?.message ? " | " + terr.message : ""));
+        return;
+      }
+
+      // PROD RPC (auth + membership)
+      const { data: tags, error: rerr } = await supabase.rpc("list_player_requirement_tags", {
+        p_team_id: trow.id,
+        p_ht_player_id: prow.ht_player_id
+      });
+
+      if (rerr) {
+        setReqTagsError(rerr.message || "RPC greška");
+        return;
+      }
+
+      setReqTags(Array.isArray(tags) ? tags : []);
+    } finally {
+      setReqTagsLoading(false);
+    }
+  }
+
   async function fetchAll(pid) {
     // player
     const { data: prow, error: perr } = await supabase
@@ -123,9 +196,15 @@ export default function PlayerProfile() {
       setPlayer(null);
       setSnapshot(null);
       setNotes([]);
+      setReqTags([]);
+      setReqTagsError(null);
+      setReqTagsLoading(false);
       return;
     }
     setPlayer(prow);
+
+    // Task 5.1: fetch requirement tags (debug) — nakon što imamo player row
+    await fetchRequirementTagsForPlayer(prow);
 
     // snapshot (may be null)
     const { data: srow } = await supabase
@@ -293,6 +372,33 @@ export default function PlayerProfile() {
           {kv("Tip", player.team_type)}
           {kv("Status", player.status)}
           {kv("Zadnje viđeno", player.last_seen_at ? new Date(player.last_seen_at).toLocaleString() : "—")}
+
+          {/* Task 5.1: Debug section for requirements */}
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
+            <div style={{ fontWeight: 900, marginBottom: 8 }}>Zahtjevi (DEBUG – Task 5.1)</div>
+
+            {reqTagsLoading ? (
+              <div style={{ opacity: 0.7 }}>Učitavam zahtjeve…</div>
+            ) : reqTagsError ? (
+              <div style={{ color: "#b91c1c", fontWeight: 800 }}>
+                Greška: {reqTagsError}
+              </div>
+            ) : (
+              <>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                  <Pill tone="neutral">Broj redova: {reqTags.length}</Pill>
+                  <Pill tone="neutral">
+                    Match: {reqTags.filter((x) => x.is_match).length}
+                  </Pill>
+                </div>
+
+                <pre style={{ margin: 0, padding: 12, borderRadius: 12, border: "1px solid #e5e7eb", background: "#f9fafb", overflowX: "auto", fontSize: 12 }}>
+                  {JSON.stringify(reqTags, null, 2)}
+                </pre>
+              </>
+            )}
+          </div>
+
           <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
             * Kad dođe CHPP, ovdje ćemo prikazati Hattrick nick/club, ligu, i sl.
           </div>
