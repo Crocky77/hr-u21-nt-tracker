@@ -1,370 +1,199 @@
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../../../../utils/supabaseClient";
+import Link from "next/link";
+import supabase from "../../../../lib/supabaseClient";
 
-function teamLabel(team) {
-  if (team === "u21") return "Hrvatska U21";
-  if (team === "nt") return "Hrvatska NT";
-  return "Tim";
-}
-
-function isAuthError(err) {
-  const msg = String(err?.message || err || "").toLowerCase();
-  return msg.includes("not authenticated") || msg.includes("jwt") || msg.includes("auth");
-}
-
-function fmt(v) {
-  if (v === null || v === undefined || v === "") return "—";
-  return String(v);
-}
-
-export default function PlayerDetailsPage() {
+export default function PlayerDetail() {
   const router = useRouter();
   const { team, id } = router.query;
 
-  const label = useMemo(() => teamLabel(team), [team]);
-
-  const [teamId, setTeamId] = useState(null);
+  const [teamName, setTeamName] = useState("");
   const [player, setPlayer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errMsg, setErrMsg] = useState("");
 
-  // resolve teamId
   useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      if (!team) return;
-      setErrMsg("");
-      setTeamId(null);
-
-      const { data, error } = await supabase
-        .from("teams")
-        .select("id, slug")
-        .eq("slug", team)
-        .maybeSingle();
-
-      if (cancelled) return;
-
-      if (error) {
-        setErrMsg(`Ne mogu dohvatiti team_id za "${team}". (${error.message})`);
-        return;
-      }
-      if (!data?.id) {
-        setErrMsg(`Ne postoji tim za slug "${team}". Provjeri tablicu teams.`);
-        return;
-      }
-
-      setTeamId(data.id);
-    }
-
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [team]);
-
-  // load player
-  useEffect(() => {
-    let cancelled = false;
-
-    async function run() {
-      if (!teamId || !id) return;
-
-      setLoading(true);
-      setErrMsg("");
-      setPlayer(null);
-
-      const { data, error } = await supabase
-        .from("players")
-        .select(
-          `
-          id,
-          team_id,
-          ht_player_id,
-          full_name,
-          age,
-          position,
-          nationality,
-          tsi,
-          wage,
-          form,
-          stamina,
-          stamina_pct,
-          training_last,
-          training_now,
-          skill_gk,
-          skill_def,
-          skill_pm,
-          skill_wing,
-          skill_pass,
-          skill_score,
-          skill_sp,
-          created_at,
-          updated_at
-        `
-        )
-        .eq("id", id)
-        .eq("team_id", teamId)
-        .maybeSingle();
-
-      if (cancelled) return;
-
-      if (error) {
-        if (isAuthError(error)) {
-          setErrMsg(
-            "Zaključano bez prijave. (Auth nije spojen u UI još). Kad spojimo login, ovo će se automatski otvoriti."
-          );
-          setLoading(false);
-          return;
-        }
-        setErrMsg(error.message);
-        setLoading(false);
-        return;
-      }
-
-      if (!data) {
-        setErrMsg("Igrač nije pronađen (krivi ID ili ne pripada ovom timu).");
-        setLoading(false);
-        return;
-      }
-
-      setPlayer(data);
+    if (!team || !id) return;
+    loadPlayer().catch((e) => {
+      console.error(e);
+      setErrMsg("Greška kod učitavanja igrača.");
       setLoading(false);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [team, id]);
+
+  async function loadPlayer() {
+    setLoading(true);
+    setErrMsg("");
+    setPlayer(null);
+
+    // 1) Team by slug
+    const { data: teamRow, error: teamErr } = await supabase
+      .from("teams")
+      .select("id,name,slug")
+      .eq("slug", team)
+      .maybeSingle();
+
+    if (teamErr) {
+      setErrMsg("Greška kod učitavanja tima.");
+      setLoading(false);
+      return;
+    }
+    if (!teamRow) {
+      setErrMsg("Tim nije pronađen.");
+      setLoading(false);
+      return;
     }
 
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [teamId, id]);
+    setTeamName(teamRow.name || teamRow.slug);
 
-  if (!team || !id) return null;
+    // 2) Player lookup
+    // U listi igrača u URL-u najčešće šaljemo HT player id (npr. 469897495),
+    // ali u bazi postoji i interni players.id.
+    // Zato tražimo po OBA: players.id i players.ht_player_id.
+    const pid = Number(id);
+    if (!Number.isFinite(pid)) {
+      setErrMsg("Igrač nije pronađen (neispravan ID).");
+      setLoading(false);
+      return;
+    }
+
+    const { data: pRows, error: pErr } = await supabase
+      .from("players")
+      .select(
+        `
+        id,
+        ht_player_id,
+        team_id,
+        full_name,
+        age_years,
+        age_days,
+        position,
+        salary,
+        tsi,
+        specialty,
+        experience,
+        form,
+        stamina,
+        htms,
+        htms28,
+        skill_gk,
+        skill_def,
+        skill_pm,
+        skill_wing,
+        skill_pass,
+        skill_score,
+        skill_sp
+      `
+      )
+      .eq("team_id", teamRow.id)
+      .or(`id.eq.${pid},ht_player_id.eq.${pid}`)
+      .limit(1);
+
+    if (pErr) {
+      setErrMsg("Greška kod učitavanja igrača.");
+      setLoading(false);
+      return;
+    }
+
+    const found = (pRows && pRows.length > 0) ? pRows[0] : null;
+
+    if (!found) {
+      setErrMsg("Igrač nije pronađen (krivi ID ili ne pripada ovom timu).");
+      setLoading(false);
+      return;
+    }
+
+    setPlayer(found);
+    setLoading(false);
+  }
 
   return (
-    <div className="hr-pageWrap">
-      <div className="hr-pageCard">
-        <div className="hr-pageHeaderRow">
-          <div>
-            <h1 className="hr-pageTitle">Detalji igrača</h1>
-            <div className="hr-pageSub">
-              Tim: {label} {player?.full_name ? `· ${player.full_name}` : ""}
+    <div className="page">
+      <div className="topbar">
+        <h1>Detalji igrača</h1>
+        <div className="links">
+          <Link href={`/team/${team}/players`}>← Natrag na igrače</Link>
+          <Link href={`/team/${team}`}>Moduli</Link>
+          <Link href={`/`}>Naslovnica</Link>
+        </div>
+      </div>
+
+      <div className="subtitle">Tim: {teamName || "-"}</div>
+
+      {loading && <div className="card">Učitavanje...</div>}
+
+      {!loading && errMsg && (
+        <div className="card error">
+          {errMsg}
+        </div>
+      )}
+
+      {!loading && player && (
+        <div className="card">
+          <h2 style={{ marginTop: 0 }}>{player.full_name}</h2>
+
+          <div className="grid">
+            <div>
+              <b>HT ID</b>: {player.ht_player_id ?? "-"}
+            </div>
+            <div>
+              <b>Dob</b>: {player.age_years ?? "-"} ({player.age_days ?? "-"}d)
+            </div>
+            <div>
+              <b>Poz</b>: {player.position ?? "-"}
+            </div>
+            <div>
+              <b>TSI</b>: {player.tsi ?? "-"}
+            </div>
+            <div>
+              <b>Plaća</b>: {player.salary ?? "-"}
+            </div>
+            <div>
+              <b>Spec</b>: {player.specialty ?? "-"}
+            </div>
+            <div>
+              <b>Forma</b>: {player.form ?? "-"}
+            </div>
+            <div>
+              <b>Stamina</b>: {player.stamina ?? "-"}
+            </div>
+            <div>
+              <b>Experience</b>: {player.experience ?? "-"}
+            </div>
+            <div>
+              <b>HTMS</b>: {player.htms ?? "-"}
+            </div>
+            <div>
+              <b>HTMS28</b>: {player.htms28 ?? "-"}
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link className="hr-backBtn" href={`/team/${team}/players`}>
-              ← Natrag na igrače
-            </Link>
-            <Link className="hr-backBtn" href={`/team/${team}`}>
-              Moduli
-            </Link>
-            <Link className="hr-backBtn" href="/">
-              Naslovnica
-            </Link>
+          <hr />
+
+          <h3>Skills</h3>
+          <div className="grid">
+            <div><b>GK</b>: {player.skill_gk ?? "-"}</div>
+            <div><b>DEF</b>: {player.skill_def ?? "-"}</div>
+            <div><b>PM</b>: {player.skill_pm ?? "-"}</div>
+            <div><b>WG</b>: {player.skill_wing ?? "-"}</div>
+            <div><b>PS</b>: {player.skill_pass ?? "-"}</div>
+            <div><b>SC</b>: {player.skill_score ?? "-"}</div>
+            <div><b>SP</b>: {player.skill_sp ?? "-"}</div>
           </div>
         </div>
+      )}
 
-        {/* ERROR */}
-        {errMsg ? (
-          <div
-            style={{
-              marginTop: 12,
-              padding: 12,
-              borderRadius: 14,
-              border: "1px solid rgba(220,38,38,0.25)",
-              background: "rgba(220,38,38,0.06)",
-              color: "rgba(127,29,29,0.95)",
-              fontWeight: 900,
-            }}
-          >
-            {errMsg}
-          </div>
-        ) : null}
-
-        {/* LOADING */}
-        {loading ? (
-          <div style={{ marginTop: 14, opacity: 0.75, fontWeight: 900 }}>Učitavam...</div>
-        ) : null}
-
-        {/* CONTENT */}
-        {!loading && player ? (
-          <>
-            {/* TOP INFO */}
-            <div
-              className="hr-3dCard"
-              style={{
-                marginTop: 14,
-                borderRadius: 18,
-                overflow: "hidden",
-              }}
-            >
-              <div className="hr-3dCardInner">
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-                  <div>
-                    <div style={{ fontSize: 20, fontWeight: 1000 }}>{player.full_name}</div>
-                    <div style={{ marginTop: 6, opacity: 0.8, fontWeight: 800 }}>
-                      Pozicija: {fmt(player.position)} · Dob: {fmt(player.age)} · Nacija:{" "}
-                      {fmt(player.nationality)}
-                    </div>
-                  </div>
-
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                    {player.ht_player_id ? (
-                      <a
-                        className="hr-backBtn"
-                        href={`https://www.hattrick.org/Club/Players/Player.aspx?playerId=${player.ht_player_id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Otvori na Hattricku →
-                      </a>
-                    ) : (
-                      <span style={{ fontWeight: 900, opacity: 0.7 }}>Nema HT ID</span>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{ marginTop: 12, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <div style={{ fontWeight: 900, opacity: 0.75 }}>HT ID: {fmt(player.ht_player_id)}</div>
-                  <div style={{ fontWeight: 900, opacity: 0.75 }}>TSI: {fmt(player.tsi)}</div>
-                  <div style={{ fontWeight: 900, opacity: 0.75 }}>Plaća: {fmt(player.wage)}</div>
-                  <div style={{ fontWeight: 900, opacity: 0.75 }}>Forma: {fmt(player.form)}</div>
-                  <div style={{ fontWeight: 900, opacity: 0.75 }}>
-                    Stamina: {fmt(player.stamina)} ({fmt(player.stamina_pct)}%)
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* SKILLS */}
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontWeight: 1000, marginBottom: 8 }}>Skillovi</div>
-
-              <div
-                style={{
-                  border: "1px solid rgba(0,0,0,0.10)",
-                  borderRadius: 14,
-                  background: "rgba(255,255,255,0.85)",
-                  overflow: "hidden",
-                }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(7, 1fr)",
-                    padding: "10px 12px",
-                    fontWeight: 1000,
-                    background: "rgba(0,0,0,0.04)",
-                    minWidth: 820,
-                  }}
-                >
-                  <div>GK</div>
-                  <div>DEF</div>
-                  <div>PM</div>
-                  <div>WING</div>
-                  <div>PASS</div>
-                  <div>SCOR</div>
-                  <div>SP</div>
-                </div>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "repeat(7, 1fr)",
-                    padding: "12px",
-                    fontWeight: 900,
-                    minWidth: 820,
-                  }}
-                >
-                  <div>{fmt(player.skill_gk)}</div>
-                  <div>{fmt(player.skill_def)}</div>
-                  <div>{fmt(player.skill_pm)}</div>
-                  <div>{fmt(player.skill_wing)}</div>
-                  <div>{fmt(player.skill_pass)}</div>
-                  <div>{fmt(player.skill_score)}</div>
-                  <div>{fmt(player.skill_sp)}</div>
-                </div>
-              </div>
-            </div>
-
-            {/* TRAINING */}
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontWeight: 1000, marginBottom: 8 }}>Trening</div>
-
-              <div
-                style={{
-                  border: "1px solid rgba(0,0,0,0.10)",
-                  borderRadius: 14,
-                  background: "rgba(255,255,255,0.85)",
-                  padding: 12,
-                }}
-              >
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <div style={{ fontWeight: 900, opacity: 0.8 }}>Zadnji trening: {fmt(player.training_last)}</div>
-                  <div style={{ fontWeight: 900, opacity: 0.8 }}>Trenutni trening: {fmt(player.training_now)}</div>
-                </div>
-
-                <div style={{ marginTop: 10, fontSize: 12, opacity: 0.75 }}>
-                  Napomena: kasnije ovdje dodajemo “povijest treninga”, “50%/0% trening alert”, i automatsku provjeru.
-                </div>
-              </div>
-            </div>
-
-            {/* RECOMMENDED TRAINING / NOTES (skeleton) */}
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontWeight: 1000, marginBottom: 8 }}>Preporučeni trening & bilješke (skeleton)</div>
-
-              <div
-                style={{
-                  border: "1px solid rgba(0,0,0,0.10)",
-                  borderRadius: 14,
-                  background: "rgba(255,255,255,0.85)",
-                  padding: 12,
-                }}
-              >
-                <div style={{ fontWeight: 900, opacity: 0.8 }}>
-                  Ovo ćemo spojiti na DB tablice (recommendations / notes) i role (izbornik/skaut/pomoćnik).
-                </div>
-
-                <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
-                  <input
-                    disabled
-                    placeholder="Preporučeni trening (dolazi)"
-                    style={{
-                      padding: "10px 12px",
-                      borderRadius: 12,
-                      border: "1px solid rgba(0,0,0,0.12)",
-                      background: "rgba(0,0,0,0.03)",
-                      fontWeight: 900,
-                    }}
-                  />
-
-                  <textarea
-                    disabled
-                    placeholder="Bilješka (dolazi)"
-                    rows={4}
-                    style={{
-                      padding: "10px 12px",
-                      borderRadius: 12,
-                      border: "1px solid rgba(0,0,0,0.12)",
-                      background: "rgba(0,0,0,0.03)",
-                      fontWeight: 800,
-                      resize: "vertical",
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* META */}
-            <div style={{ marginTop: 12, fontSize: 12, opacity: 0.65 }}>
-              DB meta: created_at={fmt(player.created_at)} · updated_at={fmt(player.updated_at)}
-            </div>
-          </>
-        ) : null}
-      </div>
+      <style jsx>{`
+        .page { padding: 18px; max-width: 1050px; margin: 0 auto; }
+        .topbar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+        .links { display: flex; gap: 14px; }
+        .subtitle { margin: 8px 0 14px; opacity: 0.8; }
+        .card { background: #fff; border: 1px solid #e7e7e7; border-radius: 12px; padding: 14px; }
+        .error { border-color: #ffb4b4; background: #fff5f5; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+        hr { border: 0; border-top: 1px solid #eee; margin: 14px 0; }
+      `}</style>
     </div>
   );
-                                     }
+}
