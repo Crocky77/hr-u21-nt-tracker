@@ -3,608 +3,501 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import Layout from '../../../components/Layout';
-import { useSupabaseClient } from '@supabase/auth-helpers-react';
+import supabase from '../../../utils/supabaseClient';
 
 /**
  * Team Players (compact portal-style list)
  *
- * FIXES:
- * - Compact table: smaller font, fixed layout, no horizontal scroll (as much as possible)
- * - Row is clickable: clicking any cell opens player details
- * - Correct back navigation: list links to /team/[team]/players/[id] (NOT /players/[id])
- * - Adds a simple header so page doesn't look empty
- * - Adds an "Advanced filters" block (portal-like minimums) - client-side filtering
+ * Fixes requested:
+ * - smaller font, narrower columns, no horizontal scroll by default
+ * - short column labels (TR, HTID, Fo, St, ...)
+ * - row clickable => opens player details
+ * - back navigation keeps team context (NT stays NT, U21 stays U21)
+ *
+ * NOTE:
+ * - We do NOT use @supabase/auth-helpers-react (it breaks Vercel build in this repo)
+ * - We use our shared utils/supabaseClient.js instead
  */
+
+const DEFAULT_COLUMNS = [
+  'full_name',
+  'position',
+  'age_years',
+  'ht_player_id',
+  'form',
+  'stamina',
+  'current_training',
+  'skill_defending',
+  'skill_playmaking',
+  'skill_scoring',
+  'skill_set_pieces',
+];
+
+const ALL_COLUMNS = [
+  { key: 'full_name', label: 'Ime', hint: '(full_name)' },
+  { key: 'position', label: 'Poz', hint: '(position)' },
+  { key: 'age_years', label: 'God', hint: '(age_years)' },
+  { key: 'ht_player_id', label: 'HTID', hint: '(ht_player_id)' },
+  { key: 'salary', label: 'Sal', hint: '(salary)' },
+  { key: 'form', label: 'Fo', hint: '(form)' },
+  { key: 'stamina', label: 'St', hint: '(stamina)' },
+  { key: 'current_training', label: 'TR', hint: '(current_training)' },
+
+  { key: 'skill_goalkeeping', label: 'GK', hint: '(skill_goalkeeping)' },
+  { key: 'skill_defending', label: 'DE', hint: '(skill_defending)' },
+  { key: 'skill_playmaking', label: 'PM', hint: '(skill_playmaking)' },
+  { key: 'skill_winger', label: 'WG', hint: '(skill_winger)' },
+  { key: 'skill_passing', label: 'PS', hint: '(skill_passing)' },
+  { key: 'skill_scoring', label: 'SC', hint: '(skill_scoring)' },
+  { key: 'skill_set_pieces', label: 'SP', hint: '(skill_set_pieces)' },
+];
+
+function safeStr(v) {
+  if (v === null || v === undefined) return '';
+  return String(v);
+}
+
+function numOrEmpty(v) {
+  if (v === null || v === undefined) return '';
+  const n = Number(v);
+  return Number.isFinite(n) ? n : '';
+}
+
+function positionLabel(pos) {
+  if (!pos) return '';
+  const p = String(pos).toUpperCase().trim();
+  return p;
+}
+
 export default function TeamPlayersPage() {
   const router = useRouter();
-  const supabase = useSupabaseClient();
+  const { team } = router.query;
 
-  const team = typeof router.query.team === 'string' ? router.query.team : '';
-  const isReady = router.isReady && !!team;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  // Pagination
-  const [page, setPage] = useState(1);
-  const pageSize = 100;
+  const [players, setPlayers] = useState([]);
+  const [total, setTotal] = useState(0);
 
-  // Basic filters
+  // Filters
   const [search, setSearch] = useState('');
-  const [position, setPosition] = useState(''); // '', GK, DEF, WB, IM, W, FW etc (depends on data)
+  const [position, setPosition] = useState('');
   const [ageMin, setAgeMin] = useState('');
   const [ageMax, setAgeMax] = useState('');
 
-  // Advanced filters (minimums)
-  const [advOpen, setAdvOpen] = useState(false);
-  const [minFilters, setMinFilters] = useState({
-    gk: '',
-    de: '',
-    pm: '',
-    wg: '',
-    ps: '',
-    sc: '',
-    sp: '',
-    exp: '',
-    ldr: '',
-    tsi: '',
-    sal: '',
-    fo: '',
-    st: '',
-  });
+  // Columns UI
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [selectedColumns, setSelectedColumns] = useState(DEFAULT_COLUMNS);
 
-  // Columns
-  const ALL_COLUMNS = useMemo(
-    () => [
-      { key: 'full_name', short: 'Ime', title: 'Ime (full_name)', defaultOn: true, width: 220 },
-      { key: 'position', short: 'Poz', title: 'Pozicija', defaultOn: true, width: 56 },
-      { key: 'age_years', short: 'God', title: 'Dob (godine)', defaultOn: true, width: 56 },
-      { key: 'ht_player_id', short: 'HTID', title: 'Hattrick Player ID', defaultOn: true, width: 86 },
+  const selectedColumnSet = useMemo(() => new Set(selectedColumns), [selectedColumns]);
 
-      { key: 'salary', short: 'Sal', title: 'Plaća (salary)', defaultOn: false, width: 70 },
-      { key: 'tsi', short: 'TSI', title: 'TSI', defaultOn: false, width: 70 },
-      { key: 'experience', short: 'Exp', title: 'Experience', defaultOn: false, width: 62 },
-      { key: 'leadership', short: 'Ldr', title: 'Leadership', defaultOn: false, width: 62 },
-      { key: 'specialty', short: 'Spec', title: 'Specialty', defaultOn: false, width: 70 },
+  const teamSlug = useMemo(() => {
+    if (!team) return '';
+    return String(team).toLowerCase();
+  }, [team]);
 
-      { key: 'form', short: 'Fo', title: 'Forma (form)', defaultOn: true, width: 50 },
-      { key: 'stamina', short: 'St', title: 'Stamina', defaultOn: true, width: 50 },
-      { key: 'current_training', short: 'TR', title: 'Trening (current_training)', defaultOn: true, width: 64 },
+  const title = useMemo(() => {
+    const t = teamSlug === 'u21' ? 'Igrači (U21)' : teamSlug === 'nt' ? 'Igrači (NT)' : 'Igrači';
+    return t;
+  }, [teamSlug]);
 
-      { key: 'skill_goalkeeping', short: 'GK', title: 'Goalkeeping', defaultOn: false, width: 52 },
-      { key: 'skill_defending', short: 'DE', title: 'Defending', defaultOn: true, width: 52 },
-      { key: 'skill_playmaking', short: 'PM', title: 'Playmaking', defaultOn: true, width: 52 },
-      { key: 'skill_winger', short: 'WG', title: 'Winger', defaultOn: false, width: 52 },
-      { key: 'skill_passing', short: 'PS', title: 'Passing', defaultOn: false, width: 52 },
-      { key: 'skill_scoring', short: 'SC', title: 'Scoring', defaultOn: true, width: 52 },
-      { key: 'skill_set_pieces', short: 'SP', title: 'Set Pieces', defaultOn: true, width: 52 },
-    ],
-    []
-  );
+  // IMPORTANT: When navigating back from player details, keep team context.
+  // We'll include `team` in the player details URL as a query (so details page can return correctly),
+  // AND we keep the current list route as /team/[team]/players.
+  const openPlayer = (playerId) => {
+    if (!playerId) return;
+    router.push(`/players/${playerId}?team=${encodeURIComponent(teamSlug || '')}`);
+  };
 
-  const [visibleCols, setVisibleCols] = useState(() => {
-    const init = {};
-    for (const c of ALL_COLUMNS) init[c.key] = !!c.defaultOn;
-    return init;
-  });
+  const resetColumns = () => setSelectedColumns(DEFAULT_COLUMNS);
 
-  const visibleColumnList = useMemo(() => ALL_COLUMNS.filter((c) => visibleCols[c.key]), [ALL_COLUMNS, visibleCols]);
+  const toggleColumn = (key) => {
+    setSelectedColumns((prev) => {
+      const set = new Set(prev);
+      if (set.has(key)) set.delete(key);
+      else set.add(key);
 
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [err, setErr] = useState('');
+      // Keep at least one column
+      const next = Array.from(set);
+      return next.length ? next : prev;
+    });
+  };
 
-  // Fetch data
-  useEffect(() => {
-    if (!isReady) return;
+  const buildRpcParams = () => {
+    // list_team_players(p_team_slug, p_age_min, p_age_max, p_position, p_search, p_limit, p_offset)
+    return {
+      p_team_slug: teamSlug || null,
+      p_age_min: ageMin === '' ? null : Number(ageMin),
+      p_age_max: ageMax === '' ? null : Number(ageMax),
+      p_position: position === '' ? null : position,
+      p_search: search === '' ? null : search,
+      p_limit: 100,
+      p_offset: 0,
+    };
+  };
 
-    let ignore = false;
+  const fetchPlayers = async () => {
+    if (!teamSlug) return;
 
-    async function run() {
-      setLoading(true);
-      setErr('');
-      try {
-        const { data, error } = await supabase.rpc('list_team_players', {
-          p_team_slug: team,
-          p_age_min: ageMin ? Number(ageMin) : null,
-          p_age_max: ageMax ? Number(ageMax) : null,
-          p_position: position || null,
-          p_search: search?.trim() ? search.trim() : null,
-          p_limit: pageSize,
-          p_offset: (page - 1) * pageSize,
-        });
+    setLoading(true);
+    setError('');
 
-        if (error) throw error;
+    try {
+      // 1) Main list
+      const params = buildRpcParams();
+      const { data, error: rpcError } = await supabase.rpc('list_team_players', params);
 
-        if (!ignore) {
-          setRows(Array.isArray(data) ? data : []);
-        }
-      } catch (e) {
-        if (!ignore) {
-          setRows([]);
-          setErr(e?.message || 'Greška kod dohvaćanja igrača');
-        }
-      } finally {
-        if (!ignore) setLoading(false);
+      if (rpcError) {
+        throw rpcError;
       }
+
+      const list = Array.isArray(data) ? data : [];
+      setPlayers(list);
+
+      // 2) Total count (optional RPC - safe fallback)
+      // If you have a dedicated count RPC later, we can plug it here.
+      setTotal(list.length);
+    } catch (e) {
+      setPlayers([]);
+      setTotal(0);
+      setError(`Greška kod dohvaćanja igrača: ${e?.message || String(e)}`);
+    } finally {
+      setLoading(false);
     }
-
-    run();
-    return () => {
-      ignore = true;
-    };
-  }, [isReady, supabase, team, ageMin, ageMax, position, search, page]);
-
-  // Client-side advanced filtering (minimums)
-  const filteredRows = useMemo(() => {
-    if (!rows?.length) return [];
-
-    const num = (v) => {
-      if (v === null || v === undefined || v === '') return null;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    };
-
-    const mins = {
-      gk: num(minFilters.gk),
-      de: num(minFilters.de),
-      pm: num(minFilters.pm),
-      wg: num(minFilters.wg),
-      ps: num(minFilters.ps),
-      sc: num(minFilters.sc),
-      sp: num(minFilters.sp),
-      exp: num(minFilters.exp),
-      ldr: num(minFilters.ldr),
-      tsi: num(minFilters.tsi),
-      sal: num(minFilters.sal),
-      fo: num(minFilters.fo),
-      st: num(minFilters.st),
-    };
-
-    const checkMin = (value, min) => {
-      if (min === null) return true;
-      const n = num(value);
-      if (n === null) return false;
-      return n >= min;
-    };
-
-    return rows.filter((r) => {
-      return (
-        checkMin(r.skill_goalkeeping, mins.gk) &&
-        checkMin(r.skill_defending, mins.de) &&
-        checkMin(r.skill_playmaking, mins.pm) &&
-        checkMin(r.skill_winger, mins.wg) &&
-        checkMin(r.skill_passing, mins.ps) &&
-        checkMin(r.skill_scoring, mins.sc) &&
-        checkMin(r.skill_set_pieces, mins.sp) &&
-        checkMin(r.experience, mins.exp) &&
-        checkMin(r.leadership, mins.ldr) &&
-        checkMin(r.tsi, mins.tsi) &&
-        checkMin(r.salary, mins.sal) &&
-        checkMin(r.form, mins.fo) &&
-        checkMin(r.stamina, mins.st)
-      );
-    });
-  }, [rows, minFilters]);
-
-  // Helpers
-  const fmt = (v, key) => {
-    if (v === null || v === undefined) return '';
-    if (key === 'salary') return String(v);
-    if (key === 'tsi') return String(v);
-    return String(v);
   };
 
-  const rowHref = (playerId) => `/team/${team}/players/${playerId}`;
+  useEffect(() => {
+    // Only fetch when the dynamic route param is ready
+    if (!router.isReady) return;
+    fetchPlayers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady, teamSlug]);
 
-  // UI actions
-  const toggleCol = (k) => setVisibleCols((prev) => ({ ...prev, [k]: !prev[k] }));
+  const applyFilters = () => fetchPlayers();
 
-  const resetDefaultCols = () => {
-    const next = {};
-    for (const c of ALL_COLUMNS) next[c.key] = !!c.defaultOn;
-    setVisibleCols(next);
-  };
+  const availablePositions = useMemo(() => {
+    // Build from current list so the dropdown is always valid.
+    const set = new Set();
+    for (const p of players) {
+      if (p?.position) set.add(positionLabel(p.position));
+    }
+    return Array.from(set).sort();
+  }, [players]);
 
-  const setMin = (k, value) => setMinFilters((p) => ({ ...p, [k]: value }));
-
-  const resetMinFilters = () =>
-    setMinFilters({
-      gk: '',
-      de: '',
-      pm: '',
-      wg: '',
-      ps: '',
-      sc: '',
-      sp: '',
-      exp: '',
-      ldr: '',
-      tsi: '',
-      sal: '',
-      fo: '',
-      st: '',
-    });
+  const columnsToRender = useMemo(() => {
+    // Keep the rendering order stable according to ALL_COLUMNS, but only those selected.
+    const ordered = [];
+    for (const c of ALL_COLUMNS) {
+      if (selectedColumnSet.has(c.key)) ordered.push(c);
+    }
+    return ordered;
+  }, [selectedColumnSet]);
 
   return (
     <Layout>
       <Head>
-        <title>Igrači — {team?.toUpperCase()}</title>
+        <title>{title} - Hrvatski U21/NT Tracker</title>
       </Head>
 
-      <div className="pageHeader">
-        <div className="pageHeaderInner">
-          <div>
-            <div className="pageTitle">Igrači</div>
-            <div className="pageSubtitle">Aktivni tim: <b>{team}</b></div>
+      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '16px 12px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 10 }}>
+          <h1 style={{ fontSize: 20, margin: 0 }}>{title}</h1>
+          <div style={{ fontSize: 12, opacity: 0.75 }}>
+            Aktivni tim: <b>{teamSlug || '-'}</b>
           </div>
-          <div className="pageMeta">
-            Popis igrača ({filteredRows.length})
+
+          <div style={{ marginLeft: 'auto', fontSize: 12, opacity: 0.75 }}>
+            Popis igrača ({total})
           </div>
         </div>
-      </div>
 
-      <div className="controls">
-        <input
-          className="inp"
-          placeholder="Search: ime, HT ID, pozicija…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
-
-        <select
-          className="inp small"
-          value={position}
-          onChange={(e) => {
-            setPosition(e.target.value);
-            setPage(1);
+        {/* Filters bar */}
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            alignItems: 'center',
+            marginBottom: 10,
           }}
         >
-          <option value="">Pozicija (sve)</option>
-          <option value="GK">GK</option>
-          <option value="DEF">DEF</option>
-          <option value="WB">WB</option>
-          <option value="IM">IM</option>
-          <option value="W">W</option>
-          <option value="FW">FW</option>
-        </select>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search: ime, HT ID, pozicija..."
+            style={{
+              height: 30,
+              fontSize: 12,
+              padding: '0 10px',
+              borderRadius: 8,
+              border: '1px solid rgba(0,0,0,0.15)',
+              minWidth: 230,
+            }}
+          />
 
-        <input
-          className="inp small"
-          placeholder="Age min"
-          value={ageMin}
-          onChange={(e) => {
-            setAgeMin(e.target.value);
-            setPage(1);
-          }}
-        />
-        <input
-          className="inp small"
-          placeholder="Age max"
-          value={ageMax}
-          onChange={(e) => {
-            setAgeMax(e.target.value);
-            setPage(1);
-          }}
-        />
-
-        <button className="btn" onClick={() => setAdvOpen((s) => !s)}>
-          {advOpen ? 'Sakrij filtere' : 'Dodatni filteri'}
-        </button>
-
-        <button className="btn" onClick={() => setPage(1)} disabled={loading}>
-          Primijeni
-        </button>
-
-        <button className="btn" onClick={() => setVisibleCols((p) => ({ ...p, __open: !p.__open }))}>
-          Kolone
-        </button>
-
-        <div className="spacer" />
-
-        <Link className="link" href="/dashboard">
-          Natrag na module
-        </Link>
-      </div>
-
-      {/* Column chooser panel */}
-      {visibleCols.__open ? (
-        <div className="panel">
-          <div className="panelTitle">Označi kolone (što manje kolona = preglednije, bez horizontalnog skrola)</div>
-          <div className="colGrid">
-            {ALL_COLUMNS.map((c) => (
-              <label key={c.key} className="chk">
-                <input
-                  type="checkbox"
-                  checked={!!visibleCols[c.key]}
-                  onChange={() => toggleCol(c.key)}
-                />
-                <span>
-                  <b>{c.short}</b> <span className="muted">({c.key})</span>
-                </span>
-              </label>
+          <select
+            value={position}
+            onChange={(e) => setPosition(e.target.value)}
+            style={{
+              height: 30,
+              fontSize: 12,
+              padding: '0 10px',
+              borderRadius: 8,
+              border: '1px solid rgba(0,0,0,0.15)',
+              minWidth: 130,
+            }}
+          >
+            <option value="">Pozicija (sve)</option>
+            {availablePositions.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
             ))}
-          </div>
+          </select>
 
-          <div className="panelActions">
-            <button className="btn" onClick={resetDefaultCols}>
-              Reset default
-            </button>
-            <button className="btn" onClick={() => setVisibleCols((p) => ({ ...p, __open: false }))}>
-              Zatvori
-            </button>
+          <input
+            value={ageMin}
+            onChange={(e) => setAgeMin(e.target.value)}
+            placeholder="Age min"
+            inputMode="numeric"
+            style={{
+              height: 30,
+              fontSize: 12,
+              padding: '0 10px',
+              borderRadius: 8,
+              border: '1px solid rgba(0,0,0,0.15)',
+              width: 90,
+            }}
+          />
+          <input
+            value={ageMax}
+            onChange={(e) => setAgeMax(e.target.value)}
+            placeholder="Age max"
+            inputMode="numeric"
+            style={{
+              height: 30,
+              fontSize: 12,
+              padding: '0 10px',
+              borderRadius: 8,
+              border: '1px solid rgba(0,0,0,0.15)',
+              width: 90,
+            }}
+          />
+
+          <button
+            onClick={applyFilters}
+            style={{
+              height: 30,
+              fontSize: 12,
+              padding: '0 12px',
+              borderRadius: 10,
+              border: '1px solid rgba(0,0,0,0.15)',
+              background: 'rgba(0,0,0,0.03)',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            Primijeni
+          </button>
+
+          <button
+            onClick={() => setColumnsOpen((v) => !v)}
+            style={{
+              height: 30,
+              fontSize: 12,
+              padding: '0 12px',
+              borderRadius: 10,
+              border: '1px solid rgba(0,0,0,0.15)',
+              background: 'rgba(0,0,0,0.03)',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >
+            Kolone
+          </button>
+
+          <div style={{ marginLeft: 'auto', fontSize: 12 }}>
+            <Link href="/dashboard" style={{ textDecoration: 'none', opacity: 0.75 }}>
+              Natrag na module
+            </Link>
           </div>
         </div>
-      ) : null}
 
-      {/* Advanced filters */}
-      {advOpen ? (
-        <div className="panel">
-          <div className="panelTitle">Dodatni filteri (portal-style minimumi)</div>
+        {columnsOpen && (
+          <div
+            style={{
+              border: '1px solid rgba(0,0,0,0.12)',
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 12,
+              background: 'rgba(0,0,0,0.02)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <div style={{ fontSize: 12, fontWeight: 700 }}>
+                Označi kolone (što manje kolona = preglednije, bez horizontalnog skrola)
+              </div>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                <button
+                  onClick={resetColumns}
+                  style={{
+                    height: 28,
+                    fontSize: 12,
+                    padding: '0 10px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(0,0,0,0.15)',
+                    background: 'rgba(0,0,0,0.03)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  Reset default
+                </button>
+                <button
+                  onClick={() => setColumnsOpen(false)}
+                  style={{
+                    height: 28,
+                    fontSize: 12,
+                    padding: '0 10px',
+                    borderRadius: 10,
+                    border: '1px solid rgba(0,0,0,0.15)',
+                    background: 'rgba(0,0,0,0.03)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                  }}
+                >
+                  Zatvori
+                </button>
+              </div>
+            </div>
 
-          <div className="advGrid">
-            <div className="advItem"><span className="advLabel">GK ≥</span><input className="inp small" value={minFilters.gk} onChange={(e) => setMin('gk', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">DE ≥</span><input className="inp small" value={minFilters.de} onChange={(e) => setMin('de', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">PM ≥</span><input className="inp small" value={minFilters.pm} onChange={(e) => setMin('pm', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">WG ≥</span><input className="inp small" value={minFilters.wg} onChange={(e) => setMin('wg', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">PS ≥</span><input className="inp small" value={minFilters.ps} onChange={(e) => setMin('ps', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">SC ≥</span><input className="inp small" value={minFilters.sc} onChange={(e) => setMin('sc', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">SP ≥</span><input className="inp small" value={minFilters.sp} onChange={(e) => setMin('sp', e.target.value)} /></div>
-
-            <div className="advItem"><span className="advLabel">Exp ≥</span><input className="inp small" value={minFilters.exp} onChange={(e) => setMin('exp', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">Ldr ≥</span><input className="inp small" value={minFilters.ldr} onChange={(e) => setMin('ldr', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">TSI ≥</span><input className="inp small" value={minFilters.tsi} onChange={(e) => setMin('tsi', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">Sal ≥</span><input className="inp small" value={minFilters.sal} onChange={(e) => setMin('sal', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">Fo ≥</span><input className="inp small" value={minFilters.fo} onChange={(e) => setMin('fo', e.target.value)} /></div>
-            <div className="advItem"><span className="advLabel">St ≥</span><input className="inp small" value={minFilters.st} onChange={(e) => setMin('st', e.target.value)} /></div>
-          </div>
-
-          <div className="panelActions">
-            <button
-              className="btn"
-              onClick={() => {
-                setPage(1);
-              }}
-            >
-              Primijeni
-            </button>
-            <button className="btn" onClick={resetMinFilters}>
-              Reset filtera
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {err ? <div className="error">Greška: {err}</div> : null}
-
-      <div className="hint">Klik na red otvara detalje igrača</div>
-
-      <div className="tableWrap">
-        <table className="tbl">
-          <thead>
-            <tr>
-              {visibleColumnList.map((c) => (
-                <th key={c.key} title={c.title}>
-                  {c.short}
-                </th>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14 }}>
+              {ALL_COLUMNS.map((c) => (
+                <label key={c.key} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedColumnSet.has(c.key)}
+                    onChange={() => toggleColumn(c.key)}
+                  />
+                  <span>
+                    <b>{c.label}</b> <span style={{ opacity: 0.6 }}>{c.hint}</span>
+                  </span>
+                </label>
               ))}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={visibleColumnList.length} className="loadingCell">Učitavam…</td>
-              </tr>
-            ) : filteredRows.length === 0 ? (
-              <tr>
-                <td colSpan={visibleColumnList.length} className="emptyCell">Nema rezultata</td>
-              </tr>
-            ) : (
-              filteredRows.map((r) => (
-                <tr key={r.id} className="row">
-                  {visibleColumnList.map((c) => (
-                    <td key={c.key}>
-                      <Link className="cellLink" href={rowHref(r.id)}>
-                        {fmt(r[c.key], c.key)}
-                      </Link>
-                    </td>
+            </div>
+          </div>
+        )}
+
+        <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 6 }}>Klik na red otvara detalje igrača</div>
+
+        {/* Table */}
+        <div style={{ border: '1px solid rgba(0,0,0,0.12)', borderRadius: 12, overflow: 'hidden' }}>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: 'rgba(0,0,0,0.03)' }}>
+                  {columnsToRender.map((c) => (
+                    <th
+                      key={c.key}
+                      style={{
+                        textAlign: c.key === 'full_name' ? 'left' : 'center',
+                        padding: '8px 8px',
+                        borderBottom: '1px solid rgba(0,0,0,0.10)',
+                        whiteSpace: 'nowrap',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {c.label}
+                    </th>
                   ))}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              </thead>
 
-      <div className="pager">
-        <button className="btn" disabled={page <= 1 || loading} onClick={() => setPage((p) => Math.max(1, p - 1))}>
-          ◀
-        </button>
-        <span className="pagerText">Stranica {page}</span>
-        <button className="btn" disabled={loading || rows.length < pageSize} onClick={() => setPage((p) => p + 1)}>
-          ▶
-        </button>
-      </div>
+              <tbody>
+                {loading && (
+                  <tr>
+                    <td colSpan={columnsToRender.length} style={{ padding: 12, textAlign: 'center', opacity: 0.8 }}>
+                      Učitavam...
+                    </td>
+                  </tr>
+                )}
 
-      <style jsx>{`
-        .pageHeader {
-          border-radius: 14px;
-          padding: 14px 16px;
-          margin-bottom: 12px;
-          background: linear-gradient(135deg, rgba(0,0,0,0.04), rgba(0,0,0,0.02));
-          border: 1px solid rgba(0,0,0,0.06);
-        }
-        .pageHeaderInner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        }
-        .pageTitle {
-          font-size: 20px;
-          font-weight: 800;
-          line-height: 1.1;
-        }
-        .pageSubtitle {
-          margin-top: 3px;
-          font-size: 12px;
-          opacity: 0.75;
-        }
-        .pageMeta {
-          font-size: 12px;
-          opacity: 0.7;
-          white-space: nowrap;
-        }
-        .controls {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          align-items: center;
-          margin-bottom: 10px;
-        }
-        .spacer {
-          flex: 1;
-        }
-        .inp {
-          padding: 7px 10px;
-          border: 1px solid rgba(0,0,0,0.15);
-          border-radius: 10px;
-          font-size: 12px;
-          min-width: 220px;
-          background: white;
-        }
-        .inp.small {
-          min-width: 90px;
-          width: 90px;
-        }
-        .btn {
-          padding: 7px 10px;
-          border: 1px solid rgba(0,0,0,0.15);
-          border-radius: 10px;
-          font-size: 12px;
-          background: white;
-          cursor: pointer;
-        }
-        .btn:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-        .link {
-          font-size: 12px;
-          opacity: 0.75;
-          text-decoration: none;
-        }
-        .panel {
-          border: 1px solid rgba(0,0,0,0.1);
-          border-radius: 14px;
-          padding: 12px;
-          margin: 10px 0;
-          background: rgba(0,0,0,0.015);
-        }
-        .panelTitle {
-          font-size: 12px;
-          font-weight: 700;
-          margin-bottom: 10px;
-          opacity: 0.8;
-        }
-        .colGrid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 8px;
-        }
-        .chk {
-          display: flex;
-          gap: 8px;
-          align-items: center;
-          font-size: 12px;
-        }
-        .muted {
-          opacity: 0.55;
-          font-size: 11px;
-        }
-        .panelActions {
-          display: flex;
-          gap: 8px;
-          margin-top: 10px;
-        }
-        .advGrid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-          gap: 8px;
-        }
-        .advItem {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 12px;
-        }
-        .advLabel {
-          width: 52px;
-          opacity: 0.75;
-        }
-        .error {
-          margin: 10px 0;
-          padding: 10px;
-          border-radius: 12px;
-          background: rgba(255,0,0,0.06);
-          border: 1px solid rgba(255,0,0,0.15);
-          font-size: 12px;
-        }
-        .hint {
-          font-size: 12px;
-          opacity: 0.65;
-          margin: 8px 0;
-        }
-        .tableWrap {
-          border: 1px solid rgba(0,0,0,0.08);
-          border-radius: 14px;
-          overflow: hidden;
-          background: white;
-        }
-        .tbl {
-          width: 100%;
-          border-collapse: collapse;
-          table-layout: fixed;
-          font-size: 12px;
-        }
-        th, td {
-          padding: 6px 8px;
-          border-bottom: 1px solid rgba(0,0,0,0.06);
-          overflow: hidden;
-          text-overflow: ellipsis;
-          white-space: nowrap;
-          vertical-align: middle;
-        }
-        th {
-          background: rgba(0,0,0,0.03);
-          font-weight: 800;
-          font-size: 11px;
-          letter-spacing: 0.2px;
-        }
-        tr.row:hover td {
-          background: rgba(0,0,0,0.02);
-        }
-        .cellLink {
-          display: block;
-          color: inherit;
-          text-decoration: none;
-        }
-        .loadingCell, .emptyCell {
-          padding: 16px;
-          text-align: center;
-          opacity: 0.7;
-        }
-        .pager {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          margin: 12px 0 4px;
-        }
-        .pagerText {
-          font-size: 12px;
-          opacity: 0.75;
-        }
-      `}</style>
+                {!loading && error && (
+                  <tr>
+                    <td colSpan={columnsToRender.length} style={{ padding: 12, color: '#b00020' }}>
+                      {error}
+                    </td>
+                  </tr>
+                )}
+
+                {!loading && !error && players.length === 0 && (
+                  <tr>
+                    <td colSpan={columnsToRender.length} style={{ padding: 12, textAlign: 'center', opacity: 0.8 }}>
+                      Nema igrača za prikaz.
+                    </td>
+                  </tr>
+                )}
+
+                {!loading &&
+                  !error &&
+                  players.map((p) => {
+                    const pid = p?.id ?? p?.player_id ?? null;
+
+                    return (
+                      <tr
+                        key={safeStr(pid) || safeStr(p?.ht_player_id) || Math.random()}
+                        onClick={() => openPlayer(pid)}
+                        style={{
+                          cursor: pid ? 'pointer' : 'default',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = 'rgba(0,0,0,0.02)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        {columnsToRender.map((c) => {
+                          const v = p?.[c.key];
+
+                          let rendered = '';
+                          if (c.key === 'full_name') rendered = safeStr(v);
+                          else if (c.key === 'position') rendered = positionLabel(v);
+                          else if (c.key === 'age_years') rendered = numOrEmpty(v);
+                          else if (c.key === 'ht_player_id') rendered = safeStr(v);
+                          else if (c.key === 'salary') rendered = numOrEmpty(v);
+                          else if (c.key === 'form') rendered = numOrEmpty(v);
+                          else if (c.key === 'stamina') rendered = numOrEmpty(v);
+                          else if (c.key === 'current_training') rendered = safeStr(v);
+                          else rendered = numOrEmpty(v);
+
+                          return (
+                            <td
+                              key={c.key}
+                              style={{
+                                padding: '8px 8px',
+                                borderBottom: '1px solid rgba(0,0,0,0.06)',
+                                textAlign: c.key === 'full_name' ? 'left' : 'center',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {rendered}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 12, opacity: 0.7, marginTop: 10 }}>
+          Tip: drži default set kolona (bez skrola), a za analize otvori “Kolone” i privremeno upali što ti treba.
+        </div>
+      </div>
     </Layout>
   );
 }
