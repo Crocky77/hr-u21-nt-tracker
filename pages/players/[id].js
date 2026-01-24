@@ -1,37 +1,26 @@
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/router";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseClient } from "../../utils/supabaseClient";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
-
-function Pill({ children, tone = "neutral" }) {
-  const map = {
-    neutral: { bg: "#f3f4f6", fg: "#111827", bd: "#e5e7eb" },
-    good: { bg: "#dcfce7", fg: "#166534", bd: "#bbf7d0" },
-    warn: { bg: "#ffedd5", fg: "#9a3412", bd: "#fed7aa" },
-    bad: { bg: "#fee2e2", fg: "#991b1b", bd: "#fecaca" },
-    dark: { bg: "#111", fg: "#fff", bd: "#111" }
-  };
-  const s = map[tone] || map.neutral;
+function Badge({ label, value, color = "#111", bg = "#f3f4f6" }) {
   return (
     <span
       style={{
         display: "inline-flex",
+        gap: 6,
         alignItems: "center",
         padding: "6px 10px",
         borderRadius: 999,
-        background: s.bg,
-        color: s.fg,
-        border: `1px solid ${s.bd}`,
+        background: bg,
+        color,
         fontSize: 12,
-        fontWeight: 900
+        fontWeight: 800,
+        border: "1px solid #e5e7eb",
       }}
     >
-      {children}
+      <span style={{ opacity: 0.7, fontWeight: 900 }}>{label}:</span>
+      <span>{value ?? "-"}</span>
     </span>
   );
 }
@@ -42,68 +31,37 @@ function Card({ title, children }) {
       style={{
         background: "#fff",
         border: "1px solid #e5e7eb",
-        borderRadius: 14,
-        boxShadow: "0 10px 28px rgba(0,0,0,.08)",
-        overflow: "hidden"
+        borderRadius: 18,
+        padding: 16,
+        boxShadow: "0 8px 30px rgba(0,0,0,.06)",
       }}
     >
-      <div style={{ padding: 14, background: "#f7f7f7", borderBottom: "1px solid #e5e7eb", fontWeight: 900 }}>
-        {title}
-      </div>
-      <div style={{ padding: 14 }}>{children}</div>
+      {title && (
+        <div style={{ fontWeight: 1000, marginBottom: 10, fontSize: 14 }}>
+          {title}
+        </div>
+      )}
+      {children}
     </div>
   );
 }
 
-function kv(label, value) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "8px 0", borderBottom: "1px solid #f3f4f6" }}>
-      <div style={{ fontWeight: 800, opacity: 0.8 }}>{label}</div>
-      <div style={{ fontWeight: 900 }}>{value ?? <span style={{ opacity: 0.5 }}>—</span>}</div>
-    </div>
-  );
-}
-
-function normalizeSkills(obj) {
-  const s = obj || {};
-  // standard redoslijed radi čitljivosti
-  const order = ["gk", "def", "wb", "pm", "w", "ps", "sc", "sp"];
-  const labels = {
-    gk: "GK",
-    def: "DEF",
-    wb: "WB",
-    pm: "PM",
-    w: "W",
-    ps: "PASS",
-    sc: "SCOR",
-    sp: "SP"
-  };
-  return order.map((k) => ({ key: k, label: labels[k], value: s[k] }));
-}
-
-export default function PlayerProfile() {
+export default function PlayerProfileLegacy() {
   const router = useRouter();
   const { id } = router.query;
 
-  const [access, setAccess] = useState("loading"); // loading | denied | ok
-  const [email, setEmail] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [player, setPlayer] = useState(null);
+  const [snap, setSnap] = useState(null);
+  const [notes, setNotes] = useState([]);
+  const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
 
-  const [player, setPlayer] = useState(null);
-  const [snapshot, setSnapshot] = useState(null);
+  const [noteText, setNoteText] = useState("");
+  const [noteVisibility, setNoteVisibility] = useState("team");
+  const [noteRating, setNoteRating] = useState(3);
+  const [noteTag, setNoteTag] = useState("watch");
 
-  const [notes, setNotes] = useState([]);
-  const [noteDraft, setNoteDraft] = useState("");
-  const [noteVisibility, setNoteVisibility] = useState("team"); // team | private
-  const [noteRating, setNoteRating] = useState("3");
-  const [noteTags, setNoteTags] = useState("watch");
-
-  // Task 5.1: requirement tags (debug)
-  const [reqTagsLoading, setReqTagsLoading] = useState(false);
-  const [reqTagsError, setReqTagsError] = useState(null);
-  const [reqTags, setReqTags] = useState([]);
-
-  // Admin-only: quick snapshot form (minimalno, dok nema CHPP)
   const [snapEdit, setSnapEdit] = useState({
     form: "",
     stamina: "",
@@ -114,326 +72,359 @@ export default function PlayerProfile() {
     coach_level: "",
     assistant_count: "",
     medic_count: "",
-    form_coach_count: ""
+    form_coach_count: "",
   });
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getUser();
-      const userEmail = data?.user?.email ?? null;
-      if (!userEmail) {
-        setAccess("denied");
-        return;
-      }
-      setEmail(userEmail);
+  const playerIdNum = useMemo(() => {
+    if (!id) return null;
+    const n = Number(id);
+    return Number.isFinite(n) ? n : null;
+  }, [id]);
 
-      const { data: urows } = await supabase.from("users").select("role").eq("email", userEmail).limit(1);
-      if (!urows || urows.length === 0) {
-        setAccess("denied");
-        return;
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { data } = await supabaseClient.auth.getUser();
+      if (!mounted) return;
+      setUser(data?.user ?? null);
+
+      if (data?.user) {
+        const { data: roleRow } = await supabaseClient
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", data.user.id)
+          .maybeSingle();
+        setRole(roleRow?.role ?? null);
+      } else {
+        setRole(null);
       }
-      setRole(urows[0].role);
-      setAccess("ok");
     })();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  async function fetchRequirementTagsForPlayer(prow) {
-    // Reset state first
-    setReqTagsError(null);
-    setReqTags([]);
+  useEffect(() => {
+    if (!playerIdNum) return;
 
-    if (!prow?.ht_player_id) {
-      // nema HT ID → nema tagova
-      return;
-    }
-    if (!prow?.team_type) {
-      setReqTagsError("Nedostaje team_type na playeru.");
-      return;
-    }
+    let mounted = true;
+    setLoading(true);
 
-    setReqTagsLoading(true);
-    try {
-      // map team_type ('nt'/'u21') -> teams.id
-      const { data: trow, error: terr } = await supabase
-        .from("teams")
-        .select("id, slug")
-        .eq("slug", prow.team_type)
+    (async () => {
+      // Player
+      const { data: p, error: pErr } = await supabaseClient
+        .from("players")
+        .select(
+          `
+          id,
+          full_name,
+          position,
+          age_years,
+          age_days,
+          ht_id,
+          ht_player_id,
+          nationality,
+          team_type,
+          is_active,
+          status,
+          last_seen,
+          skill_goalkeeping,
+          skill_defending,
+          skill_playmaking,
+          skill_winger,
+          skill_passing,
+          skill_scoring,
+          skill_set_pieces,
+          salary,
+          form,
+          stamina,
+          current_training
+        `
+        )
+        .eq("id", playerIdNum)
+        .maybeSingle();
+
+      // Snapshot (optional)
+      const { data: s } = await supabaseClient
+        .from("player_snapshots")
+        .select("*")
+        .eq("player_id", playerIdNum)
+        .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (terr || !trow?.id) {
-        setReqTagsError("Ne mogu dohvatiti teams.id za slug=" + prow.team_type + (terr?.message ? " | " + terr.message : ""));
-        return;
+      // Notes (optional)
+      const { data: n } = await supabaseClient
+        .from("player_notes")
+        .select("*")
+        .eq("player_id", playerIdNum)
+        .order("created_at", { ascending: false });
+
+      if (!mounted) return;
+
+      setPlayer(pErr ? null : p ?? null);
+      setSnap(s ?? null);
+      setNotes(n ?? []);
+
+      if (s) {
+        setSnapEdit({
+          form: s.form ?? "",
+          stamina: s.stamina ?? "",
+          tsi: s.tsi ?? "",
+          training_type: s.training_type ?? "",
+          training_intensity: s.training_intensity ?? "",
+          stamina_share: s.stamina_share ?? "",
+          coach_level: s.coach_level ?? "",
+          assistant_count: s.assistant_count ?? "",
+          medic_count: s.medic_count ?? "",
+          form_coach_count: s.form_coach_count ?? "",
+        });
+      } else {
+        setSnapEdit({
+          form: "",
+          stamina: "",
+          tsi: "",
+          training_type: "",
+          training_intensity: "",
+          stamina_share: "",
+          coach_level: "",
+          assistant_count: "",
+          medic_count: "",
+          form_coach_count: "",
+        });
       }
 
-      // PROD RPC (auth + membership)
-      const { data: tags, error: rerr } = await supabase.rpc("list_player_requirement_tags", {
-        p_team_id: trow.id,
-        p_ht_player_id: prow.ht_player_id
-      });
+      setLoading(false);
+    })();
 
-      if (rerr) {
-        setReqTagsError(rerr.message || "RPC greška");
-        return;
-      }
+    return () => {
+      mounted = false;
+    };
+  }, [playerIdNum]);
 
-      setReqTags(Array.isArray(tags) ? tags : []);
-    } finally {
-      setReqTagsLoading(false);
-    }
-  }
+  const addNote = async (e) => {
+    e.preventDefault();
+    if (!user) return alert("Moraš biti prijavljen.");
+    if (!playerIdNum) return;
+    if (!noteText.trim()) return;
 
-  async function fetchAll(pid) {
-    // player
-    const { data: prow, error: perr } = await supabase
-      .from("players")
-      .select("id, ht_player_id, full_name, position, dob, team_type, status, notes, last_seen_at")
-      .eq("id", pid)
-      .limit(1)
-      .maybeSingle();
+    const payload = {
+      player_id: playerIdNum,
+      author_id: user.id,
+      visibility: noteVisibility,
+      rating: noteRating,
+      tag: noteTag,
+      note: noteText.trim(),
+    };
 
-    if (perr || !prow) {
-      setPlayer(null);
-      setSnapshot(null);
-      setNotes([]);
-      setReqTags([]);
-      setReqTagsError(null);
-      setReqTagsLoading(false);
-      return;
-    }
-    setPlayer(prow);
+    const { error } = await supabaseClient.from("player_notes").insert(payload);
+    if (error) return alert(error.message);
 
-    // Task 5.1: fetch requirement tags (debug) — nakon što imamo player row
-    await fetchRequirementTagsForPlayer(prow);
+    setNoteText("");
 
-    // snapshot (may be null)
-    const { data: srow } = await supabase
-      .from("player_snapshot")
-      .select("*")
-      .eq("player_id", pid)
-      .limit(1)
-      .maybeSingle();
-
-    setSnapshot(srow || null);
-
-    // sync edit fields if admin
-    if (srow) {
-      setSnapEdit({
-        form: srow.form ?? "",
-        stamina: srow.stamina ?? "",
-        tsi: srow.tsi ?? "",
-        training_type: srow.training_type ?? "",
-        training_intensity: srow.training_intensity ?? "",
-        stamina_share: srow.stamina_share ?? "",
-        coach_level: srow.coach_level ?? "",
-        assistant_count: srow.assistant_count ?? "",
-        medic_count: srow.medic_count ?? "",
-        form_coach_count: srow.form_coach_count ?? ""
-      });
-    }
-
-    // notes
-    const { data: nrows } = await supabase
+    const { data: n } = await supabaseClient
       .from("player_notes")
-      .select("id, author_email, visibility, rating, tags, note, created_at")
-      .eq("player_id", pid)
+      .select("*")
+      .eq("player_id", playerIdNum)
       .order("created_at", { ascending: false });
 
-    setNotes(nrows || []);
-  }
+    setNotes(n ?? []);
+  };
 
-  useEffect(() => {
-    if (access !== "ok") return;
-    if (!id) return;
-    fetchAll(Number(id));
-  }, [access, id]);
-
-  const skills = useMemo(() => normalizeSkills(snapshot?.skills), [snapshot?.skills]);
-
-  async function logout() {
-    await supabase.auth.signOut();
-    window.location.replace("/login");
-  }
-
-  async function addNote(e) {
+  const upsertSnapshot = async (e) => {
     e.preventDefault();
-    const pid = Number(id);
+    if (!user) return alert("Moraš biti prijavljen.");
+    if (role !== "admin") return alert("Samo admin može uređivati snapshot.");
+    if (!playerIdNum) return;
 
     const payload = {
-      player_id: pid,
-      author_email: email,
-      visibility: noteVisibility,
-      rating: Number(noteRating),
-      tags: noteTags
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean),
-      note: noteDraft.trim()
+      player_id: playerIdNum,
+      updated_by: user.id,
+      ...snapEdit,
     };
 
-    const { error } = await supabase.from("player_notes").insert(payload);
-    if (error) {
-      alert("Greška: " + error.message);
-      return;
-    }
-    setNoteDraft("");
-    await fetchAll(pid);
-  }
+    const { error } = await supabaseClient
+      .from("player_snapshots")
+      .upsert(payload, { onConflict: "player_id" });
 
-  async function upsertSnapshot(e) {
-    e.preventDefault();
-    const pid = Number(id);
+    if (error) return alert(error.message);
 
-    // Upsert minimal fields; skills/subskills će kasnije puniti CHPP sync
-    const payload = {
-      player_id: pid,
-      ht_player_id: player?.ht_player_id ?? null,
-      updated_at: new Date().toISOString(),
-      form: snapEdit.form === "" ? null : Number(snapEdit.form),
-      stamina: snapEdit.stamina === "" ? null : Number(snapEdit.stamina),
-      tsi: snapEdit.tsi === "" ? null : Number(snapEdit.tsi),
-      training_type: snapEdit.training_type || null,
-      training_intensity: snapEdit.training_intensity === "" ? null : Number(snapEdit.training_intensity),
-      stamina_share: snapEdit.stamina_share === "" ? null : Number(snapEdit.stamina_share),
-      coach_level: snapEdit.coach_level || null,
-      assistant_count: snapEdit.assistant_count === "" ? null : Number(snapEdit.assistant_count),
-      medic_count: snapEdit.medic_count === "" ? null : Number(snapEdit.medic_count),
-      form_coach_count: snapEdit.form_coach_count === "" ? null : Number(snapEdit.form_coach_count)
-    };
+    const { data: s } = await supabaseClient
+      .from("player_snapshots")
+      .select("*")
+      .eq("player_id", playerIdNum)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    const { error } = await supabase.from("player_snapshot").upsert(payload, { onConflict: "player_id" });
-    if (error) {
-      alert("Greška: " + error.message);
-      return;
-    }
-    await fetchAll(pid);
-  }
+    setSnap(s ?? null);
+    alert("Snapshot spremljen.");
+  };
 
-  if (access === "denied") {
-    return (
-      <main style={{ fontFamily: "Arial, sans-serif", padding: 40, maxWidth: 1100, margin: "0 auto" }}>
-        <h1 style={{ color: "#c00" }}>Profil igrača</h1>
-        <p><strong>Nemaš pristup.</strong></p>
-        <Link href="/login">→ Prijava</Link>
-      </main>
-    );
-  }
-
-  if (access === "loading") {
-    return <main style={{ fontFamily: "Arial, sans-serif", padding: 40 }}>Učitavam...</main>;
-  }
+  if (loading) return <div style={{ padding: 24 }}>Učitavam...</div>;
 
   if (!player) {
     return (
-      <main style={{ fontFamily: "Arial, sans-serif", padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+      <main
+        style={{
+          fontFamily: "Arial, sans-serif",
+          padding: 24,
+          maxWidth: 1100,
+          margin: "0 auto",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 10,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <h1 style={{ color: "#c00" }}>Profil igrača</h1>
-          <Link href="/players">← Natrag</Link>
+          {/* Legacy route: fallback to U21 list */}
+          <Link href="/team/u21/players" style={{ fontWeight: 900 }}>
+            ← Igrači
+          </Link>
         </div>
-        <p>Ne mogu pronaći igrača.</p>
+        <div style={{ marginTop: 10 }}>Igrač nije pronađen.</div>
       </main>
     );
   }
 
+  // Back link: always return to the correct team list (NT vs U21).
+  // This file is a legacy/global details route, so we infer the team from player.team_type.
+  // If team_type is missing/unknown, default to U21.
+  const teamSlug =
+    String(player.team_type || "")
+      .trim()
+      .toLowerCase() === "nt"
+      ? "nt"
+      : "u21";
+  const backHref = `/team/${teamSlug}/players`;
+
   return (
-    <main style={{ fontFamily: "Arial, sans-serif", padding: 24, maxWidth: 1100, margin: "0 auto" }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+    <main
+      style={{
+        fontFamily: "Arial, sans-serif",
+        padding: 24,
+        maxWidth: 1100,
+        margin: "0 auto",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 10,
+          alignItems: "center",
+          flexWrap: "wrap",
+        }}
+      >
         <div>
-          <div style={{ fontSize: 12, opacity: 0.7 }}>Hrvatski U21/NT Tracker</div>
-          <h1 style={{ margin: "6px 0 0", color: "#c00" }}>{player.full_name}</h1>
-          <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <Pill tone="neutral">{player.team_type}</Pill>
-            <Pill tone="neutral">Poz: {player.position}</Pill>
-            <Pill tone="neutral">DOB: {player.dob}</Pill>
-            <Pill tone="good">Ulogiran: {email}</Pill>
-            <Pill tone="neutral">Uloga: {role}</Pill>
+          <div style={{ fontSize: 12, opacity: 0.7, fontWeight: 900 }}>
+            Hrvatski U21/NT Tracker
           </div>
+          <h1 style={{ margin: "4px 0 0", fontSize: 34, fontWeight: 1000, color: "#c00" }}>
+            {player.full_name}
+          </h1>
         </div>
 
-        <div style={{ display: "flex", gap: 10 }}>
-          <Link href="/players" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #e5e7eb", textDecoration: "none" }}>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+          <Link href={backHref} style={{ fontWeight: 900 }}>
             ← Igrači
           </Link>
-          <Link href="/" style={{ padding: "10px 12px", borderRadius: 10, border: "1px solid #e5e7eb", textDecoration: "none" }}>
+          <Link href="/" style={{ fontWeight: 900 }}>
             Naslovna
           </Link>
-          <button onClick={logout} style={{ padding: "10px 12px", borderRadius: 10, border: "none", background: "#111", color: "#fff", fontWeight: 900, cursor: "pointer" }}>
-            Odjava
-          </button>
         </div>
       </div>
 
-      {/* Top grid */}
-      <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 10 }}>
+        <Badge label={teamSlug.toUpperCase()} value="Poz" bg="#111" color="#fff" />
+        <Badge label="Poz" value={player.position} />
+        <Badge label="DOB" value={`${player.age_years ?? "-"}.${player.age_days ?? "-"}`} bg="#ecfdf5" color="#065f46" />
+        <Badge label="Ulogiran" value={user?.email ?? "—"} bg="#eef2ff" color="#3730a3" />
+        <Badge label="Uloga" value={role ?? "—"} bg="#fdf2f8" color="#9d174d" />
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 14, marginTop: 16 }}>
         <Card title="Osnovno">
-          {kv("Interni ID", player.id)}
-          {kv("HT Player ID", player.ht_player_id ?? "—")}
-          {kv("Tip", player.team_type)}
-          {kv("Status", player.status)}
-          {kv("Zadnje viđeno", player.last_seen_at ? new Date(player.last_seen_at).toLocaleString() : "—")}
+          <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", rowGap: 8, columnGap: 10 }}>
+            <div style={{ opacity: 0.65, fontWeight: 900 }}>Interni ID</div>
+            <div style={{ fontWeight: 900 }}>{player.id}</div>
 
-          {/* Task 5.1: Debug section for requirements */}
-          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid #e5e7eb" }}>
-            <div style={{ fontWeight: 900, marginBottom: 8 }}>Zahtjevi (DEBUG – Task 5.1)</div>
+            <div style={{ opacity: 0.65, fontWeight: 900 }}>HT Player ID</div>
+            <div style={{ fontWeight: 900 }}>{player.ht_player_id ?? player.ht_id ?? "-"}</div>
 
-            {reqTagsLoading ? (
-              <div style={{ opacity: 0.7 }}>Učitavam zahtjeve…</div>
-            ) : reqTagsError ? (
-              <div style={{ color: "#b91c1c", fontWeight: 800 }}>
-                Greška: {reqTagsError}
-              </div>
-            ) : (
-              <>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-                  <Pill tone="neutral">Broj redova: {reqTags.length}</Pill>
-                  <Pill tone="neutral">
-                    Match: {reqTags.filter((x) => x.is_match).length}
-                  </Pill>
-                </div>
+            <div style={{ opacity: 0.65, fontWeight: 900 }}>Tip</div>
+            <div style={{ fontWeight: 900 }}>{teamSlug.toUpperCase()}</div>
 
-                <pre style={{ margin: 0, padding: 12, borderRadius: 12, border: "1px solid #e5e7eb", background: "#f9fafb", overflowX: "auto", fontSize: 12 }}>
-                  {JSON.stringify(reqTags, null, 2)}
-                </pre>
-              </>
-            )}
+            <div style={{ opacity: 0.65, fontWeight: 900 }}>Status</div>
+            <div style={{ fontWeight: 900 }}>{player.status ?? (player.is_active ? "active" : "inactive")}</div>
+
+            <div style={{ opacity: 0.65, fontWeight: 900 }}>Zadnje viđeno</div>
+            <div style={{ fontWeight: 900 }}>
+              {player.last_seen ? new Date(player.last_seen).toLocaleString() : "—"}
+            </div>
           </div>
 
-          <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-            * Kad dođe CHPP, ovdje ćemo prikazati Hattrick nick/club, ligu, i sl.
+          <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
+            * Kod dođe CHPP, ovdje ćemo prikazati Hattrick nick/klub, ligu, i sl.
           </div>
         </Card>
 
         <Card title="Portal-style status (trenutno/uskoro)">
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Pill tone={snapshot?.form != null ? "good" : "warn"}>Forma: {snapshot?.form ?? "—"}</Pill>
-            <Pill tone={snapshot?.stamina != null ? "good" : "warn"}>Stamina: {snapshot?.stamina ?? "—"}</Pill>
-            <Pill tone="neutral">TSI: {snapshot?.tsi ?? "—"}</Pill>
-            <Pill tone="neutral">Trening: {snapshot?.training_type ?? "—"}</Pill>
-            <Pill tone="neutral">Intenzitet: {snapshot?.training_intensity ?? "—"}</Pill>
-            <Pill tone="neutral">Stamina %: {snapshot?.stamina_share ?? "—"}</Pill>
+            <Badge label="Forma" value={player.form ?? snap?.form ?? "—"} bg="#fff7ed" color="#9a3412" />
+            <Badge label="Stamina" value={player.stamina ?? snap?.stamina ?? "—"} bg="#fff7ed" color="#9a3412" />
+            <Badge label="TSI" value={snap?.tsi ?? "—"} />
+            <Badge label="Trening" value={player.current_training ?? snap?.training_type ?? "—"} />
+            <Badge label="Intenzitet" value={snap?.training_intensity ?? "—"} />
+            <Badge label="Stamina %" value={snap?.stamina_share ?? "—"} />
           </div>
 
-          <div style={{ marginTop: 12, border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: "#f9fafb" }}>
-            <div style={{ fontWeight: 900 }}>U21/NT “decision box” (sljedeće)</div>
-            <div style={{ marginTop: 6, opacity: 0.8 }}>
-              Ovdje ćemo dodati: U21 cutoff (21g+111d), full-cycle status, stagnacija treninga i alertove — čim uvedemo pravu HT dob + trening engine.
-            </div>
+          <div style={{ marginTop: 12, fontSize: 12, opacity: 0.75, lineHeight: 1.35 }}>
+            <div style={{ fontWeight: 1000 }}>U21/NT “decision box” (sljedeće)</div>
+            Ovdje ćemo dodati U21 cutoff (21g+111d), full-cycle status,
+            stagnacija treninga i alerteve — čim uvedemo pravu HT dob + trening engine.
           </div>
         </Card>
       </div>
 
-      {/* Skills + Training/Staff */}
-      <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
         <Card title="Skillovi i sub-skillovi (portal tracker prikaz)">
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10 }}>
-            {skills.map((s) => (
-              <div key={s.key} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: "#fff" }}>
-                <div style={{ fontSize: 12, opacity: 0.75, fontWeight: 800 }}>{s.label}</div>
-                <div style={{ fontSize: 22, fontWeight: 900, marginTop: 6 }}>{s.value ?? "—"}</div>
-                <div style={{ marginTop: 6, fontSize: 12, opacity: 0.65 }}>
-                  sub: {snapshot?.subskills?.[`${s.key}_sub`] ?? "—"}
-                </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+              gap: 10,
+            }}
+          >
+            {[
+              ["GK", player.skill_goalkeeping],
+              ["DEF", player.skill_defending],
+              ["WB", player.skill_winger],
+              ["PM", player.skill_playmaking],
+              ["W", player.skill_winger],
+              ["PASS", player.skill_passing],
+              ["SCOR", player.skill_scoring],
+              ["SP", player.skill_set_pieces],
+            ].map(([k, v]) => (
+              <div
+                key={k}
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 14,
+                  padding: 12,
+                  background: "#fafafa",
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 1000, opacity: 0.8 }}>{k}</div>
+                <div style={{ fontSize: 24, fontWeight: 1000 }}>{v ?? "—"}</div>
+                <div style={{ fontSize: 11, opacity: 0.6, marginTop: 6 }}>sub: —</div>
               </div>
             ))}
           </div>
@@ -444,13 +435,22 @@ export default function PlayerProfile() {
         </Card>
 
         <Card title="Klub / osoblje / trener (portal tracker stil)">
-          {kv("Coach level", snapshot?.coach_level)}
-          {kv("Asistenti", snapshot?.assistant_count)}
-          {kv("Medic", snapshot?.medic_count)}
-          {kv("Form coach", snapshot?.form_coach_count)}
-          {kv("Specialty", snapshot?.specialty)}
-          {kv("Experience", snapshot?.experience)}
-          {kv("Leadership", snapshot?.leadership)}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[
+              ["Coach level", snap?.coach_level],
+              ["Asistenti", snap?.assistant_count],
+              ["Medic", snap?.medic_count],
+              ["Form coach", snap?.form_coach_count],
+              ["Specialty", "—"],
+              ["Experience", "—"],
+              ["Leadership", "—"],
+            ].map(([k, v]) => (
+              <div key={k} style={{ borderBottom: "1px dashed #e5e7eb", paddingBottom: 8 }}>
+                <div style={{ fontSize: 12, opacity: 0.7, fontWeight: 900 }}>{k}</div>
+                <div style={{ fontSize: 16, fontWeight: 1000 }}>{v ?? "—"}</div>
+              </div>
+            ))}
+          </div>
 
           <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
             * Ovo je “kostur” profila. Kad dođe CHPP sync, ovo postaje stvarni portal-level prikaz.
@@ -458,66 +458,69 @@ export default function PlayerProfile() {
         </Card>
       </div>
 
-      {/* Notes */}
-      <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginTop: 14 }}>
         <Card title="Bilješke (tim / privatno)">
-          <form onSubmit={addNote} style={{ display: "grid", gap: 10 }}>
-            <textarea
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              required
-              placeholder="Napiši bilješku… (npr. plan treninga, poziv, kontakt s managerom)"
-              style={{ width: "100%", minHeight: 90, padding: 10, borderRadius: 12, border: "1px solid #e5e7eb", fontFamily: "Arial, sans-serif" }}
-            />
-
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <select value={noteVisibility} onChange={(e) => setNoteVisibility(e.target.value)} style={{ padding: 10, borderRadius: 12, border: "1px solid #e5e7eb" }}>
-                <option value="team">Vidljivo timu</option>
-                <option value="private">Privatno</option>
-              </select>
-
-              <select value={noteRating} onChange={(e) => setNoteRating(e.target.value)} style={{ padding: 10, borderRadius: 12, border: "1px solid #e5e7eb" }}>
-                <option value="1">Ocjena 1</option>
-                <option value="2">Ocjena 2</option>
-                <option value="3">Ocjena 3</option>
-                <option value="4">Ocjena 4</option>
-                <option value="5">Ocjena 5</option>
-              </select>
-
-              <input
-                value={noteTags}
-                onChange={(e) => setNoteTags(e.target.value)}
-                placeholder="tagovi (npr. core,watch,risk)"
-                style={{ flex: 1, minWidth: 220, padding: 10, borderRadius: 12, border: "1px solid #e5e7eb" }}
-              />
+          {!user && (
+            <div style={{ fontSize: 12, opacity: 0.75 }}>
+              Moraš biti prijavljen da bi pisao bilješke.
             </div>
+          )}
 
-            <button type="submit" style={{ padding: "10px 12px", borderRadius: 12, border: "none", background: "#111", color: "#fff", fontWeight: 900, cursor: "pointer" }}>
-              Spremi bilješku
-            </button>
-          </form>
+          {user && (
+            <form onSubmit={addNote} style={{ display: "grid", gap: 10 }}>
+              <textarea
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Napiši bilješku... (npr. plan treninga, poziv, kontakt s managerom)"
+                rows={4}
+                style={{
+                  width: "100%",
+                  padding: 12,
+                  borderRadius: 14,
+                  border: "1px solid #e5e7eb",
+                  outline: "none",
+                }}
+              />
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <select value={noteVisibility} onChange={(e) => setNoteVisibility(e.target.value)} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+                  <option value="team">Vidljivo timu</option>
+                  <option value="private">Privatno</option>
+                </select>
 
-          <div style={{ marginTop: 12, fontSize: 12, opacity: 0.7 }}>
-            * Timske bilješke vidi cijeli tim. Privatne vidi samo autor.
-          </div>
+                <select value={noteRating} onChange={(e) => setNoteRating(Number(e.target.value))} style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb" }}>
+                  {[1, 2, 3, 4, 5].map((r) => (
+                    <option key={r} value={r}>
+                      Ocjena {r}
+                    </option>
+                  ))}
+                </select>
+
+                <input value={noteTag} onChange={(e) => setNoteTag(e.target.value)} placeholder="tag (npr. watch)" style={{ padding: "10px 12px", borderRadius: 12, border: "1px solid #e5e7eb" }} />
+              </div>
+
+              <button type="submit" style={{ padding: "10px 12px", borderRadius: 12, border: "none", background: "#111", color: "#fff", fontWeight: 900, cursor: "pointer" }}>
+                Spremi bilješku
+              </button>
+
+              <div style={{ fontSize: 12, opacity: 0.7 }}>
+                * Timske bilješke vidi cijeli tim. Privatne vidi samo autor.
+              </div>
+            </form>
+          )}
         </Card>
 
         <Card title="Timeline bilješki">
           {notes.length === 0 ? (
-            <div style={{ opacity: 0.7 }}>Nema bilješki još.</div>
+            <div style={{ fontSize: 12, opacity: 0.7 }}>Nema bilješki još.</div>
           ) : (
             <div style={{ display: "grid", gap: 10 }}>
               {notes.map((n) => (
-                <div key={n.id} style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: "#fff" }}>
+                <div key={n.id} style={{ border: "1px solid #e5e7eb", borderRadius: 16, padding: 12, background: "#fafafa" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-                    <div style={{ fontWeight: 900 }}>{n.author_email}</div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <Pill tone={n.visibility === "private" ? "warn" : "neutral"}>{n.visibility}</Pill>
-                      <Pill tone="neutral">⭐ {n.rating ?? "—"}</Pill>
-                      {(n.tags || []).slice(0, 4).map((t) => (
-                        <Pill key={t} tone="neutral">{t}</Pill>
-                      ))}
+                    <div style={{ fontWeight: 1000 }}>
+                      {n.visibility === "private" ? "Privatno" : "Tim"} • ⭐ {n.rating ?? "-"} • {n.tag ?? "—"}
                     </div>
+                    <div style={{ fontSize: 12, opacity: 0.7 }}>{n.author_id ? String(n.author_id).slice(0, 8) : "—"}</div>
                   </div>
                   <div style={{ marginTop: 8, whiteSpace: "pre-wrap", fontWeight: 700 }}>{n.note}</div>
                   <div style={{ marginTop: 8, fontSize: 12, opacity: 0.7 }}>
