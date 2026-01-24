@@ -3,329 +3,331 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import { supabase } from "../../utils/supabaseClient";
 
-function teamLabel(team) {
-  if (team === "u21") return "U21";
-  if (team === "nt") return "NT";
-  return "—";
-}
-
-function safeTeamSlug(qTeam) {
-  const t = String(qTeam || "").toLowerCase();
-  if (t === "nt" || t === "u21") return t;
+function normalizeTeam(raw) {
+  if (raw === "nt" || raw === "u21") return raw;
   return "u21";
 }
 
-function isAuthError(err) {
-  const msg = String(err?.message || err || "").toLowerCase();
-  return (
-    msg.includes("not authenticated") ||
-    msg.includes("jwt") ||
-    msg.includes("auth") ||
-    msg.includes("permission") ||
-    msg.includes("rls")
-  );
+function safeText(v) {
+  if (v === null || v === undefined) return "";
+  return String(v);
 }
 
-export default function PlayerDetails() {
-  const router = useRouter();
-  const { id, team: teamQuery } = router.query;
+function pickFirst(obj, keys) {
+  for (const k of keys) {
+    if (obj && obj[k] !== null && obj[k] !== undefined && obj[k] !== "") return obj[k];
+  }
+  return null;
+}
 
-  // TEAM je bitan za "← Igrači" link (da se vrati na /team/nt/players ili /team/u21/players)
-  const team = useMemo(() => safeTeamSlug(teamQuery), [teamQuery]);
+async function getUserRole(userId) {
+  // 1) user_profiles
+  {
+    const { data, error } = await supabase
+      .from("user_profiles")
+      .select("role")
+      .eq("id", userId)
+      .maybeSingle();
+
+    if (!error && data?.role) return data.role;
+  }
+
+  // 2) users
+  {
+    const { data, error } = await supabase.from("users").select("role").eq("id", userId).maybeSingle();
+    if (!error && data?.role) return data.role;
+  }
+
+  return "user";
+}
+
+async function loadLatestSnapshot(playerId, teamType) {
+  // probamo prvo player_snapshots (tvoja nova tablica)
+  const tableCandidates = ["player_snapshots", "player_snapshot"];
+
+  for (const table of tableCandidates) {
+    // 1) pokušaj s team_type filterom
+    {
+      const { data, error } = await supabase
+        .from(table)
+        .select("*")
+        .eq("player_id", playerId)
+        .eq("team_type", teamType)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error) return data || null;
+    }
+
+    // 2) fallback bez team_type (ako ta kolona ne postoji u toj tablici)
+    {
+      const { data, error } = await supabase
+        .from(table)
+        .select("*")
+        .eq("player_id", playerId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!error) return data || null;
+    }
+  }
+
+  return null;
+}
+
+export default function PlayerDetail() {
+  const router = useRouter();
+  const { id } = router.query;
+
+  const team = useMemo(() => normalizeTeam(router.query?.team), [router.query?.team]);
   const backHref = useMemo(() => `/team/${team}/players`, [team]);
 
-  // State
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [role, setRole] = useState("user");
+
   const [player, setPlayer] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
 
-  // Access state (NE BLOKIRA render – da se nikad ne zaglavi na "Učitavam...")
-  const [accessMode, setAccessMode] = useState("checking"); // checking | ok | denied
-  const [accessMsg, setAccessMsg] = useState("");
-
-  // Helper: fetch access (admin/coach) – ali stranica se rendera i dok traje provjera
-  async function checkAccess() {
-    try {
-      const { data: u, error: uErr } = await supabase.auth.getUser();
-      if (uErr) throw uErr;
-
-      const user = u?.user;
-      if (!user) {
-        setAccessMode("denied");
-        setAccessMsg("Nisi prijavljen.");
-        return;
-      }
-
-      const { data: profRows, error: pErr } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .limit(1);
-
-      if (pErr) throw pErr;
-
-      const role = profRows?.[0]?.role || null;
-      if (role !== "admin" && role !== "coach") {
-        setAccessMode("denied");
-        setAccessMsg("Nemaš prava pristupa (potrebno: admin/coach).");
-        return;
-      }
-
-      setAccessMode("ok");
-      setAccessMsg("");
-    } catch (e) {
-      // Ako je auth/rls problem – pokaži poruku, ali NE ruši stranicu
-      if (isAuthError(e)) {
-        setAccessMode("denied");
-        setAccessMsg("Pristup odbijen (auth).");
-      } else {
-        setAccessMode("denied");
-        setAccessMsg(String(e?.message || e));
-      }
-    }
-  }
-
-  async function fetchPlayerAndSnapshot(playerId) {
-    setLoading(true);
-    setLoadError("");
-
-    try {
-      // 1) player
-      const { data: pRows, error: pErr } = await supabase
-        .from("players")
-        .select(
-          "id, full_name, ht_player_id, position, age_years, age_days, status, last_seen_at, nationality, wage, tsi, skill_gk, skill_def, skill_pm, skill_wing, skill_pass, skill_score, skill_sp"
-        )
-        .eq("id", playerId)
-        .limit(1);
-
-      if (pErr) throw pErr;
-
-      const p = pRows?.[0] || null;
-      setPlayer(p);
-
-      // 2) snapshot (ako postoji)
-      const { data: sRows, error: sErr } = await supabase
-        .from("player_snapshots")
-        .select(
-          "id, player_id, team_slug, is_active, form, stamina, stamina_pct, tsi, training_type, intensity, coach_level, assistants_count, medic_count, form_coach_count, created_at"
-        )
-        .eq("player_id", playerId)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (sErr) throw sErr;
-
-      setSnapshot(sRows?.[0] || null);
-    } catch (e) {
-      setLoadError(String(e?.message || e));
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [pageError, setPageError] = useState("");
 
   useEffect(() => {
-    if (!router.isReady) return;
+    let cancelled = false;
 
-    // 1) access check (ne blokira UI)
-    checkAccess();
+    async function run() {
+      if (!id) return;
 
-    // 2) data fetch
-    const pid = Number(id);
-    if (!pid || Number.isNaN(pid)) {
-      setLoading(false);
-      setLoadError("Neispravan ID igrača.");
-      return;
+      setLoading(true);
+      setAuthError("");
+      setPageError("");
+      setPlayer(null);
+      setSnapshot(null);
+
+      // AUTH
+      const { data: authData, error: authErr } = await supabase.auth.getUser();
+      const user = authData?.user || null;
+
+      if (cancelled) return;
+
+      if (authErr || !user) {
+        setAuthError("Nisi prijavljen. (Auth nije spojen u UI skroz, ali session mora postojati.)");
+        setLoading(false);
+        return;
+      }
+
+      // ROLE (nije kritično, ali lijepo za admin UI)
+      try {
+        const r = await getUserRole(user.id);
+        if (!cancelled) setRole(r || "user");
+      } catch {
+        // ignore
+      }
+
+      // PLAYER
+      const { data: pRow, error: pErr } = await supabase.from("players").select("*").eq("id", id).maybeSingle();
+
+      if (cancelled) return;
+
+      if (pErr) {
+        setPageError(`Greška kod dohvaćanja igrača: ${pErr.message}`);
+        setLoading(false);
+        return;
+      }
+      if (!pRow) {
+        setPageError("Igrač ne postoji (players.id nije pronađen).");
+        setLoading(false);
+        return;
+      }
+
+      setPlayer(pRow);
+
+      // SNAPSHOT (zadnji)
+      try {
+        const sRow = await loadLatestSnapshot(Number(id), team);
+        if (!cancelled) setSnapshot(sRow || null);
+      } catch {
+        // ignore – snapshot nije obavezan
+      }
+
+      if (!cancelled) setLoading(false);
     }
 
-    fetchPlayerAndSnapshot(pid);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router.isReady, id]);
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, team]);
+
+  // Skills – prvo pokušaj snapshot.skills (ako je JSON), inače uzmi iz players polja
+  const skills = useMemo(() => {
+    const s = snapshot?.skills && typeof snapshot.skills === "object" ? snapshot.skills : null;
+
+    const gk = pickFirst(s, ["gk", "skill_gk"]) ?? pickFirst(player, ["skill_gk", "gk", "skill_goalkeeping"]);
+    const de = pickFirst(s, ["def", "de", "skill_def"]) ?? pickFirst(player, ["skill_def", "def", "de", "skill_defending"]);
+    const pm = pickFirst(s, ["pm", "skill_pm"]) ?? pickFirst(player, ["skill_pm", "pm", "skill_playmaking"]);
+    const wg = pickFirst(s, ["wing", "wg", "skill_wing"]) ?? pickFirst(player, ["skill_wing", "wing", "wg"]);
+    const ps = pickFirst(s, ["pass", "ps", "skill_pass"]) ?? pickFirst(player, ["skill_pass", "pass", "ps"]);
+    const sc = pickFirst(s, ["score", "sc", "skill_score"]) ?? pickFirst(player, ["skill_score", "score", "sc"]);
+    const sp = pickFirst(s, ["sp", "skill_sp"]) ?? pickFirst(player, ["skill_sp", "sp", "skill_set_pieces"]);
+
+    return {
+      gk: gk ?? "—",
+      de: de ?? "—",
+      pm: pm ?? "—",
+      wg: wg ?? "—",
+      ps: ps ?? "—",
+      sc: sc ?? "—",
+      sp: sp ?? "—",
+    };
+  }, [player, snapshot]);
+
+  if (!id) return null;
 
   return (
-    <div style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
-      {/* TOP BAR */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 12,
-        }}
-      >
-        <div>
-          <div style={{ fontSize: 12, opacity: 0.8 }}>Hrvatski U21/NT Tracker</div>
-          <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>
-            {player?.full_name || "Detalji igrača"}
-          </div>
-          <div style={{ marginTop: 6, display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <span
-              style={{
-                padding: "4px 10px",
-                borderRadius: 999,
-                background: "#f0f0f0",
-                fontSize: 12,
-              }}
-            >
-              {teamLabel(team)}
-            </span>
-            {snapshot?.team_slug ? (
-              <span
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  background: "#f0f0f0",
-                  fontSize: 12,
-                }}
-              >
-                Snapshot: {String(snapshot.team_slug).toUpperCase()}
-              </span>
-            ) : null}
-            {accessMode !== "ok" ? (
-              <span
-                style={{
-                  padding: "4px 10px",
-                  borderRadius: 999,
-                  background: "#fff3cd",
-                  fontSize: 12,
-                }}
-              >
-                {accessMode === "checking" ? "Provjera pristupa…" : `Pristup: ${accessMsg}`}
-              </span>
-            ) : null}
-          </div>
-        </div>
-
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link
-            href={backHref}
-            style={{
-              padding: "8px 12px",
-              borderRadius: 10,
-              border: "1px solid #ddd",
-              textDecoration: "none",
-              color: "black",
-              fontWeight: 600,
-            }}
-          >
-            ← Igrači
-          </Link>
-          <Link
-            href="/"
-            style={{
-              padding: "8px 12px",
-              borderRadius: 10,
-              border: "1px solid #ddd",
-              textDecoration: "none",
-              color: "black",
-              fontWeight: 600,
-            }}
-          >
-            Naslovna
-          </Link>
-        </div>
-      </div>
-
-      {/* CONTENT */}
-      {loadError ? (
-        <div
-          style={{
-            padding: 12,
-            borderRadius: 12,
-            border: "1px solid #f5c2c7",
-            background: "#f8d7da",
-            marginBottom: 12,
-            whiteSpace: "pre-wrap",
-          }}
-        >
-          Greška: {loadError}
-        </div>
-      ) : null}
-
-      {loading ? (
-        <div style={{ padding: 12, borderRadius: 12, border: "1px solid #eee", background: "#fafafa" }}>
-          Učitavam podatke…
-        </div>
-      ) : null}
-
-      {!loading && !player ? (
-        <div style={{ padding: 12, borderRadius: 12, border: "1px solid #eee", background: "#fafafa" }}>
-          Igrač nije pronađen.
-        </div>
-      ) : null}
-
-      {!loading && player ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-          {/* LEFT */}
-          <div style={{ border: "1px solid #eee", borderRadius: 16, padding: 14 }}>
-            <h3 style={{ margin: 0, marginBottom: 10 }}>Osnovno</h3>
-            <Row label="Interni ID" value={player.id} />
-            <Row label="HT Player ID" value={player.ht_player_id || "—"} />
-            <Row label="Pozicija" value={player.position || "—"} />
-            <Row label="Dob" value={`${player.age_years ?? "—"}y ${player.age_days ?? "—"}d`} />
-            <Row label="Status" value={player.status || "—"} />
-            <Row label="Zadnje viđeno" value={player.last_seen_at || "—"} />
-            <Row label="Nacionalnost" value={player.nationality || "—"} />
-            <Row label="TSI" value={player.tsi ?? "—"} />
-            <Row label="Plaća" value={player.wage ?? "—"} />
-          </div>
-
-          {/* RIGHT */}
-          <div style={{ border: "1px solid #eee", borderRadius: 16, padding: 14 }}>
-            <h3 style={{ margin: 0, marginBottom: 10 }}>Snapshot (zadnji)</h3>
-            {snapshot ? (
-              <>
-                <Row label="Forma" value={snapshot.form ?? "—"} />
-                <Row label="Stamina" value={snapshot.stamina ?? "—"} />
-                <Row label="Stamina %" value={snapshot.stamina_pct ?? "—"} />
-                <Row label="Trening" value={snapshot.training_type ?? "—"} />
-                <Row label="Intenzitet" value={snapshot.intensity ?? "—"} />
-                <Row label="Coach level" value={snapshot.coach_level ?? "—"} />
-                <Row label="Asistenti" value={snapshot.assistants_count ?? "—"} />
-                <Row label="Medic" value={snapshot.medic_count ?? "—"} />
-                <Row label="Form coach" value={snapshot.form_coach_count ?? "—"} />
-                <Row label="Vrijeme" value={snapshot.created_at ?? "—"} />
-              </>
-            ) : (
-              <div style={{ opacity: 0.8 }}>Nema snapshot podataka još.</div>
-            )}
-          </div>
-
-          {/* SKILLS full width */}
-          <div style={{ gridColumn: "1 / -1", border: "1px solid #eee", borderRadius: 16, padding: 14 }}>
-            <h3 style={{ margin: 0, marginBottom: 10 }}>Skillovi</h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 10 }}>
-              <Skill label="GK" value={player.skill_gk} />
-              <Skill label="DEF" value={player.skill_def} />
-              <Skill label="PM" value={player.skill_pm} />
-              <Skill label="WING" value={player.skill_wing} />
-              <Skill label="PASS" value={player.skill_pass} />
-              <Skill label="SCOR" value={player.skill_score} />
-              <Skill label="SP" value={player.skill_sp} />
+    <div className="hr-pageWrap">
+      <div className="hr-pageCard">
+        <div className="hr-pageHeaderRow">
+          <div>
+            <div style={{ fontSize: 14, opacity: 0.7 }}>Hrvatski U21/NT Tracker</div>
+            <h1 className="hr-pageTitle" style={{ marginTop: 6 }}>
+              {loading ? "Učitavam..." : safeText(player?.full_name || player?.name || "Detalji igrača")}
+            </h1>
+            <div className="hr-pageSub">
+              Tim: <b>{team.toUpperCase()}</b> • Uloga: <b>{safeText(role)}</b>
             </div>
           </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Link className="hr-backBtn" href={backHref}>
+              ← Igrači
+            </Link>
+            <Link className="hr-backBtn" href="/">
+              Naslovna
+            </Link>
+          </div>
         </div>
-      ) : null}
-    </div>
-  );
-}
 
-function Row({ label, value }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", gap: 12, padding: "6px 0", borderBottom: "1px dashed #eee" }}>
-      <div style={{ opacity: 0.75 }}>{label}</div>
-      <div style={{ fontWeight: 700, textAlign: "right" }}>{String(value)}</div>
-    </div>
-  );
-}
+        {authError ? (
+          <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: "rgba(255,0,0,0.08)" }}>
+            <b>Pristup:</b> {authError}
+          </div>
+        ) : null}
 
-function Skill({ label, value }) {
-  return (
-    <div style={{ border: "1px solid #eee", borderRadius: 14, padding: 10 }}>
-      <div style={{ fontSize: 12, opacity: 0.8 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 800 }}>{value ?? "—"}</div>
+        {pageError ? (
+          <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: "rgba(255,0,0,0.08)" }}>
+            <b>Greška:</b> {pageError}
+          </div>
+        ) : null}
+
+        {loading ? (
+          <div style={{ marginTop: 18, opacity: 0.7 }}>Učitavam detalje...</div>
+        ) : null}
+
+        {!loading && !authError && !pageError && player ? (
+          <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }}>
+            {/* OSNOVNO */}
+            <div style={{ padding: 16, borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)" }}>
+              <h3 style={{ margin: 0, marginBottom: 10 }}>Osnovno</h3>
+
+              <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", rowGap: 8, columnGap: 10 }}>
+                <div>Interni ID</div>
+                <div style={{ fontWeight: 600 }}>{safeText(player.id)}</div>
+
+                <div>HT Player ID</div>
+                <div style={{ fontWeight: 600 }}>{safeText(player.ht_player_id ?? "—")}</div>
+
+                <div>Pozicija</div>
+                <div style={{ fontWeight: 600 }}>{safeText(player.position ?? player.pos ?? "—")}</div>
+
+                <div>Dob</div>
+                <div style={{ fontWeight: 600 }}>
+                  {safeText(player.age_years ?? "—")}
+                  {player.age_days !== undefined && player.age_days !== null ? `y ${player.age_days}d` : ""}
+                </div>
+
+                <div>Status</div>
+                <div style={{ fontWeight: 600 }}>{safeText(player.status ?? "—")}</div>
+
+                <div>Nacionalnost</div>
+                <div style={{ fontWeight: 600 }}>{safeText(player.nationality ?? "—")}</div>
+
+                <div>TSI</div>
+                <div style={{ fontWeight: 600 }}>{safeText(player.tsi ?? "—")}</div>
+
+                <div>Plaća</div>
+                <div style={{ fontWeight: 600 }}>{safeText(player.wage ?? "—")}</div>
+              </div>
+            </div>
+
+            {/* SNAPSHOT */}
+            <div style={{ padding: 16, borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)" }}>
+              <h3 style={{ margin: 0, marginBottom: 10 }}>Snapshot (zadnji)</h3>
+
+              {snapshot ? (
+                <div style={{ display: "grid", gridTemplateColumns: "180px 1fr", rowGap: 8, columnGap: 10 }}>
+                  <div>Forma</div>
+                  <div style={{ fontWeight: 600 }}>{safeText(snapshot.form ?? "—")}</div>
+
+                  <div>Stamina</div>
+                  <div style={{ fontWeight: 600 }}>{safeText(snapshot.stamina ?? "—")}</div>
+
+                  <div>TSI</div>
+                  <div style={{ fontWeight: 600 }}>{safeText(snapshot.tsi ?? "—")}</div>
+
+                  <div>Trening</div>
+                  <div style={{ fontWeight: 600 }}>{safeText(snapshot.training ?? "—")}</div>
+
+                  <div>Intenzitet</div>
+                  <div style={{ fontWeight: 600 }}>{safeText(snapshot.intensity ?? "—")}</div>
+
+                  <div>Stamina %</div>
+                  <div style={{ fontWeight: 600 }}>{safeText(snapshot.stamina_percent ?? snapshot.stamina_pct ?? "—")}</div>
+                </div>
+              ) : (
+                <div style={{ opacity: 0.7 }}>Nema snapshot podataka još.</div>
+              )}
+            </div>
+
+            {/* SKILLOVI */}
+            <div style={{ gridColumn: "1 / -1", padding: 16, borderRadius: 14, border: "1px solid rgba(0,0,0,0.08)" }}>
+              <h3 style={{ margin: 0, marginBottom: 10 }}>Skillovi</h3>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, minmax(90px, 1fr))", gap: 10 }}>
+                <div style={{ padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.03)" }}>
+                  <div style={{ opacity: 0.7, fontSize: 12 }}>GK</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{safeText(skills.gk)}</div>
+                </div>
+                <div style={{ padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.03)" }}>
+                  <div style={{ opacity: 0.7, fontSize: 12 }}>DEF</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{safeText(skills.de)}</div>
+                </div>
+                <div style={{ padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.03)" }}>
+                  <div style={{ opacity: 0.7, fontSize: 12 }}>PM</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{safeText(skills.pm)}</div>
+                </div>
+                <div style={{ padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.03)" }}>
+                  <div style={{ opacity: 0.7, fontSize: 12 }}>WING</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{safeText(skills.wg)}</div>
+                </div>
+                <div style={{ padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.03)" }}>
+                  <div style={{ opacity: 0.7, fontSize: 12 }}>PASS</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{safeText(skills.ps)}</div>
+                </div>
+                <div style={{ padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.03)" }}>
+                  <div style={{ opacity: 0.7, fontSize: 12 }}>SCOR</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{safeText(skills.sc)}</div>
+                </div>
+                <div style={{ padding: 12, borderRadius: 12, background: "rgba(0,0,0,0.03)" }}>
+                  <div style={{ opacity: 0.7, fontSize: 12 }}>SP</div>
+                  <div style={{ fontSize: 18, fontWeight: 700 }}>{safeText(skills.sp)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
