@@ -1,10 +1,10 @@
-// utils/supabaseClient.js
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnon);
+// Named export (da radi: import { supabase } ...)
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Kompatibilnost: neki fileovi rade `import supabase from "../utils/supabaseClient"`
+// Default export (da radi: import supabase from ...)
 export default supabase;
