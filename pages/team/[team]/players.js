@@ -1,610 +1,437 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import { supabase } from "../../../utils/supabaseClient";
+import Layout from "../../../components/Layout";
+import { supabase } from "../../../lib/supabaseClient";
 
-function teamLabel(team) {
-  if (team === "u21") return "Hrvatska U21";
-  if (team === "nt") return "Hrvatska NT";
-  return "Tim";
-}
+/**
+ * Task 2.2: Compact Players table UI
+ * - Smaller font, narrow columns, abbreviated headers
+ * - Column chooser ("Kolone")
+ * - Row click -> player details
+ * - Keeps existing filters: search, position, age min/max
+ */
 
-const DEFAULT_COLUMNS = {
-  full_name: true,
-  pos: true,
-  age: true,
-  ht_player_id: true,
-  nationality: false,
-  tsi: false,
-  wage: false,
-  form: false,
-  stamina: false,
-  stamina_pct: false,
-  training_last: false,
-  training_now: false,
+const COLS = [
+  { key: "full_name", label: "Ime", width: 220, sticky: true },
+  { key: "position", label: "Poz", width: 48 },
+  { key: "age_years", label: "God", width: 52, right: true },
+  { key: "ht_player_id", label: "HTID", width: 92, right: true },
+  { key: "salary", label: "Sal", width: 84, right: true, fmt: (v) => (v ?? "") },
+  { key: "form", label: "Fo", width: 42, right: true },
+  { key: "stamina", label: "St", width: 42, right: true },
+  { key: "current_training", label: "TR", width: 74 },
+  { key: "skill_goalkeeping", label: "GK", width: 44, right: true },
+  { key: "skill_defending", label: "DE", width: 44, right: true },
+  { key: "skill_playmaking", label: "PM", width: 44, right: true },
+  { key: "skill_winger", label: "WG", width: 44, right: true },
+  { key: "skill_passing", label: "PS", width: 44, right: true },
+  { key: "skill_scoring", label: "SC", width: 44, right: true },
+  { key: "skill_set_pieces", label: "SP", width: 44, right: true },
+];
 
-  skill_gk: true,
-  skill_def: true,
-  skill_pm: true,
-  skill_wing: false,
-  skill_pass: true,
-  skill_score: false,
-  skill_sp: false,
-};
-
-function colLabel(key) {
-  const map = {
-    full_name: "Ime",
-    pos: "Poz",
-    age: "God",
-    ht_player_id: "HT ID",
-    nationality: "Nacija",
-    tsi: "TSI",
-    wage: "Plaća",
-    form: "Forma",
-    stamina: "Stamina",
-    stamina_pct: "% Stam",
-    training_last: "Zadnji trening",
-    training_now: "Trenutni trening",
-    skill_gk: "GK",
-    skill_def: "DEF",
-    skill_pm: "PM",
-    skill_wing: "WING",
-    skill_pass: "PASS",
-    skill_score: "SCOR",
-    skill_sp: "SP",
-  };
-  return map[key] || key;
-}
-
-function isAuthError(err) {
-  const msg = String(err?.message || err || "").toLowerCase();
-  return msg.includes("not authenticated") || msg.includes("jwt") || msg.includes("auth");
-}
-
-// koje kolone su “sortabilne”
-const SORTABLE = new Set([
-  "age",
-  "tsi",
-  "wage",
+const DEFAULT_VISIBLE = [
+  "full_name",
+  "position",
+  "age_years",
+  "ht_player_id",
   "form",
   "stamina",
-  "stamina_pct",
-  "skill_gk",
-  "skill_def",
-  "skill_pm",
-  "skill_wing",
-  "skill_pass",
-  "skill_score",
-  "skill_sp",
-]);
+  "current_training",
+  "skill_defending",
+  "skill_playmaking",
+  "skill_scoring",
+  "skill_set_pieces",
+];
 
-function colTemplateForKey(k) {
-  if (k === "full_name") return "minmax(320px, 2.4fr)";
-  if (k === "ht_player_id") return "minmax(130px, 1fr)";
-  if (k === "pos") return "minmax(90px, 0.8fr)";
-  if (k === "age") return "minmax(80px, 0.7fr)";
-  if (k === "nationality") return "minmax(110px, 0.9fr)";
-  if (k === "training_last" || k === "training_now") return "minmax(160px, 1.2fr)";
-  return "minmax(110px, 1fr)";
-}
-
-function buildGridTemplate(visibleKeys) {
-  const cols = visibleKeys.map((k) => colTemplateForKey(k));
-  cols.push("minmax(170px, 1.1fr)");
-  return cols.join(" ");
-}
-
-function normalizeNumber(v) {
-  if (v === null || v === undefined || v === "") return null;
+function numOrNull(v) {
+  if (v === "" || v === null || v === undefined) return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
 
-export default function TeamPlayers() {
+export default function TeamPlayersPage() {
   const router = useRouter();
   const { team } = router.query;
 
-  const [teamId, setTeamId] = useState(null);
-
   const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
+  const [players, setPlayers] = useState([]);
 
+  // Filters
   const [search, setSearch] = useState("");
-  const [position, setPosition] = useState("");
+  const [position, setPosition] = useState("all");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
 
-  const [rows, setRows] = useState([]);
-  const [baseRows, setBaseRows] = useState([]); // originalni poredak (za reset sort)
-
+  // Column chooser
   const [showCols, setShowCols] = useState(false);
-  const [columns, setColumns] = useState(DEFAULT_COLUMNS);
+  const [visibleCols, setVisibleCols] = useState(DEFAULT_VISIBLE);
 
-  // sorting state
-  const [sortKey, setSortKey] = useState(""); // npr "skill_def"
-  const [sortDir, setSortDir] = useState(""); // "asc" | "desc" | ""
+  const columns = useMemo(() => {
+    const set = new Set(visibleCols);
+    return COLS.filter((c) => set.has(c.key));
+  }, [visibleCols]);
 
-  const label = useMemo(() => teamLabel(team), [team]);
+  const teamSlug = (team || "").toString();
 
-  // učitaj kolone iz localStorage per team
-  useEffect(() => {
-    if (!team) return;
-    try {
-      const key = `hr_tracker_cols_${team}`;
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        setColumns({ ...DEFAULT_COLUMNS, ...parsed });
-      } else {
-        setColumns(DEFAULT_COLUMNS);
-      }
-    } catch {
-      setColumns(DEFAULT_COLUMNS);
-    }
-  }, [team]);
+  async function fetchPlayers() {
+    if (!teamSlug) return;
 
-  // spremi kolone
-  useEffect(() => {
-    if (!team) return;
-    try {
-      const key = `hr_tracker_cols_${team}`;
-      localStorage.setItem(key, JSON.stringify(columns));
-    } catch {
-      // ignore
-    }
-  }, [columns, team]);
-
-  // resolve teamId po slug-u (u21/nt)
-  useEffect(() => {
-    let cancelled = false;
-    async function run() {
-      if (!team) return;
-      setTeamId(null);
-      setLoadError("");
-
-      const { data, error } = await supabase
-        .from("teams")
-        .select("id, slug")
-        .eq("slug", team)
-        .maybeSingle();
-
-      if (cancelled) return;
-
-      if (error) {
-        setLoadError(`Ne mogu dohvatiti team_id za "${team}". (${error.message})`);
-        return;
-      }
-      if (!data?.id) {
-        setLoadError(`Ne postoji tim za slug "${team}". Provjeri tablicu teams.`);
-        return;
-      }
-
-      setTeamId(data.id);
-    }
-    run();
-    return () => {
-      cancelled = true;
-    };
-  }, [team]);
-
-  function applySort(nextKey, nextDir, sourceRows) {
-    if (!nextKey || !nextDir) {
-      // reset
-      setRows(sourceRows);
-      return;
-    }
-
-    const sorted = [...sourceRows].sort((a, b) => {
-      const av = normalizeNumber(a?.[nextKey]);
-      const bv = normalizeNumber(b?.[nextKey]);
-
-      // nullovi idu na kraj
-      if (av === null && bv === null) return 0;
-      if (av === null) return 1;
-      if (bv === null) return -1;
-
-      if (nextDir === "asc") return av - bv;
-      return bv - av;
-    });
-
-    setRows(sorted);
-  }
-
-  function toggleSort(k) {
-    // samo ako je sortabilno
-    if (!SORTABLE.has(k)) return;
-
-    let nextKey = k;
-    let nextDir = "asc";
-
-    if (sortKey !== k) {
-      nextDir = "asc";
-    } else {
-      if (sortDir === "asc") nextDir = "desc";
-      else if (sortDir === "desc") nextDir = "";
-      else nextDir = "asc";
-    }
-
-    setSortKey(nextDir === "" ? "" : nextKey);
-    setSortDir(nextDir);
-
-    applySort(nextKey, nextDir, baseRows);
-  }
-
-  async function loadPlayers() {
     setLoading(true);
-    setLoadError("");
-
     try {
-      if (!teamId) {
-        setLoadError("Nema team_id. Pričekaj da se učita tim ili provjeri tablicu teams.");
-        setRows([]);
-        setBaseRows([]);
-        setLoading(false);
-        return;
-      }
-
-      const p_age_min = ageMin === "" ? null : Number(ageMin);
-      const p_age_max = ageMax === "" ? null : Number(ageMax);
-
       const { data, error } = await supabase.rpc("list_team_players", {
-        p_team_id: teamId,
-        p_position: position || null,
-        p_age_min,
-        p_age_max,
-        p_search: search || null,
+        p_team_slug: teamSlug,
+        p_search: search?.trim() || null,
+        p_position: position === "all" ? null : position,
+        p_age_min: numOrNull(ageMin),
+        p_age_max: numOrNull(ageMax),
+        p_limit: 1000,
+        p_offset: 0,
       });
 
-      if (error) {
-        if (isAuthError(error)) {
-          setLoadError(
-            "Zaključano bez prijave. (Auth nije spojen u UI još). Kad spojimo login, ovo će se automatski otvoriti."
-          );
-          setRows([]);
-          setBaseRows([]);
-          setLoading(false);
-          return;
-        }
-        setLoadError(error.message);
-        setRows([]);
-        setBaseRows([]);
-        setLoading(false);
-        return;
-      }
-
-      const arr = Array.isArray(data) ? data : [];
-      setBaseRows(arr);
-
-      // nakon novog loada reset sort
-      setSortKey("");
-      setSortDir("");
-
-      setRows(arr);
-      setLoading(false);
+      if (error) throw error;
+      setPlayers(Array.isArray(data) ? data : []);
     } catch (e) {
-      setLoadError(String(e?.message || e));
-      setRows([]);
-      setBaseRows([]);
+      console.error(e);
+      alert(`Greška kod dohvaćanja igrača: ${e.message || e}`);
+      setPlayers([]);
+    } finally {
       setLoading(false);
     }
   }
 
-  // auto-load kad dobijemo teamId (prvi put)
   useEffect(() => {
-    if (!teamId) return;
-    loadPlayers();
+    if (teamSlug) fetchPlayers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamId]);
+  }, [teamSlug]);
 
-  if (!team) return null;
+  function toggleCol(key) {
+    setVisibleCols((prev) => {
+      const s = new Set(prev);
+      if (s.has(key)) s.delete(key);
+      else s.add(key);
+      // Always keep name visible (prevents "empty" UX)
+      s.add("full_name");
+      return Array.from(s);
+    });
+  }
 
-  const visibleKeys = Object.keys(columns).filter((k) => columns[k]);
-  const gridTemplate = buildGridTemplate(visibleKeys);
+  function onRowClick(playerId) {
+    if (!playerId) return;
+    router.push(`/players/${playerId}`);
+  }
+
+  const total = players?.length ?? 0;
 
   return (
-    <div className="hr-pageWrap" style={{ maxWidth: 1280 }}>
-      <div className="hr-pageCard">
-        <div className="hr-pageHeaderRow">
-          <div>
-            <h1 className="hr-pageTitle">Igrači</h1>
-            <div className="hr-pageSub">Aktivni tim: {label}</div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link className="hr-backBtn" href={`/team/${team}`}>
-              ← Natrag na module
-            </Link>
-            <Link className="hr-backBtn" href="/">
-              Naslovnica
-            </Link>
-          </div>
+    <Layout title="Igrači">
+      <div style={{ padding: 16 }}>
+        <h1 style={{ margin: "0 0 6px 0", fontSize: 22 }}>Igrači</h1>
+        <div style={{ color: "#666", marginBottom: 10, fontSize: 13 }}>
+          Aktivni tim: <b>{teamSlug}</b>
         </div>
 
-        {/* FILTERI */}
-        <div style={{ marginTop: 14 }}>
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search: ime, HT ID, pozicija..."
-              style={{
-                flex: "1",
-                minWidth: 240,
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.12)",
-                outline: "none",
-              }}
-            />
-
-            <select
-              value={position}
-              onChange={(e) => setPosition(e.target.value)}
-              style={{
-                minWidth: 140,
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.12)",
-                background: "rgba(255,255,255,0.95)",
-                outline: "none",
-                fontWeight: 800,
-              }}
-            >
-              <option value="">Pozicija (sve)</option>
-              <option value="GK">GK</option>
-              <option value="DEF">DEF</option>
-              <option value="WB">WB</option>
-              <option value="IM">IM</option>
-              <option value="WING">WING</option>
-              <option value="FWD">FWD</option>
-            </select>
-
-            <input
-              value={ageMin}
-              onChange={(e) => setAgeMin(e.target.value)}
-              placeholder="Age min"
-              inputMode="numeric"
-              style={{
-                width: 110,
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.12)",
-                outline: "none",
-              }}
-            />
-            <input
-              value={ageMax}
-              onChange={(e) => setAgeMax(e.target.value)}
-              placeholder="Age max"
-              inputMode="numeric"
-              style={{
-                width: 110,
-                padding: "10px 12px",
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.12)",
-                outline: "none",
-              }}
-            />
-
-            <button
-              type="button"
-              onClick={loadPlayers}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.12)",
-                background: "rgba(255,255,255,0.92)",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              {loading ? "Učitavam..." : "Primijeni"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setShowCols((v) => !v)}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 12,
-                border: "1px solid rgba(0,0,0,0.12)",
-                background: "rgba(255,255,255,0.92)",
-                fontWeight: 900,
-                cursor: "pointer",
-              }}
-            >
-              Kolone
-            </button>
-          </div>
-
-          {/* COLUMN PICKER */}
-          {showCols && (
-            <div
-              style={{
-                marginTop: 10,
-                padding: 12,
-                borderRadius: 14,
-                border: "1px solid rgba(0,0,0,0.10)",
-                background: "rgba(255,255,255,0.85)",
-              }}
-            >
-              <div style={{ fontWeight: 1000, marginBottom: 8 }}>Odabir prikaza (sprema se po timu)</div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-                {Object.keys(columns).map((k) => (
-                  <label key={k} style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13 }}>
-                    <input
-                      type="checkbox"
-                      checked={!!columns[k]}
-                      onChange={(e) => setColumns((prev) => ({ ...prev, [k]: e.target.checked }))}
-                    />
-                    <span style={{ fontWeight: 900 }}>{colLabel(k)}</span>
-                  </label>
-                ))}
-              </div>
-
-              <div style={{ marginTop: 10, display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  onClick={() => setColumns(DEFAULT_COLUMNS)}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    background: "rgba(255,255,255,0.92)",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  Reset default
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setShowCols(false)}
-                  style={{
-                    padding: "10px 14px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    background: "rgba(255,255,255,0.92)",
-                    fontWeight: 900,
-                    cursor: "pointer",
-                  }}
-                >
-                  Zatvori
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* ERROR */}
-        {loadError && (
-          <div
+        {/* Controls */}
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 8,
+            alignItems: "center",
+            marginBottom: 10,
+          }}
+        >
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search: ime, HT ID, pozicija..."
             style={{
-              marginTop: 12,
-              padding: 12,
-              borderRadius: 14,
-              border: "1px solid rgba(220,38,38,0.25)",
-              background: "rgba(220,38,38,0.06)",
-              color: "rgba(127,29,29,0.95)",
-              fontWeight: 900,
+              height: 34,
+              padding: "0 10px",
+              border: "1px solid #ddd",
+              borderRadius: 8,
+              minWidth: 220,
+              fontSize: 13,
+            }}
+          />
+
+          <select
+            value={position}
+            onChange={(e) => setPosition(e.target.value)}
+            style={{
+              height: 34,
+              padding: "0 10px",
+              border: "1px solid #ddd",
+              borderRadius: 8,
+              fontSize: 13,
             }}
           >
-            {loadError}
+            <option value="all">Pozicija (sve)</option>
+            <option value="GK">GK</option>
+            <option value="CD">CD</option>
+            <option value="WB">WB</option>
+            <option value="IM">IM</option>
+            <option value="W">W</option>
+            <option value="FW">FW</option>
+          </select>
+
+          <input
+            type="number"
+            value={ageMin}
+            onChange={(e) => setAgeMin(e.target.value)}
+            placeholder="Age min"
+            style={{
+              height: 34,
+              width: 92,
+              padding: "0 10px",
+              border: "1px solid #ddd",
+              borderRadius: 8,
+              fontSize: 13,
+            }}
+          />
+
+          <input
+            type="number"
+            value={ageMax}
+            onChange={(e) => setAgeMax(e.target.value)}
+            placeholder="Age max"
+            style={{
+              height: 34,
+              width: 92,
+              padding: "0 10px",
+              border: "1px solid #ddd",
+              borderRadius: 8,
+              fontSize: 13,
+            }}
+          />
+
+          <button
+            onClick={fetchPlayers}
+            style={{
+              height: 34,
+              padding: "0 12px",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              background: "white",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Primijeni
+          </button>
+
+          <button
+            onClick={() => setShowCols((v) => !v)}
+            style={{
+              height: 34,
+              padding: "0 12px",
+              borderRadius: 8,
+              border: "1px solid #ddd",
+              background: "white",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            Kolone
+          </button>
+
+          <div style={{ marginLeft: "auto", fontSize: 13, color: "#666" }}>
+            Popis igrača <b>({total})</b>
+          </div>
+        </div>
+
+        {/* Column chooser */}
+        {showCols && (
+          <div
+            style={{
+              border: "1px solid #eee",
+              borderRadius: 10,
+              padding: 10,
+              marginBottom: 10,
+              background: "#fafafa",
+            }}
+          >
+            <div style={{ fontSize: 13, marginBottom: 8, color: "#444" }}>
+              Označi kolone (što manje kolona = preglednije, bez horizontalnog skrola)
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))",
+                gap: 6,
+                fontSize: 13,
+              }}
+            >
+              {COLS.map((c) => (
+                <label key={c.key} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <input
+                    type="checkbox"
+                    checked={visibleCols.includes(c.key)}
+                    onChange={() => toggleCol(c.key)}
+                  />
+                  <span>
+                    <b>{c.label}</b> <span style={{ color: "#777" }}>({c.key})</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
+              <button
+                onClick={() => setVisibleCols(DEFAULT_VISIBLE)}
+                style={{
+                  height: 32,
+                  padding: "0 10px",
+                  borderRadius: 8,
+                  border: "1px solid #ddd",
+                  background: "white",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Reset default
+              </button>
+
+              <button
+                onClick={() => setShowCols(false)}
+                style={{
+                  height: 32,
+                  padding: "0 10px",
+                  borderRadius: 8,
+                  border: "1px solid #ddd",
+                  background: "white",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  marginLeft: "auto",
+                }}
+              >
+                Zatvori
+              </button>
+            </div>
           </div>
         )}
 
-        {/* TABLE */}
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontWeight: 1000, marginBottom: 8 }}>Popis igrača ({rows.length})</div>
-
+        {/* Table */}
+        <div
+          style={{
+            border: "1px solid #eee",
+            borderRadius: 12,
+            overflow: "hidden",
+            background: "white",
+          }}
+        >
           <div
             style={{
-              border: "1px solid rgba(0,0,0,0.10)",
-              borderRadius: 14,
-              overflowX: "auto",
-              background: "rgba(255,255,255,0.85)",
+              padding: "8px 10px",
+              borderBottom: "1px solid #eee",
+              fontSize: 12,
+              color: "#666",
+              display: "flex",
+              gap: 10,
+              alignItems: "center",
             }}
           >
-            {/* HEADER */}
-            <div
-              style={{
-                minWidth: 1100,
-                display: "grid",
-                gridTemplateColumns: gridTemplate,
-                gap: 0,
-                padding: "10px 12px",
-                fontWeight: 900,
-                background: "rgba(0,0,0,0.04)",
-                userSelect: "none",
-              }}
-            >
-              {visibleKeys.map((k) => {
-                const sortable = SORTABLE.has(k);
-                const active = sortKey === k && sortDir;
-                const arrow = active ? (sortDir === "asc" ? " ▲" : " ▼") : "";
-                return (
-                  <div
-                    key={k}
-                    onClick={() => sortable && toggleSort(k)}
-                    title={sortable ? "Klik za sortiranje" : ""}
+            {loading ? "Učitavam..." : "Klik na red otvara detalje igrača"}
+            <span style={{ marginLeft: "auto" }}>
+              <Link href={`/team/${teamSlug}`} style={{ fontWeight: 600 }}>
+                Natrag na module
+              </Link>
+            </span>
+          </div>
+
+          <table
+            style={{
+              width: "100%",
+              tableLayout: "fixed",
+              borderCollapse: "collapse",
+              fontSize: 12, // small font
+            }}
+          >
+            <thead>
+              <tr>
+                {columns.map((c) => (
+                  <th
+                    key={c.key}
+                    title={c.key}
                     style={{
-                      cursor: sortable ? "pointer" : "default",
-                      opacity: sortable ? 1 : 0.9,
-                      fontWeight: active ? 1000 : 900,
+                      width: c.width,
+                      textAlign: c.right ? "right" : "left",
+                      padding: "6px 8px",
+                      borderBottom: "1px solid #eee",
+                      background: "#fbfbfb",
+                      position: c.sticky ? "sticky" : "static",
+                      left: c.sticky ? 0 : undefined,
+                      zIndex: c.sticky ? 2 : 1,
+                      whiteSpace: "nowrap",
+                      fontWeight: 700,
                     }}
                   >
-                    {colLabel(k)}
-                    {arrow}
-                  </div>
-                );
-              })}
-              <div>Akcija</div>
-            </div>
+                    {c.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
 
-            {/* BODY */}
-            {rows.length === 0 ? (
-              <div style={{ padding: "12px", opacity: 0.7 }}>{loading ? "Učitavam..." : "Nema rezultata."}</div>
-            ) : (
-              rows.map((p, idx) => (
-                <div
-                  key={`${p.ht_player_id || p.full_name || "row"}_${idx}`}
+            <tbody>
+              {!loading && total === 0 && (
+                <tr>
+                  <td colSpan={columns.length} style={{ padding: 12, color: "#777" }}>
+                    Nema rezultata za odabrane filtere.
+                  </td>
+                </tr>
+              )}
+
+              {players.map((p) => (
+                <tr
+                  key={p.id}
+                  onClick={() => onRowClick(p.id)}
                   style={{
-                    minWidth: 1100,
-                    display: "grid",
-                    gridTemplateColumns: gridTemplate,
-                    gap: 0,
-                    padding: "10px 12px",
-                    borderTop: "1px solid rgba(0,0,0,0.06)",
-                    alignItems: "center",
-                    fontSize: 13,
+                    cursor: "pointer",
+                    borderBottom: "1px solid #f1f1f1",
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  {visibleKeys.map((k) => (
-                    <div
-                      key={k}
-                      style={{
-                        fontWeight: k === "full_name" ? 900 : 700,
-                        whiteSpace: k === "full_name" ? "nowrap" : "normal",
-                        overflow: k === "full_name" ? "hidden" : "visible",
-                        textOverflow: k === "full_name" ? "ellipsis" : "clip",
-                        paddingRight: 8,
-                      }}
-                      title={k === "full_name" ? p?.[k] ?? "" : undefined}
-                    >
-                      {p?.[k] ?? ""}
-                    </div>
-                  ))}
+                  {columns.map((c) => {
+                    const raw = p?.[c.key];
+                    const val = c.fmt ? c.fmt(raw) : raw;
 
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <Link
-                      className="hr-backBtn"
-                      href={`/team/${team}/players/${p.ht_player_id || ""}`}
-                      style={{ padding: "8px 10px" }}
-                    >
-                      Detalji
-                    </Link>
-
-                    {p?.ht_player_id ? (
-                      <a
-                        className="hr-backBtn"
-                        href={`https://www.hattrick.org/Club/Players/Player.aspx?playerId=${p.ht_player_id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ padding: "8px 10px" }}
+                    return (
+                      <td
+                        key={c.key}
+                        style={{
+                          width: c.width,
+                          padding: "6px 8px",
+                          textAlign: c.right ? "right" : "left",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          position: c.sticky ? "sticky" : "static",
+                          left: c.sticky ? 0 : undefined,
+                          background: c.sticky ? "white" : undefined,
+                          zIndex: c.sticky ? 1 : 0,
+                        }}
+                        title={val ?? ""}
                       >
-                        HT →
-                      </a>
-                    ) : null}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+                        {val ?? ""}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={{ marginTop: 10, fontSize: 12, color: "#666" }}>
+          Tip: drži default set kolona (bez skrola), a za analize otvori “Kolone” i privremeno upali što ti treba.
         </div>
       </div>
-    </div>
+    </Layout>
   );
-}
+              }
