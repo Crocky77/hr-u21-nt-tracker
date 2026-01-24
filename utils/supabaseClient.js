@@ -1,10 +1,16 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-// Named export (da radi: import { supabase } ...)
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Default export (da radi: import supabase from ...)
+/**
+ * Backward-compatible alias:
+ * Neki fileovi u projektu importaju { supabaseClient } ili "supabaseClient".
+ * Ovo sprječava build error:
+ * "Attempted import error: 'supabaseClient' is not exported..."
+ */
+export const supabaseClient = supabase;
+
 export default supabase;
