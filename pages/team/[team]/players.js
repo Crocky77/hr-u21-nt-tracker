@@ -7,7 +7,8 @@ export default function TeamPlayers() {
   const router = useRouter()
   const teamSlug = router.query.team
 
-  const [playersRaw, setPlayersRaw] = useState([])
+  const [rows, setRows] = useState([])
+  const [team, setTeam] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -23,95 +24,107 @@ export default function TeamPlayers() {
       setLoading(true)
       setError(null)
 
-      // RPC: u bazi je parametar p_team_slug (ne team_slug)
-      const { data, error: rpcErr } = await supabase.rpc('list_team_players', {
-        p_team_slug: String(teamSlug),
-        p_search: search ? String(search) : null,
-        p_pos: pos !== 'all' ? String(pos) : null,
-        p_age_min: ageMin ? Number(ageMin) : null,
-        p_age_max: ageMax ? Number(ageMax) : null,
-      })
+      // 1) Dohvati team po slug-u
+      const { data: teamData, error: teamErr } = await supabase
+        .from('teams')
+        .select('id, slug, name')
+        .eq('slug', String(teamSlug))
+        .single()
 
-      if (rpcErr) {
-        setError(rpcErr.message)
-        setPlayersRaw([])
+      if (teamErr) {
+        setError(`teams: ${teamErr.message}`)
+        setTeam(null)
+        setRows([])
         setLoading(false)
         return
       }
 
-      setPlayersRaw(Array.isArray(data) ? data : [])
+      setTeam(teamData)
+
+      // 2) Dohvati team_players + join players(*)
+      const { data: tpData, error: tpErr } = await supabase
+        .from('team_players')
+        .select('team_id, player_id, players(*)')
+        .eq('team_id', teamData.id)
+
+      if (tpErr) {
+        setError(`team_players: ${tpErr.message}`)
+        setRows([])
+        setLoading(false)
+        return
+      }
+
+      setRows(Array.isArray(tpData) ? tpData : [])
       setLoading(false)
     })()
   }, [teamSlug])
 
   const players = useMemo(() => {
-    // 1) normalizacija
-    const normalized = (playersRaw || [])
+    // izvuci players iz join-a
+    const rawPlayers = (rows || [])
+      .map((r) => r.players)
+      .filter(Boolean)
+
+    // normalizacija + filter praznih
+    const normalized = rawPlayers
       .map((p) => ({
         ...p,
-        // ime može biti full_name ili name ovisno o RPC-u
-        _name: (p.full_name || p.name || '').trim(),
-        // ht id može biti ht_player_id ili ht_id ili htid ovisno o RPC-u
+        _name: String(p.full_name || p.name || '').trim(),
+        _pos: String(p.position || p.pos || '').trim(),
+        _ageY: Number(p.age_y ?? p.age ?? NaN),
         _htid: String(p.ht_player_id ?? p.ht_id ?? p.htid ?? '').trim(),
         _id: p.id,
       }))
-      // makni prazne redove koji nemaju ništa smisleno (sprječava “prazne” duplikate)
       .filter((p) => p._name || p._htid || p._id)
 
-    // 2) DEDUPE (prvo po HTID, ako nema onda po internom id)
+    // FILTERI (front-end)
+    const s = search.trim().toLowerCase()
+    const min = ageMin ? Number(ageMin) : null
+    const max = ageMax ? Number(ageMax) : null
+
+    const filtered = normalized.filter((p) => {
+      if (s) {
+        const hay = `${p._name} ${p._pos} ${p._htid}`.toLowerCase()
+        if (!hay.includes(s)) return false
+      }
+      if (pos !== 'all' && p._pos !== pos) return false
+      if (min !== null && Number.isFinite(p._ageY) && p._ageY < min) return false
+      if (max !== null && Number.isFinite(p._ageY) && p._ageY > max) return false
+      return true
+    })
+
+    // DEDUPE (prvo HTID, pa id)
     const seen = new Set()
     const out = []
-
-    for (const p of normalized) {
+    for (const p of filtered) {
       const key = p._htid ? `ht:${p._htid}` : p._id ? `id:${p._id}` : `nm:${p._name.toLowerCase()}`
       if (seen.has(key)) continue
       seen.add(key)
       out.push(p)
     }
 
+    // sort po imenu
+    out.sort((a, b) => a._name.localeCompare(b._name))
     return out
-  }, [playersRaw])
+  }, [rows, search, pos, ageMin, ageMax])
 
   const uniquePositions = useMemo(() => {
     const set = new Set()
-    for (const p of playersRaw || []) {
-      const v = (p.position || p.pos || '').trim()
-      if (v) set.add(v)
+    for (const p of players) {
+      if (p._pos) set.add(p._pos)
     }
     return Array.from(set).sort()
-  }, [playersRaw])
-
-  const applyFilters = async () => {
-    if (!teamSlug) return
-    setLoading(true)
-    setError(null)
-
-    const { data, error: rpcErr } = await supabase.rpc('list_team_players', {
-      p_team_slug: String(teamSlug),
-      p_search: search ? String(search) : null,
-      p_pos: pos !== 'all' ? String(pos) : null,
-      p_age_min: ageMin ? Number(ageMin) : null,
-      p_age_max: ageMax ? Number(ageMax) : null,
-    })
-
-    if (rpcErr) {
-      setError(rpcErr.message)
-      setPlayersRaw([])
-      setLoading(false)
-      return
-    }
-
-    setPlayersRaw(Array.isArray(data) ? data : [])
-    setLoading(false)
-  }
+  }, [players])
 
   return (
     <div style={{ padding: 22, maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <div style={{ fontSize: 22, fontWeight: 900 }}>Igrači ({String(teamSlug || '').toUpperCase()})</div>
+        <div style={{ fontSize: 22, fontWeight: 900 }}>
+          Igrači ({String(teamSlug || '').toUpperCase()})
+        </div>
 
         <div style={{ marginLeft: 12, opacity: 0.75, fontSize: 12 }}>
-          Aktivni tim: <b>{teamSlug}</b>
+          Aktivni tim: <b>{team?.slug || teamSlug}</b>
         </div>
 
         <div style={{ marginLeft: 'auto', fontSize: 12 }}>
@@ -163,20 +176,6 @@ export default function TeamPlayers() {
           placeholder="Age max"
           style={{ padding: '8px 10px', borderRadius: 10, border: '1px solid rgba(0,0,0,0.14)', width: 90 }}
         />
-
-        <button
-          onClick={applyFilters}
-          style={{
-            padding: '8px 12px',
-            borderRadius: 10,
-            border: '1px solid rgba(0,0,0,0.14)',
-            background: 'white',
-            cursor: 'pointer',
-            fontWeight: 800,
-          }}
-        >
-          Primijeni
-        </button>
       </div>
 
       {loading && <div style={{ opacity: 0.7 }}>Učitavam...</div>}
@@ -213,13 +212,6 @@ export default function TeamPlayers() {
                 <Th>Poz</Th>
                 <Th>God</Th>
                 <Th>HTID</Th>
-                <Th>Fo</Th>
-                <Th>St</Th>
-                <Th>TR</Th>
-                <Th>DE</Th>
-                <Th>PM</Th>
-                <Th>SC</Th>
-                <Th>SP</Th>
               </tr>
             </thead>
 
@@ -239,16 +231,9 @@ export default function TeamPlayers() {
                     style={{ cursor: pid ? 'pointer' : 'default' }}
                   >
                     <Td>{name}</Td>
-                    <Td>{p.position || p.pos || '—'}</Td>
-                    <Td>{p.age_y ?? p.age ?? '—'}</Td>
+                    <Td>{p._pos || '—'}</Td>
+                    <Td>{Number.isFinite(p._ageY) ? p._ageY : '—'}</Td>
                     <Td>{htid}</Td>
-                    <Td>{p.fo ?? '—'}</Td>
-                    <Td>{p.st ?? '—'}</Td>
-                    <Td>{p.tr ?? '—'}</Td>
-                    <Td>{p.skill_def ?? p.de ?? '—'}</Td>
-                    <Td>{p.skill_pm ?? p.pm ?? '—'}</Td>
-                    <Td>{p.skill_scor ?? p.sc ?? '—'}</Td>
-                    <Td>{p.skill_sp ?? p.sp ?? '—'}</Td>
                   </tr>
                 )
               })}
