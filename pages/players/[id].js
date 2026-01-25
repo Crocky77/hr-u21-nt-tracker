@@ -1,146 +1,274 @@
-import { useRouter } from "next/router";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabaseClient";
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
+import { supabase } from '../../utils/supabaseClient';
 
-function Row({ label, value }) {
-  return (
-    <div style={row}>
-      <div style={{ opacity: 0.7 }}>{label}</div>
-      <div style={{ fontWeight: 600 }}>{value ?? "—"}</div>
-    </div>
-  );
-}
-
-export default function PlayerDetailsPage() {
+export default function PlayerDetailPage() {
   const router = useRouter();
   const { id, team } = router.query;
 
+  const teamSlug = useMemo(() => {
+    const t = (team || 'u21').toString().toLowerCase();
+    return t === 'nt' ? 'nt' : 'u21';
+  }, [team]);
+
+  const backHref = useMemo(() => `/team/${teamSlug}/players`, [teamSlug]);
+
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [roleText, setRoleText] = useState('—');
+  const [error, setError] = useState('');
   const [player, setPlayer] = useState(null);
+  const [snapshot, setSnapshot] = useState(null);
 
   useEffect(() => {
     if (!id) return;
 
-    async function run() {
-      setLoading(true);
-      setError("");
+    let cancelled = false;
 
-      const { data, error } = await supabase.from("players").select("*").eq("id", id).single();
+    async function getUserRoleSafe() {
+      try {
+        const up = await supabase.from('user_profiles').select('*').limit(1).maybeSingle();
+        if (up?.data && typeof up.data.role !== 'undefined') return String(up.data.role);
 
-      if (error) {
-        setError(error.message || "Greška kod dohvaćanja igrača.");
-        setPlayer(null);
-        setLoading(false);
-        return;
+        const pr = await supabase.from('profiles').select('*').limit(1).maybeSingle();
+        if (pr?.data && typeof pr.data.role !== 'undefined') return String(pr.data.role);
+
+        const us = await supabase.from('users').select('*').limit(1).maybeSingle();
+        if (us?.data && typeof us.data.role !== 'undefined') return String(us.data.role);
+
+        return '—';
+      } catch (e) {
+        return '—';
       }
-
-      setPlayer(data);
-      setLoading(false);
     }
 
-    run();
+    async function load() {
+      setLoading(true);
+      setError('');
+
+      try {
+        const role = await getUserRoleSafe();
+        if (!cancelled) setRoleText(role || '—');
+
+        const pRes = await supabase.from('players').select('*').eq('id', Number(id)).maybeSingle();
+        if (pRes.error) throw new Error(pRes.error.message || 'Greška kod učitavanja igrača.');
+        if (!cancelled) setPlayer(pRes.data || null);
+
+        // Snapshot optional
+        try {
+          const sRes = await supabase
+            .from('player_snapshots')
+            .select('*')
+            .eq('player_id', Number(id))
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (!sRes.error && !cancelled) setSnapshot(sRes.data || null);
+        } catch (e) {
+          // ignore
+        }
+      } catch (e) {
+        if (!cancelled) setError(e.message || 'Greška.');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [id]);
 
-  const teamSlug = team ? String(team) : "";
-  const backHref = teamSlug ? `/team/${teamSlug}/players` : "/";
+  if (loading) {
+    return (
+      <div style={{ padding: 24 }}>
+        <div style={{ opacity: 0.7 }}>Učitavam...</div>
+      </div>
+    );
+  }
 
-  const fullName = player?.full_name ?? player?.name ?? "—";
-  const htId = player?.ht_id ?? player?.ht_player_id ?? "—";
-  const pos = player?.position ?? player?.pos ?? "—";
+  if (error) {
+    return (
+      <div style={{ padding: 24 }}>
+        <div style={{ marginBottom: 12 }}>
+          <Link href={backHref}>← Igrači</Link>
+          <span style={{ marginLeft: 12, opacity: 0.7 }}>
+            Tim: <b>{teamSlug.toUpperCase()}</b>
+          </span>
+        </div>
+
+        <div
+          style={{
+            padding: 12,
+            borderRadius: 10,
+            background: 'rgba(255,0,0,0.08)',
+            border: '1px solid rgba(255,0,0,0.18)',
+          }}
+        >
+          Greška: {error}
+        </div>
+      </div>
+    );
+  }
+
+  if (!player) {
+    return (
+      <div style={{ padding: 24 }}>
+        <div style={{ marginBottom: 12 }}>
+          <Link href={backHref}>← Igrači</Link>
+          <span style={{ marginLeft: 12, opacity: 0.7 }}>
+            Tim: <b>{teamSlug.toUpperCase()}</b>
+          </span>
+        </div>
+
+        <div style={{ opacity: 0.8 }}>Igrač nije pronađen.</div>
+      </div>
+    );
+  }
+
+  const ageText =
+    typeof player.age_years !== 'undefined' && typeof player.age_days !== 'undefined'
+      ? `${player.age_years}y ${player.age_days}d`
+      : '—';
 
   return (
-    <div style={page}>
-      {/* ✅ 3 stupca: lijevo placeholder, sredina content, desno placeholder */}
-      <div style={grid}>
-        <aside style={side}>
-          <div style={sideCard}>
-            <b>Left module</b>
-            <div style={{ marginTop: 6, opacity: 0.7 }}>
-              (rezervirano za kasnije)
+    <div style={{ padding: 24 }}>
+      <div
+        style={{
+          maxWidth: 1280,
+          margin: '0 auto',
+          display: 'grid',
+          gridTemplateColumns: '220px minmax(0, 1fr) 220px',
+          gap: 16,
+          alignItems: 'start',
+        }}
+      >
+        {/* LEFT MODULE (reserved) */}
+        <div
+          style={{
+            border: '1px solid rgba(0,0,0,0.10)',
+            borderRadius: 16,
+            padding: 12,
+            background: 'rgba(255,255,255,0.55)',
+            minHeight: 120,
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Left module</div>
+          <div style={{ opacity: 0.7, fontSize: 12 }}>(rezervirano za kasnije)</div>
+        </div>
+
+        {/* MAIN */}
+        <div
+          style={{
+            border: '1px solid rgba(0,0,0,0.10)',
+            borderRadius: 16,
+            padding: 16,
+            background: 'rgba(255,255,255,0.60)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+            <Link href={backHref} style={{ textDecoration: 'underline' }}>
+              ← Igrači
+            </Link>
+
+            <Link href={`/team/${teamSlug}`} style={{ textDecoration: 'underline', opacity: 0.85 }}>
+              Naslovna
+            </Link>
+
+            <div style={{ marginLeft: 'auto', opacity: 0.8 }}>
+              Tim: <b>{teamSlug.toUpperCase()}</b> · Uloga: <b>{roleText}</b>
             </div>
           </div>
-        </aside>
 
-        <main style={center}>
-          <div style={topbar}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <Link href={backHref}>← Igrači</Link>
-              <Link href="/">Naslovna</Link>
-            </div>
-
-            <div style={{ opacity: 0.75 }}>
-              Tim: <b>{teamSlug ? teamSlug.toUpperCase() : "—"}</b>
-            </div>
+          <div style={{ fontSize: 26, fontWeight: 900, marginBottom: 14 }}>
+            {player.name || '—'}
           </div>
 
-          <h1 style={{ marginTop: 14 }}>{fullName}</h1>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1.3fr 1fr',
+              gap: 16,
+              border: '1px solid rgba(0,0,0,0.10)',
+              borderRadius: 16,
+              padding: 16,
+              background: 'rgba(255,255,255,0.6)',
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 800, marginBottom: 10 }}>Osnovno</div>
 
-          {loading && <p>Učitavanje...</p>}
-
-          {!loading && error && (
-            <div style={errBox}>
-              <b>Greška:</b> {error}
+              <Row label="Interni ID" value={player.id} />
+              <Row label="HT Player ID" value={player.ht_player_id ?? '—'} />
+              <Row label="Pozicija" value={player.position ?? '—'} />
+              <Row label="Dob" value={ageText} />
+              <Row label="Status" value={player.status ?? '—'} />
+              <Row label="Nacionalnost" value={player.nationality ?? 'Hrvatska'} />
+              <Row label="TSI" value={player.tsi ?? '—'} />
+              <Row label="Plaća" value={player.salary ?? '—'} />
             </div>
-          )}
 
-          {!loading && !error && player && (
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 12 }}>
-              <div style={card}>
-                <h3 style={{ marginTop: 0 }}>Osnovno</h3>
-                <Row label="Interni ID" value={player.id} />
-                <Row label="HT Player ID" value={htId} />
-                <Row label="Pozicija" value={pos} />
-                <Row label="Dob" value={player.age ?? player.age_years ?? "—"} />
-                <Row label="Status" value={player.status ?? "—"} />
-                <Row label="Nacionalnost" value={player.nationality ?? "Hrvatska"} />
-                <Row label="TSI" value={player.tsi ?? "—"} />
-                <Row label="Plaća" value={player.salary ?? player.wage ?? "—"} />
-              </div>
-
-              <div style={card}>
-                <h3 style={{ marginTop: 0 }}>Snapshot (zadnji)</h3>
-                <p style={{ opacity: 0.75, marginTop: 0 }}>
-                  (Ovo ćemo spojiti kasnije kad riješimo snapshot tablice / RPC)
-                </p>
-                <div style={{ opacity: 0.75 }}>Nema snapshot podataka još.</div>
-              </div>
-
-              <div style={{ gridColumn: "1 / -1", ...card }}>
-                <h3 style={{ marginTop: 0 }}>Skillovi</h3>
-                <div style={skillsGrid}>
-                  <Skill label="GK" value={player.skill_gk ?? player.gk} />
-                  <Skill label="DEF" value={player.skill_def ?? player.def} />
-                  <Skill label="PM" value={player.skill_pm ?? player.pm} />
-                  <Skill label="WING" value={player.skill_wing ?? player.wing} />
-                  <Skill label="PASS" value={player.skill_pass ?? player.pass} />
-                  <Skill label="SCOR" value={player.skill_sc ?? player.sc} />
-                  <Skill label="SP" value={player.skill_sp ?? player.sp} />
+            <div>
+              <div style={{ fontWeight: 800, marginBottom: 10 }}>Snapshot (zadnji)</div>
+              {snapshot ? (
+                <div style={{ opacity: 0.9, fontSize: 13, lineHeight: 1.5 }}>
+                  <div>
+                    <b>Datum:</b>{' '}
+                    {snapshot.created_at ? new Date(snapshot.created_at).toLocaleString() : '—'}
+                  </div>
+                  <div style={{ marginTop: 6, opacity: 0.8 }}>
+                    (Snapshot prikaz ćemo kasnije proširiti.)
+                  </div>
                 </div>
+              ) : (
+                <div style={{ opacity: 0.75 }}>Nema snapshot podataka još.</div>
+              )}
+            </div>
+
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div style={{ fontWeight: 800, marginTop: 4, marginBottom: 10 }}>Skillovi</div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(7, minmax(90px, 1fr))',
+                  gap: 10,
+                }}
+              >
+                <Skill label="GK" value={player.skill_gk ?? player.gk ?? '—'} />
+                <Skill label="DEF" value={player.skill_def ?? player.def ?? '—'} />
+                <Skill label="PM" value={player.skill_pm ?? player.pm ?? '—'} />
+                <Skill label="WING" value={player.skill_wing ?? player.wing ?? '—'} />
+                <Skill label="PASS" value={player.skill_pass ?? player.pass ?? '—'} />
+                <Skill label="SCOR" value={player.skill_scor ?? player.scor ?? '—'} />
+                <Skill label="SP" value={player.skill_sp ?? player.sp ?? '—'} />
               </div>
             </div>
-          )}
-        </main>
-
-        <aside style={side}>
-          <div style={sideCard}>
-            <b>Right module</b>
-            <div style={{ marginTop: 6, opacity: 0.7 }}>
-              (rezervirano za kasnije)
-            </div>
           </div>
-        </aside>
+        </div>
+
+        {/* RIGHT MODULE (reserved) */}
+        <div
+          style={{
+            border: '1px solid rgba(0,0,0,0.10)',
+            borderRadius: 16,
+            padding: 12,
+            background: 'rgba(255,255,255,0.55)',
+            minHeight: 120,
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 6 }}>Right module</div>
+          <div style={{ opacity: 0.7, fontSize: 12 }}>(rezervirano za kasnije)</div>
+        </div>
       </div>
 
-      {/* ✅ responsive: na manjim ekranima sakrij side stupce */}
+      {/* MOBILE: sakrij side module */}
       <style jsx>{`
         @media (max-width: 1100px) {
-          .side {
-            display: none;
-          }
-          .grid {
-            grid-template-columns: 1fr;
+          div[style*='grid-template-columns: 220px'] {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>
@@ -148,71 +276,27 @@ export default function PlayerDetailsPage() {
   );
 }
 
-function Skill({ label, value }) {
+function Row({ label, value }) {
   return (
-    <div style={skillCard}>
-      <div style={{ fontSize: 12, opacity: 0.7 }}>{label}</div>
-      <div style={{ fontSize: 18, fontWeight: 700 }}>{value ?? "—"}</div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '6px 0' }}>
+      <div style={{ opacity: 0.75 }}>{label}</div>
+      <div style={{ fontWeight: 700 }}>{value}</div>
     </div>
   );
 }
 
-const page = { padding: "24px 16px" };
-
-const grid = {
-  display: "grid",
-  gridTemplateColumns: "260px minmax(680px, 980px) 260px", // ✅ lijevo + centar + desno
-  gap: 16,
-  alignItems: "start",
-  justifyContent: "center",
-};
-
-const side = { };
-const center = { };
-const topbar = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 16,
-  alignItems: "center",
-};
-
-const card = {
-  border: "1px solid #e6e6e6",
-  borderRadius: 12,
-  padding: 16,
-  background: "#fff",
-};
-
-const sideCard = {
-  border: "1px solid #e6e6e6",
-  borderRadius: 12,
-  padding: 16,
-  background: "#fff",
-};
-
-const errBox = {
-  marginTop: 12,
-  padding: 12,
-  border: "1px solid #f2b8b5",
-  background: "#fff3f2",
-};
-
-const row = {
-  display: "flex",
-  justifyContent: "space-between",
-  gap: 12,
-  padding: "8px 0",
-  borderBottom: "1px solid #eee",
-};
-
-const skillsGrid = {
-  display: "grid",
-  gridTemplateColumns: "repeat(7, minmax(80px, 1fr))",
-  gap: 10,
-};
-
-const skillCard = {
-  border: "1px solid #eee",
-  borderRadius: 12,
-  padding: 12,
-};
+function Skill({ label, value }) {
+  return (
+    <div
+      style={{
+        border: '1px solid rgba(0,0,0,0.10)',
+        borderRadius: 14,
+        padding: 10,
+        background: 'rgba(255,255,255,0.65)',
+      }}
+    >
+      <div style={{ fontSize: 11, opacity: 0.7, fontWeight: 800 }}>{label}</div>
+      <div style={{ marginTop: 6, fontSize: 18, fontWeight: 900 }}>{value}</div>
+    </div>
+  );
+}
