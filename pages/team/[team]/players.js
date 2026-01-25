@@ -16,12 +16,31 @@ export default function TeamPlayersPage() {
   const [error, setError] = useState('');
   const [playersRaw, setPlayersRaw] = useState([]);
 
+  // Normaliziraj polja iz različitih verzija RPC outputa
+  function normalizePlayer(p) {
+    return {
+      ...p,
+      // Ime
+      name: p?.name ?? p?.full_name ?? p?.player_name ?? null,
+      // Pozicija
+      position: p?.position ?? p?.pos ?? p?.poz ?? null,
+      // HT ID
+      ht_player_id: p?.ht_player_id ?? p?.ht_id ?? p?.htid ?? null,
+      // Dob
+      age_years: typeof p?.age_years !== 'undefined' ? p.age_years : (typeof p?.age !== 'undefined' ? p.age : null),
+      // Forma / stamina
+      form: typeof p?.form !== 'undefined' ? p.form : (typeof p?.fo !== 'undefined' ? p.fo : null),
+      stamina: typeof p?.stamina !== 'undefined' ? p.stamina : (typeof p?.st !== 'undefined' ? p.st : null),
+    };
+  }
+
   // UI dedupe (privremeno)
   const players = useMemo(() => {
     const seen = new Set();
     const out = [];
 
-    for (const p of playersRaw || []) {
+    for (const raw of playersRaw || []) {
+      const p = normalizePlayer(raw);
       // prioritet: interni id, pa ht_player_id
       const key =
         (typeof p.id !== 'undefined' && p.id !== null && `id:${p.id}`) ||
@@ -45,25 +64,22 @@ export default function TeamPlayersPage() {
       setError('');
 
       try {
-        // VAŽNO: Supabase RPC koristi IMENA parametara iz SQL funkcije.
-        // U bazi je parametar nazvan p_team_slug (ne team_slug).
-        const res = await supabase.rpc('list_team_players', { p_team_slug: teamSlug });
+        // ⚠️ Bitno: Supabase RPC traži IMENA parametara točno kao u funkciji.
+        // Na našem Supabaseu parametar je p_team_slug (ne team_slug).
+        let res = await supabase.rpc('list_team_players', { p_team_slug: teamSlug });
+
+        // Fallback (ako netko ima stariju verziju funkcije)
+        if (res?.error && /list_team_players\(team_slug\)/i.test(res.error.message || '')) {
+          res = await supabase.rpc('list_team_players', { team_slug: teamSlug });
+        }
 
         if (res.error) {
           throw new Error(res.error.message || 'RPC list_team_players greška.');
         }
 
         if (!cancelled) {
-          const raw = Array.isArray(res.data) ? res.data : [];
-
-          // Dedupe (posebno važno za NT gdje se mogu pojaviti dupli redovi)
-          const map = new Map();
-          for (const p of raw) {
-            const key = p?.id ?? p?.ht_id ?? `${p?.full_name || ''}-${p?.age_y || ''}-${p?.age_d || ''}`;
-            if (!map.has(key)) map.set(key, p);
-          }
-
-          setPlayersRaw(Array.from(map.values()));
+          const rows = Array.isArray(res.data) ? res.data : [];
+          setPlayersRaw(rows.map(normalizePlayer));
         }
       } catch (e) {
         if (!cancelled) setError(e.message || 'Greška.');
