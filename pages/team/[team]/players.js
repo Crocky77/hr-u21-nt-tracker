@@ -7,11 +7,12 @@ export default function TeamPlayers() {
   const router = useRouter()
   const teamSlug = router.query.team
 
-  const [rows, setRows] = useState([])
   const [team, setTeam] = useState(null)
+  const [players, setPlayers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  // UI filteri
   const [search, setSearch] = useState('')
   const [pos, setPos] = useState('all')
   const [ageMin, setAgeMin] = useState('')
@@ -24,7 +25,7 @@ export default function TeamPlayers() {
       setLoading(true)
       setError(null)
 
-      // 1) Dohvati team po slug-u
+      // 1) dohvati team po slug-u
       const { data: teamData, error: teamErr } = await supabase
         .from('teams')
         .select('id, slug, name')
@@ -34,84 +35,113 @@ export default function TeamPlayers() {
       if (teamErr) {
         setError(`teams: ${teamErr.message}`)
         setTeam(null)
-        setRows([])
+        setPlayers([])
         setLoading(false)
         return
       }
 
       setTeam(teamData)
 
-      // 2) Dohvati team_players + join players(*)
-      const { data: tpData, error: tpErr } = await supabase
+      // 2) dohvati ID-eve igrača iz team_players
+      const { data: tpRows, error: tpErr } = await supabase
         .from('team_players')
-        .select('team_id, player_id, players(*)')
+        .select('player_id')
         .eq('team_id', teamData.id)
 
       if (tpErr) {
         setError(`team_players: ${tpErr.message}`)
-        setRows([])
+        setPlayers([])
         setLoading(false)
         return
       }
 
-      setRows(Array.isArray(tpData) ? tpData : [])
+      const ids = Array.from(
+        new Set(
+          (tpRows || [])
+            .map((r) => r?.player_id)
+            .filter((x) => Number.isFinite(Number(x)))
+        )
+      )
+
+      if (ids.length === 0) {
+        setPlayers([])
+        setLoading(false)
+        return
+      }
+
+      // 3) dohvati igrače po id-jevima (bez join-a)
+      const { data: plRows, error: plErr } = await supabase
+        .from('players')
+        .select(
+          [
+            'id',
+            'full_name',
+            'name',
+            'position',      // u tvojoj bazi postoji "position"
+            'pos',           // fallback ako je negdje "pos"
+            'age_years',
+            'age_y',         // fallback
+            'ht_player_id',
+            'ht_id',         // fallback
+            'htid'           // fallback
+          ].join(', ')
+        )
+        .in('id', ids)
+
+      if (plErr) {
+        setError(`players: ${plErr.message}`)
+        setPlayers([])
+        setLoading(false)
+        return
+      }
+
+      // dedupe po HTID pa po ID (za svaki slučaj)
+      const byKey = new Map()
+      for (const p of plRows || []) {
+        const htid = String(p.ht_player_id ?? p.ht_id ?? p.htid ?? '').trim()
+        const key = htid ? `ht:${htid}` : `id:${p.id}`
+        if (!byKey.has(key)) byKey.set(key, p)
+      }
+
+      setPlayers(Array.from(byKey.values()))
       setLoading(false)
     })()
   }, [teamSlug])
 
-  const players = useMemo(() => {
-    // izvuci players iz join-a
-    const rawPlayers = (rows || [])
-      .map((r) => r.players)
-      .filter(Boolean)
-
-    // normalizacija + filter praznih
-    const normalized = rawPlayers
-      .map((p) => ({
-        ...p,
-        _name: String(p.full_name || p.name || '').trim(),
-        _pos: String(p.position || p.pos || '').trim(),
-        _ageY: Number(p.age_y ?? p.age ?? NaN),
-        _htid: String(p.ht_player_id ?? p.ht_id ?? p.htid ?? '').trim(),
-        _id: p.id,
-      }))
-      .filter((p) => p._name || p._htid || p._id)
-
-    // FILTERI (front-end)
+  // priprema + filteri na FE
+  const filtered = useMemo(() => {
     const s = search.trim().toLowerCase()
     const min = ageMin ? Number(ageMin) : null
     const max = ageMax ? Number(ageMax) : null
 
-    const filtered = normalized.filter((p) => {
+    const norm = (players || []).map((p) => ({
+      ...p,
+      _name: String(p.full_name || p.name || '').trim(),
+      _pos: String(p.position ?? p.pos ?? '').trim(),
+      _ageY: Number(p.age_years ?? p.age_y ?? NaN),
+      _htid: String(p.ht_player_id ?? p.ht_id ?? p.htid ?? '').trim(),
+    }))
+
+    const out = norm.filter((p) => {
       if (s) {
         const hay = `${p._name} ${p._pos} ${p._htid}`.toLowerCase()
         if (!hay.includes(s)) return false
       }
-      if (pos !== 'all' && p._pos !== pos) return false
+      if (pos !== 'all' && p._pos && p._pos !== pos) return false
       if (min !== null && Number.isFinite(p._ageY) && p._ageY < min) return false
       if (max !== null && Number.isFinite(p._ageY) && p._ageY > max) return false
       return true
     })
 
-    // DEDUPE (prvo HTID, pa id)
-    const seen = new Set()
-    const out = []
-    for (const p of filtered) {
-      const key = p._htid ? `ht:${p._htid}` : p._id ? `id:${p._id}` : `nm:${p._name.toLowerCase()}`
-      if (seen.has(key)) continue
-      seen.add(key)
-      out.push(p)
-    }
-
-    // sort po imenu
     out.sort((a, b) => a._name.localeCompare(b._name))
     return out
-  }, [rows, search, pos, ageMin, ageMax])
+  }, [players, search, pos, ageMin, ageMax])
 
   const uniquePositions = useMemo(() => {
     const set = new Set()
     for (const p of players) {
-      if (p._pos) set.add(p._pos)
+      const v = String(p.position ?? p.pos ?? '').trim()
+      if (v) set.add(v)
     }
     return Array.from(set).sort()
   }, [players])
@@ -129,7 +159,7 @@ export default function TeamPlayers() {
 
         <div style={{ marginLeft: 'auto', fontSize: 12 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <div style={{ opacity: 0.75 }}>Popis igrača ({players.length})</div>
+            <div style={{ opacity: 0.75 }}>Popis igrača ({filtered.length})</div>
             <Link href={`/team/${teamSlug}`} style={{ textDecoration: 'none', opacity: 0.85 }}>
               Natrag na module
             </Link>
@@ -137,7 +167,7 @@ export default function TeamPlayers() {
         </div>
       </div>
 
-      {/* FILTERS */}
+      {/* FILTERI */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
         <input
           value={search}
@@ -216,23 +246,18 @@ export default function TeamPlayers() {
             </thead>
 
             <tbody>
-              {players.map((p) => {
-                const name = p._name || '—'
-                const htid = p._htid || '—'
-                const pid = p.id
-
+              {filtered.map((p) => {
+                const name = String(p.full_name || p.name || '—')
+                const htid = String(p.ht_player_id ?? p.ht_id ?? p.htid ?? '—')
                 return (
                   <tr
-                    key={p._htid ? `ht:${p._htid}` : `id:${p.id}`}
-                    onClick={() => {
-                      if (!pid) return
-                      router.push(`/players/${pid}?team=${teamSlug}`)
-                    }}
-                    style={{ cursor: pid ? 'pointer' : 'default' }}
+                    key={p.id}
+                    onClick={() => router.push(`/players/${p.id}?team=${teamSlug}`)}
+                    style={{ cursor: 'pointer' }}
                   >
                     <Td>{name}</Td>
-                    <Td>{p._pos || '—'}</Td>
-                    <Td>{Number.isFinite(p._ageY) ? p._ageY : '—'}</Td>
+                    <Td>{String(p.position ?? p.pos ?? '—')}</Td>
+                    <Td>{Number.isFinite(Number(p.age_years ?? p.age_y)) ? (p.age_years ?? p.age_y) : '—'}</Td>
                     <Td>{htid}</Td>
                   </tr>
                 )
