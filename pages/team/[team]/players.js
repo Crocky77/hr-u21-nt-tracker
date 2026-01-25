@@ -1,340 +1,173 @@
-import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/router';
-import { supabase } from '../../../utils/supabaseClient';
-
-function safeInt(v) {
-  if (v === null || typeof v === 'undefined' || v === '') return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import { supabase } from "../../../lib/supabaseClient";
 
 export default function TeamPlayersPage() {
   const router = useRouter();
   const { team } = router.query;
 
   const teamSlug = useMemo(() => {
-    const t = (team || 'u21').toString().toLowerCase();
-    return t === 'nt' ? 'nt' : 'u21';
+    const t = (team || "").toString().toLowerCase();
+    // dopuštamo samo "nt" ili "u21"
+    return t === "nt" ? "nt" : "u21";
   }, [team]);
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
+  const [error, setError] = useState("");
   const [players, setPlayers] = useState([]);
-  const [search, setSearch] = useState('');
-  const [pos, setPos] = useState('');
-  const [ageMin, setAgeMin] = useState('');
-  const [ageMax, setAgeMax] = useState('');
-  const [positions, setPositions] = useState([]);
 
-  // 1) učitaj pozicije (ako RPC postoji) – fallback na default
-  useEffect(() => {
-    let cancelled = false;
+  async function fetchPlayers(slug) {
+    setLoading(true);
+    setError("");
 
-    async function loadPositions() {
-      try {
-        const r = await supabase.rpc('list_team_positions', { p_team_slug: teamSlug });
-        if (!cancelled && !r.error && Array.isArray(r.data) && r.data.length) {
-          // očekujemo npr. [{pos:"W"}, ...] ili [{position:"W"}]
-          const list = r.data
-            .map((x) => x?.pos ?? x?.position ?? null)
-            .filter(Boolean);
-          if (list.length) setPositions(list);
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-
-    loadPositions();
-    return () => {
-      cancelled = true;
-    };
-  }, [teamSlug]);
-
-  // 2) učitaj igrače (bez filtera – init)
-  useEffect(() => {
-    if (!teamSlug) return;
-    let cancelled = false;
-
-    async function loadInitial() {
-      setLoading(true);
-      setError('');
-      try {
-        // Minimalno: call bez filtera – jer filter RPC varijanta ti je pukla po shema-cache
-        const r = await supabase.rpc('list_team_players', { team_slug: teamSlug });
-
-        if (r.error) throw new Error(r.error.message || 'Greška kod učitavanja igrača.');
-
-        if (!cancelled) setPlayers(Array.isArray(r.data) ? r.data : []);
-      } catch (e) {
-        if (!cancelled) setError(e.message || 'Greška.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    loadInitial();
-    return () => {
-      cancelled = true;
-    };
-  }, [teamSlug]);
-
-  // 3) lokalni filter (dok ne stabiliziramo RPC s parametrima)
-  const filtered = useMemo(() => {
-    const q = (search || '').trim().toLowerCase();
-    const p = (pos || '').trim();
-
-    const amin = safeInt(ageMin);
-    const amax = safeInt(ageMax);
-
-    return (players || []).filter((row) => {
-      const name = (row.full_name ?? row.name ?? '').toString().toLowerCase();
-      const htId = (row.ht_id ?? row.ht_player_id ?? '').toString().toLowerCase();
-      const position = (row.pos ?? row.position ?? '').toString();
-
-      // search: ime ili ht id
-      if (q) {
-        const ok = name.includes(q) || htId.includes(q);
-        if (!ok) return false;
-      }
-
-      // pozicija
-      if (p && position !== p) return false;
-
-      // age min/max (ako postoji age_years)
-      const ay = safeInt(row.age_years ?? row.age ?? null);
-      if (amin !== null && ay !== null && ay < amin) return false;
-      if (amax !== null && ay !== null && ay > amax) return false;
-
-      return true;
+    // ✅ KLJUČ: parametar je p_team_slug (ne team_slug)
+    const { data, error } = await supabase.rpc("list_team_players", {
+      p_team_slug: slug,
     });
-  }, [players, search, pos, ageMin, ageMax]);
 
-  const title = teamSlug === 'nt' ? 'Igrači (NT)' : 'Igrači (U21)';
+    if (error) {
+      setError(error.message || "Greška kod dohvaćanja igrača.");
+      setPlayers([]);
+      setLoading(false);
+      return;
+    }
+
+    const rows = Array.isArray(data) ? data : [];
+
+    // (Ne mijenja logiku, samo uklanja očite duplikate u prikazu)
+    const seen = new Set();
+    const deduped = [];
+    for (const r of rows) {
+      const key = r?.ht_id ?? r?.ht_player_id ?? r?.id;
+      if (key == null) continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(r);
+    }
+
+    setPlayers(deduped);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    fetchPlayers(teamSlug);
+  }, [router.isReady, teamSlug]);
+
+  const displayPlayers = useMemo(() => {
+    // stabilno sortiranje po imenu
+    return [...players].sort((a, b) => {
+      const an = (a?.full_name ?? a?.name ?? "").toString();
+      const bn = (b?.full_name ?? b?.name ?? "").toString();
+      return an.localeCompare(bn, "hr");
+    });
+  }, [players]);
 
   return (
     <div style={{ padding: 24 }}>
-      {/* OUTER GRID: left module | main | right module */}
-      <div
-        style={{
-          maxWidth: 1280,
-          margin: '0 auto',
-          display: 'grid',
-          gridTemplateColumns: '220px minmax(0, 1fr) 220px',
-          gap: 16,
-          alignItems: 'start',
-        }}
-      >
-        {/* LEFT MODULE (reserved) */}
-        <div
-          style={{
-            border: '1px solid rgba(0,0,0,0.10)',
-            borderRadius: 16,
-            padding: 12,
-            background: 'rgba(255,255,255,0.55)',
-            minHeight: 120,
-          }}
-        >
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Left module</div>
-          <div style={{ opacity: 0.7, fontSize: 12 }}>(rezervirano za kasnije)</div>
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "center" }}>
+          <div>
+            <h1 style={{ margin: 0 }}>Igrači ({teamSlug.toUpperCase()})</h1>
+            <div style={{ marginTop: 6, opacity: 0.75 }}>
+              Popis igrača: <b>{displayPlayers.length}</b>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+            <Link href={`/team/${teamSlug}`}>Natrag na module</Link>
+          </div>
         </div>
 
-        {/* MAIN */}
-        <div
-          style={{
-            border: '1px solid rgba(0,0,0,0.10)',
-            borderRadius: 16,
-            padding: 16,
-            background: 'rgba(255,255,255,0.60)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 10 }}>
-            <div style={{ fontSize: 26, fontWeight: 900 }}>{title}</div>
-            <div style={{ opacity: 0.7 }}>Aktivni tim: {teamSlug}</div>
+        {loading && <p>Učitavanje...</p>}
 
-            <div style={{ marginLeft: 'auto', display: 'flex', gap: 12, opacity: 0.9 }}>
-              <Link href={`/team/${teamSlug}`} style={{ textDecoration: 'underline' }}>
-                Natrag na module
-              </Link>
-              <span style={{ opacity: 0.7 }}>Popis igrača ({filtered.length})</span>
-            </div>
+        {!loading && error && (
+          <div style={{ marginTop: 12, padding: 12, border: "1px solid #f2b8b5", background: "#fff3f2" }}>
+            <b>Greška:</b> {error}
           </div>
+        )}
 
-          {/* FILTERI */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search: ime, HT ID, pozicija..."
-              style={{
-                padding: '10px 12px',
-                borderRadius: 12,
-                border: '1px solid rgba(0,0,0,0.12)',
-                minWidth: 260,
-                flex: '1 1 260px',
-              }}
-            />
-
-            <select
-              value={pos}
-              onChange={(e) => setPos(e.target.value)}
-              style={{
-                padding: '10px 12px',
-                borderRadius: 12,
-                border: '1px solid rgba(0,0,0,0.12)',
-                minWidth: 160,
-              }}
-            >
-              <option value="">Pozicija (sve)</option>
-              {(positions.length ? positions : ['GK', 'CD', 'WB', 'IM', 'W', 'FW']).map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-
-            <input
-              value={ageMin}
-              onChange={(e) => setAgeMin(e.target.value)}
-              placeholder="Age min"
-              style={{
-                padding: '10px 12px',
-                borderRadius: 12,
-                border: '1px solid rgba(0,0,0,0.12)',
-                width: 120,
-              }}
-            />
-            <input
-              value={ageMax}
-              onChange={(e) => setAgeMax(e.target.value)}
-              placeholder="Age max"
-              style={{
-                padding: '10px 12px',
-                borderRadius: 12,
-                border: '1px solid rgba(0,0,0,0.12)',
-                width: 120,
-              }}
-            />
-          </div>
-
-          {/* ERROR */}
-          {error ? (
-            <div
-              style={{
-                padding: 12,
-                borderRadius: 12,
-                background: 'rgba(255,0,0,0.08)',
-                border: '1px solid rgba(255,0,0,0.18)',
-                marginBottom: 12,
-              }}
-            >
-              Greška: {error}
-            </div>
-          ) : null}
-
-          {/* TABLE */}
-          <div style={{ opacity: 0.7, fontSize: 12, marginBottom: 8 }}>
-            Klik na red otvara detalje igrača
-          </div>
-
-          <div style={{ overflowX: 'auto', borderRadius: 12 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 980 }}>
+        {!loading && !error && (
+          <div style={{ marginTop: 16, overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 980 }}>
               <thead>
-                <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(0,0,0,0.12)' }}>
-                  <th style={{ padding: 10 }}>Ime</th>
-                  <th style={{ padding: 10, width: 70 }}>Poz</th>
-                  <th style={{ padding: 10, width: 70 }}>God</th>
-                  <th style={{ padding: 10, width: 110 }}>HTID</th>
-                  <th style={{ padding: 10, width: 60 }}>Fo</th>
-                  <th style={{ padding: 10, width: 60 }}>St</th>
-                  <th style={{ padding: 10, width: 60 }}>TR</th>
-                  <th style={{ padding: 10, width: 60 }}>DE</th>
-                  <th style={{ padding: 10, width: 60 }}>PM</th>
-                  <th style={{ padding: 10, width: 60 }}>SC</th>
-                  <th style={{ padding: 10, width: 60 }}>SP</th>
+                <tr>
+                  <th style={th}>Ime</th>
+                  <th style={th}>Poz</th>
+                  <th style={th}>God</th>
+                  <th style={th}>HTID</th>
+                  <th style={th}>Fo</th>
+                  <th style={th}>St</th>
+                  <th style={th}>TR</th>
+                  <th style={th}>DE</th>
+                  <th style={th}>PM</th>
+                  <th style={th}>SC</th>
+                  <th style={th}>SP</th>
                 </tr>
               </thead>
 
               <tbody>
-                {loading ? (
+                {displayPlayers.length === 0 ? (
                   <tr>
-                    <td colSpan={11} style={{ padding: 12, opacity: 0.7 }}>
-                      Učitavam...
-                    </td>
-                  </tr>
-                ) : filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={11} style={{ padding: 12, opacity: 0.7 }}>
-                      Nema podataka.
-                    </td>
+                    <td style={td} colSpan={11}>Nema podataka.</td>
                   </tr>
                 ) : (
-                  filtered.map((row) => {
-                    const pid = row.id ?? row.player_id ?? null;
+                  displayPlayers.map((p) => {
+                    const name = p?.full_name ?? p?.name ?? "—";
+                    const pos = p?.position ?? p?.pos ?? "—";
+                    const age = p?.age ?? p?.age_years ?? "—";
+                    const htId = p?.ht_id ?? p?.ht_player_id ?? "—";
 
-                    const name = row.full_name ?? row.name ?? '—';
-                    const position = row.pos ?? row.position ?? '—';
-                    const age = row.age_years ?? row.age ?? '—';
-                    const htId = row.ht_id ?? row.ht_player_id ?? '—';
-
-                    const href = pid ? `/players/${pid}?team=${teamSlug}` : '#';
+                    const href = `/players/${p.id}?team=${teamSlug}`;
 
                     return (
                       <tr
-                        key={`${pid ?? 'x'}-${htId}-${name}`}
-                        onClick={() => {
-                          if (pid) router.push(href);
-                        }}
-                        style={{
-                          cursor: pid ? 'pointer' : 'default',
-                          borderBottom: '1px solid rgba(0,0,0,0.06)',
-                        }}
+                        key={`${p?.id ?? ""}-${htId}`}
+                        style={{ cursor: "pointer" }}
+                        onClick={() => router.push(href)}
                       >
-                        <td style={{ padding: 10, fontWeight: 700 }}>{name}</td>
-                        <td style={{ padding: 10 }}>{position}</td>
-                        <td style={{ padding: 10 }}>{age}</td>
-                        <td style={{ padding: 10 }}>{htId}</td>
-                        <td style={{ padding: 10 }}>{row.form ?? row.fo ?? '—'}</td>
-                        <td style={{ padding: 10 }}>{row.stamina ?? row.st ?? '—'}</td>
-                        <td style={{ padding: 10 }}>{row.skill_tr ?? row.tr ?? '—'}</td>
-                        <td style={{ padding: 10 }}>{row.skill_def ?? row.de ?? '—'}</td>
-                        <td style={{ padding: 10 }}>{row.skill_pm ?? row.pm ?? '—'}</td>
-                        <td style={{ padding: 10 }}>{row.skill_scor ?? row.sc ?? '—'}</td>
-                        <td style={{ padding: 10 }}>{row.skill_sp ?? row.sp ?? '—'}</td>
+                        <td style={td}>
+                          <Link href={href} style={{ textDecoration: "none" }}>
+                            {name}
+                          </Link>
+                        </td>
+                        <td style={td}>{pos}</td>
+                        <td style={td}>{age}</td>
+                        <td style={td}>{htId}</td>
+                        <td style={td}>{p?.fo ?? p?.form ?? "—"}</td>
+                        <td style={td}>{p?.st ?? p?.stamina ?? "—"}</td>
+                        <td style={td}>{p?.tr ?? p?.trainer ?? "—"}</td>
+                        <td style={td}>{p?.def ?? p?.de ?? "—"}</td>
+                        <td style={td}>{p?.pm ?? "—"}</td>
+                        <td style={td}>{p?.sc ?? "—"}</td>
+                        <td style={td}>{p?.sp ?? "—"}</td>
                       </tr>
                     );
                   })
                 )}
               </tbody>
             </table>
+
+            <p style={{ marginTop: 10, opacity: 0.7 }}>
+              Klik na red ili ime otvara detalje igrača.
+            </p>
           </div>
-        </div>
-
-        {/* RIGHT MODULE (reserved) */}
-        <div
-          style={{
-            border: '1px solid rgba(0,0,0,0.10)',
-            borderRadius: 16,
-            padding: 12,
-            background: 'rgba(255,255,255,0.55)',
-            minHeight: 120,
-          }}
-        >
-          <div style={{ fontWeight: 800, marginBottom: 6 }}>Right module</div>
-          <div style={{ opacity: 0.7, fontSize: 12 }}>(rezervirano za kasnije)</div>
-        </div>
+        )}
       </div>
-
-      {/* MOBILE: sakrij side module (jednostavno) */}
-      <style jsx>{`
-        @media (max-width: 1100px) {
-          div[style*='grid-template-columns: 220px'] {
-            grid-template-columns: 1fr !important;
-          }
-        }
-      `}</style>
     </div>
   );
 }
+
+const th = {
+  textAlign: "left",
+  padding: "10px 8px",
+  borderBottom: "1px solid #ddd",
+  whiteSpace: "nowrap",
+};
+
+const td = {
+  padding: "10px 8px",
+  borderBottom: "1px solid #eee",
+  whiteSpace: "nowrap",
+};
