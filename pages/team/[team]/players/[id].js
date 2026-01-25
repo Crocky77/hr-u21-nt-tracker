@@ -3,7 +3,7 @@ import { useRouter } from "next/router";
 
 /**
  * OVA STRANICA JE SAMO REDIRECT.
- * Pravi detalj igrača je na: /players/[id].js
+ * Pravi detalji igrača su na: /players/[id].js
  * Ovdje samo preusmjeravamo: /team/:team/players/:id  ->  /players/:id?team=:team
  */
 export default function TeamPlayerRedirect() {
@@ -14,8 +14,8 @@ export default function TeamPlayerRedirect() {
     if (!router.isReady) return;
     if (!id) return;
 
-    const safeTeam = team === "nt" ? "nt" : "u21";
-    router.replace(`/players/${id}?team=${safeTeam}`);
+    const teamSlug = team ? String(team) : "";
+    router.replace(`/players/${id}?team=${teamSlug}`);
   }, [router.isReady, team, id]);
 
   return null;
