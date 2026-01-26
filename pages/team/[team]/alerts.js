@@ -1,94 +1,67 @@
-import Link from "next/link";
 import { useRouter } from "next/router";
 
-function teamLabel(team) {
-  if (team === "u21") return "Hrvatska U21";
-  if (team === "nt") return "Hrvatska NT";
-  return "Tim";
-}
+import AppLayout from "../../../components/AppLayout";
+import TrackerSidebar from "../../../components/TrackerSidebar";
 
-export default function TeamAlerts() {
+export default function AlertsPage() {
   const router = useRouter();
   const { team } = router.query;
+
   if (!team) return null;
 
   return (
-    <div className="hr-pageWrap">
-      <div className="hr-pageCard">
-        <div className="hr-pageHeaderRow">
-          <div>
-            <h1 className="hr-pageTitle">Upozorenja</h1>
-            <div className="hr-pageSub">Aktivni tim: {teamLabel(team)} (preview)</div>
-          </div>
-
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Link className="hr-backBtn" href={`/team/${team}`}>
-              ← Natrag na module
-            </Link>
-            <Link className="hr-backBtn" href="/">
-              Naslovnica
-            </Link>
-          </div>
+    <AppLayout fullWidth>
+      <div className="shell">
+        <div className="sidebar">
+          <TrackerSidebar />
         </div>
 
-        <div style={{ marginTop: 14, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <input
-            placeholder="Search: message / severity / type..."
-            style={{
-              flex: "1",
-              minWidth: 260,
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.12)",
-              outline: "none",
-            }}
-          />
-          <button
-            type="button"
-            style={{
-              padding: "10px 14px",
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.12)",
-              background: "rgba(255,255,255,0.9)",
-              fontWeight: 900,
-              cursor: "pointer",
-            }}
-            onClick={() => alert("Alert logika dolazi kad definiramo pravila + DB.")}
-          >
-            Osvježi
-          </button>
-        </div>
-
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontWeight: 1000, marginBottom: 8 }}>Training alerti (0)</div>
-          <div
-            style={{
-              border: "1px solid rgba(0,0,0,0.10)",
-              borderRadius: 14,
-              overflow: "hidden",
-              background: "rgba(255,255,255,0.85)",
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr 2fr 1fr 1fr",
-                padding: "10px 12px",
-                fontWeight: 900,
-                background: "rgba(0,0,0,0.04)",
-              }}
-            >
-              <div>Status</div>
-              <div>Severity</div>
-              <div>Type</div>
-              <div>Message</div>
-              <div>Due</div>
-              <div>Akcija</div>
+        <div className="main">
+          <div className="card">
+            <div className="h">Upozorenja</div>
+            <div className="p">
+              Ovdje će biti: kartoni, ozljede, krivi trening/stamina, highlight redova u tablici i slanje obavijesti.
             </div>
-            <div style={{ padding: "12px", opacity: 0.7 }}>Nema alertova za ovaj tim.</div>
+            <div className="note">(skeleton placeholder)</div>
           </div>
         </div>
       </div>
-    </div>
+
+      <style jsx>{`
+        .shell {
+          display: flex;
+          width: 100%;
+          min-height: calc(100vh - 60px);
+        }
+        .sidebar {
+          padding: 14px 0 18px 0;
+        }
+        .main {
+          flex: 1;
+          padding: 14px 18px 24px 18px;
+        }
+
+        .card {
+          background: rgba(255, 255, 255, 0.65);
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          border-radius: 16px;
+          padding: 14px 16px;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+        }
+        .h {
+          font-weight: 900;
+          font-size: 18px;
+        }
+        .p {
+          margin-top: 6px;
+          opacity: 0.85;
+        }
+        .note {
+          margin-top: 10px;
+          font-size: 12px;
+          opacity: 0.7;
+        }
+      `}</style>
+    </AppLayout>
   );
 }
