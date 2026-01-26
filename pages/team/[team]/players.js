@@ -325,7 +325,7 @@ export default function TeamPlayersPage() {
             <div className="sbMiniTitle2">SPONZORI</div>
             <div className="sbSponsor">test</div>
 
-            <div className="sbMiniTitle2">NT</div>
+            <div className="sbSectionHeader">NT</div>
             <ul className="sbList">
               <li>
                 <Link href="/team/nt/requests">Zahtjevi</Link>
@@ -349,7 +349,7 @@ export default function TeamPlayersPage() {
 
             <div className="sbGap" />
 
-            <div className="sbMiniTitle2">HRVATSKA U21</div>
+            <div className="sbSectionHeader">HRVATSKA U21</div>
             <ul className="sbList">
               <li>
                 <Link href="/team/u21/requests">Zahtjevi</Link>
@@ -609,7 +609,7 @@ export default function TeamPlayersPage() {
         .sbBlock {
           background: rgba(0, 0, 0, 0.03);
           border: 1px solid rgba(0, 0, 0, 0.06);
-          border-radius: 12px;
+          border-radius: 0 12px 12px 0;
           padding: 12px;
         }
 
@@ -628,7 +628,21 @@ export default function TeamPlayersPage() {
           opacity: 0.85;
         }
 
-        .sbSponsor {
+        
+        
+        .sbSectionHeader{
+          margin: 10px 0 6px;
+          padding: 6px 8px;
+          font-weight: 800;
+          font-size: 12px;
+          letter-spacing: 0.4px;
+          text-transform: uppercase;
+          color: #111827;
+          background: linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
+          border: 1px solid rgba(0,0,0,0.10);
+          border-radius: 8px;
+        }
+.sbSponsor {
           font-size: 13px;
           padding: 6px 8px;
           background: rgba(255, 255, 255, 0.7);
@@ -686,7 +700,7 @@ export default function TeamPlayersPage() {
           display: inline-block;
           width: fit-content;
           padding: 8px 12px;
-          border-radius: 12px;
+          border-radius: 0 12px 12px 0;
           background: rgba(0, 0, 0, 0.65);
           color: #fff;
           font-weight: 800;
@@ -783,7 +797,7 @@ export default function TeamPlayersPage() {
 
         .columnsBox {
           border: 1px solid rgba(0, 0, 0, 0.06);
-          border-radius: 12px;
+          border-radius: 0 12px 12px 0;
           background: rgba(0, 0, 0, 0.02);
           padding: 12px;
           margin-bottom: 10px;
@@ -836,7 +850,7 @@ export default function TeamPlayersPage() {
 
         .tableWrap {
           overflow: auto;
-          border-radius: 12px;
+          border-radius: 0 12px 12px 0;
           border: 1px solid rgba(0, 0, 0, 0.06);
           background: rgba(255, 255, 255, 0.65);
         }
