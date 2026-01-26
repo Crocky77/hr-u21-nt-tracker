@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
-import Layout from "../../../components/Layout";
-import { supabase } from "../../../lib/supabaseClient";
+import Layout from "../../../components/Layout"; // zadrži kao i do sada
+import { supabase } from "../../../lib/supabaseClient"; // zadrži kao i do sada
+import TrackerSidebar from "../../../components/TrackerSidebar";
 
 /* ---------------------------
    Helpers
@@ -14,7 +15,6 @@ const nnum = (v) => {
   return Number.isFinite(n) ? n : null;
 };
 const getVal = (p, key) => {
-  // supports multiple naming variants
   const map = {
     full_name: ["full_name", "name"],
     pos: ["pos", "position"],
@@ -31,7 +31,6 @@ const getVal = (p, key) => {
     honesty: ["honesty"],
     leadership: ["leadership"],
     experience: ["experience", "xp"],
-    // skills
     gk: ["gk", "skill_gk"],
     def: ["def", "de", "skill_def"],
     pm: ["pm", "skill_pm"],
@@ -39,7 +38,6 @@ const getVal = (p, key) => {
     pass: ["pass", "ps", "skill_pass"],
     scor: ["scor", "sc", "skill_score"],
     sp: ["sp", "skill_sp"],
-    // training fields (if exist)
     training_now: ["training_now"],
     training_last: ["training_last"],
     stamina_pct: ["stamina_pct"],
@@ -58,7 +56,7 @@ const getVal = (p, key) => {
 };
 
 /* ---------------------------
-   Static dropdown options (UI)
+   Dropdown options (UI)
 ---------------------------- */
 const ALL_POSITIONS = ["GK","WB","CD","OCD","WING","IM","IMTW","WTM","OFFIM","PDIM","FORW","FTW","PNF","TDF"];
 const ALL_SPECIALTIES = [
@@ -72,19 +70,15 @@ const ALL_SPECIALTIES = [
 ];
 
 async function rpcListTeamPlayers(teamSlug) {
-  // Prefer newer param name, fallback older
   let r = await supabase.rpc("list_team_players", { p_team_slug: teamSlug });
   if (!r.error) return r;
   return supabase.rpc("list_team_players", { team_slug: teamSlug });
 }
 
 /* ---------------------------
-   Columns (expanded set)
-   - We show many columns immediately.
-   - If backend doesn't provide a value -> "—"
+   Columns (ostavljam široko kao prije)
 ---------------------------- */
 const COLUMN_DEFS = [
-  // identity
   { key: "full_name", label: "Ime", compactLabel: "Ime" },
   { key: "pos", label: "Poz", compactLabel: "Poz" },
   { key: "age", label: "Age", compactLabel: "Age" },
@@ -93,29 +87,19 @@ const COLUMN_DEFS = [
   { key: "manager", label: "Manager", compactLabel: "Mgr" },
   { key: "tsi", label: "TSI", compactLabel: "TSI" },
   { key: "wage", label: "Salary", compactLabel: "Sal" },
-
-  // personality / meta
   { key: "specialty", label: "Speciality", compactLabel: "Spec" },
   { key: "agreeability", label: "Agreeability", compactLabel: "Agr" },
   { key: "aggressiveness", label: "Aggressiveness", compactLabel: "Agg" },
   { key: "honesty", label: "Honesty", compactLabel: "Hon" },
   { key: "leadership", label: "Leadership", compactLabel: "Lead" },
   { key: "experience", label: "Experience", compactLabel: "XP" },
-
-  // condition
   { key: "form", label: "Form", compactLabel: "Fo" },
   { key: "stamina", label: "Stamina", compactLabel: "St" },
   { key: "stamina_pct", label: "St %", compactLabel: "St%" },
-
-  // training (if exist)
   { key: "training_now", label: "Current training", compactLabel: "TR" },
   { key: "training_last", label: "Last training", compactLabel: "Last TR" },
-
-  // HTMS
   { key: "htms", label: "Ability HTMS", compactLabel: "HTMS" },
   { key: "htms28", label: "Potential HTMS", compactLabel: "HTMS28" },
-
-  // skills
   { key: "gk", label: "GK", compactLabel: "GK" },
   { key: "def", label: "DEF", compactLabel: "DE" },
   { key: "pm", label: "PM", compactLabel: "PM" },
@@ -123,71 +107,13 @@ const COLUMN_DEFS = [
   { key: "pass", label: "PASS", compactLabel: "PS" },
   { key: "scor", label: "SCOR", compactLabel: "SC" },
   { key: "sp", label: "SP", compactLabel: "SP" },
-
-  // updated
   { key: "updated_at", label: "Updated", compactLabel: "Upd" },
 ];
 
 function defaultColumnState() {
-  // show a lot by default, but not insane – still plenty
   const state = {};
-  for (const c of COLUMN_DEFS) state[c.key] = true;
+  for (const c of COLUMN_DEFS) state[c.key] = true; // (Task 3 ćemo promijeniti default set)
   return state;
-}
-
-/* ---------------------------
-   Sidebar (skroz lijevo + divider)
----------------------------- */
-function SidebarMenu({ team }) {
-  const ntActive = team === "nt";
-  const u21Active = team === "u21";
-
-  return (
-    <aside className="sidebar">
-      <div className="sb-card">
-        <div className="sb-title">Hrvatska NT</div>
-
-        <div className="sb-group">
-          <div className="sb-label">Sponzori</div>
-          <div className="sb-sponsor">test</div>
-        </div>
-
-        <div className="sb-group">
-          <div className="sb-label">NT</div>
-          <ul className="sb-list">
-            <li><Link legacyBehavior href="/team/nt/requests"><a>Zahtjevi</a></Link></li>
-            <li className="disabled"><span>Popisi</span></li>
-            <li className={ntActive ? "active" : ""}>
-              <Link legacyBehavior href="/team/nt/players"><a>Igrači</a></Link>
-            </li>
-            <li className="disabled"><span>Upozorenja</span></li>
-            <li className="disabled"><span>Kalendar natjecanja</span></li>
-            <li className="disabled"><span>Postavke treninga</span></li>
-          </ul>
-        </div>
-
-        <div className="sb-divider" />
-
-        <div className="sb-group">
-          <div className="sb-label">Hrvatska U21</div>
-          <ul className="sb-list">
-            <li><Link legacyBehavior href="/team/u21/requests"><a>Zahtjevi</a></Link></li>
-            <li className="disabled"><span>Popisi</span></li>
-            <li className={u21Active ? "active" : ""}>
-              <Link legacyBehavior href="/team/u21/players"><a>Igrači</a></Link>
-            </li>
-            <li className="disabled"><span>Upozorenja</span></li>
-            <li className="disabled"><span>Kalendar natjecanja</span></li>
-            <li className="disabled"><span>Postavke treninga</span></li>
-          </ul>
-        </div>
-
-        <div className="sb-hint">
-          * Sive stavke su rezervirane za kasnije.
-        </div>
-      </div>
-    </aside>
-  );
 }
 
 /* ---------------------------
@@ -278,7 +204,6 @@ export default function TeamPlayersPage() {
       }
 
       const rows = Array.isArray(data) ? data : [];
-      // Dedupe for UI: NT page had duplicates; we keep only the first by HTID if available.
       const seen = new Set();
       const deduped = [];
       for (const r of rows) {
@@ -295,7 +220,6 @@ export default function TeamPlayersPage() {
     return () => { mounted = false; };
   }, [teamSlug]);
 
-  // options for position dropdown (static + from data)
   const positionOptions = useMemo(() => {
     const s = new Set(ALL_POSITIONS);
     for (const p of players) {
@@ -305,10 +229,7 @@ export default function TeamPlayersPage() {
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [players]);
 
-  // specialty options (static)
-  const specialtyOptions = useMemo(() => {
-    return ALL_SPECIALTIES;
-  }, []);
+  const specialtyOptions = useMemo(() => ALL_SPECIALTIES, []);
 
   function applyFilters() {
     setApplied({
@@ -355,21 +276,17 @@ export default function TeamPlayersPage() {
       const ht = nrm(getVal(p, "ht_id"));
       const pp = (getVal(p, "pos") ?? "").toString();
 
-      // search
       if (q) {
         const hay = `${name} ${ht} ${nrm(pp)}`;
         if (!hay.includes(q)) return false;
       }
 
-      // pos
       if (pos !== "all" && pp !== pos) return false;
 
-      // age
       const age = nnum(getVal(p, "age"));
       if (aMin != null && age != null && age < aMin) return false;
       if (aMax != null && age != null && age > aMax) return false;
 
-      // portal-like: specialty/personality (only if field exists)
       const specVal = (getVal(p, "specialty") ?? "").toString().trim();
       if (sp !== "all") {
         if (sp === "none") {
@@ -388,11 +305,10 @@ export default function TeamPlayersPage() {
       const honVal = (getVal(p, "honesty") ?? "").toString();
       if (hon !== "all" && honVal && honVal !== hon) return false;
 
-      // mins (only if value exists)
       const checkMin = (key, min) => {
         if (min == null) return true;
         const v = nnum(getVal(p, key));
-        if (v == null) return true; // if we don't have data, don't filter out
+        if (v == null) return true;
         return v >= min;
       };
 
@@ -420,7 +336,7 @@ export default function TeamPlayersPage() {
 
   return (
     <Layout>
-      {/* ===== HEADER (3D + šahovnica) ===== */}
+      {/* HEADER – ostaje kakav je sada (header standard je sljedeći task) */}
       <div className="moduleHeader">
         <div className="mh-inner">
           <div className="mh-left">
@@ -439,12 +355,11 @@ export default function TeamPlayersPage() {
         </div>
       </div>
 
-      {/* ===== CONTENT (sidebar skroz lijevo + široki main) ===== */}
+      {/* LAYOUT: sidebar skroz lijevo + široki main */}
       <div className="pageWrap">
-        <SidebarMenu team={teamSlug} />
+        <TrackerSidebar />
 
         <div className="main">
-          {/* Top line with bigger “Moduli” button (vidljivije) */}
           <div className="topRow">
             <Link legacyBehavior href={`/team/${teamSlug}/dashboard`}>
               <a className="bigLink">Moduli</a>
@@ -466,7 +381,7 @@ export default function TeamPlayersPage() {
             </div>
           </div>
 
-          {/* ===== ADDITIONAL FILTER (Portal-like) ===== */}
+          {/* Portal-like dodatni filteri (placeholderi) */}
           <div className="filters portalLine">
             <select className="inp" value={reqFilter} onChange={(e) => setReqFilter(e.target.value)}>
               <option value="all">Requirement to players</option>
@@ -479,7 +394,7 @@ export default function TeamPlayersPage() {
             </select>
 
             <select className="inp" value={specialty} onChange={(e) => setSpecialty(e.target.value)}>
-              {specialtyOptions.map((s) => (
+              {ALL_SPECIALTIES.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
               ))}
             </select>
@@ -507,7 +422,7 @@ export default function TeamPlayersPage() {
             </select>
           </div>
 
-          {/* ===== MAIN FILTERS (search/pos/age + mins) ===== */}
+          {/* Glavni filteri */}
           <div className="filters">
             <input
               className="inp wide"
@@ -518,7 +433,14 @@ export default function TeamPlayersPage() {
 
             <select className="inp" value={position} onChange={(e) => setPosition(e.target.value)}>
               <option value="all">Pozicija (sve)</option>
-              {positionOptions.map((p) => (
+              {useMemo(() => {
+                const s = new Set(ALL_POSITIONS);
+                for (const p of players) {
+                  const v = (getVal(p, "pos") ?? "").toString().trim();
+                  if (v) s.add(v);
+                }
+                return Array.from(s).sort((a, b) => a.localeCompare(b));
+              }, [players]).map((p) => (
                 <option key={p} value={p}>{p}</option>
               ))}
             </select>
@@ -543,10 +465,10 @@ export default function TeamPlayersPage() {
             <button className="btn ghost" onClick={() => setShowColumnPicker((v) => !v)}>Kolone</button>
           </div>
 
-          {/* ===== COLUMN PICKER (expanded) ===== */}
+          {/* Odabir kolona */}
           {showColumnPicker && (
             <div className="colPicker">
-              <div className="colPickerTitle">Odaberi kolone (Portal-style, gdje nema podatka prikazuje “—”)</div>
+              <div className="colPickerTitle">Odaberi kolone (gdje nema podatka prikazuje “—”)</div>
               <div className="colGrid">
                 {COLUMN_DEFS.map((c) => (
                   <label key={c.key} className="chk">
@@ -566,7 +488,7 @@ export default function TeamPlayersPage() {
 
           {loading && <div className="muted">Učitavanje…</div>}
 
-          {/* ===== TABLE ===== */}
+          {/* Tablica */}
           <div className={`tableWrap ${compact ? "compact" : ""} ${wrapCells ? "wrap" : ""}`}>
             <table className="table">
               <thead>
@@ -607,7 +529,6 @@ export default function TeamPlayersPage() {
                               </td>
                             );
                           }
-
                           return <td key={c.key}>{display}</td>;
                         })}
                       </tr>
@@ -620,9 +541,8 @@ export default function TeamPlayersPage() {
         </div>
       </div>
 
-      {/* ===== Styles ===== */}
+      {/* Styles – zadržavam postojeće + layout za sidebar */}
       <style jsx>{`
-        /* HEADER (3D + šahovnica) */
         .moduleHeader {
           position: relative;
           color: #fff;
@@ -634,27 +554,8 @@ export default function TeamPlayersPage() {
             linear-gradient(135deg,
               rgba(255,255,255,0.22) 0%,
               rgba(255,255,255,0.06) 35%,
-              rgba(0,0,0,0.10) 100%),
-            /* šahovnica nakošena */
-            linear-gradient(45deg,
-              #d71920 25%, #ffffff 25%, #ffffff 50%, #d71920 50%, #d71920 75%, #ffffff 75%, #ffffff 100%);
-          background-size: auto, 56px 56px;
-          background-position: 0 0, 0 0;
+              rgba(0,0,0,0.10) 100%);
         }
-
-        /* shine layer */
-        .moduleHeader:before {
-          content: "";
-          position: absolute;
-          top: -60%;
-          left: -20%;
-          width: 70%;
-          height: 200%;
-          transform: rotate(18deg);
-          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
-          pointer-events: none;
-        }
-
         .mh-inner {
           position: relative;
           display: flex;
@@ -662,14 +563,12 @@ export default function TeamPlayersPage() {
           justify-content: space-between;
           gap: 12px;
         }
-
         .mh-kicker {
           font-size: 12px;
           font-weight: 800;
           opacity: 0.92;
           text-shadow: 0 2px 0 rgba(0,0,0,0.25);
         }
-
         .mh-title {
           font-size: 22px;
           font-weight: 900;
@@ -677,7 +576,6 @@ export default function TeamPlayersPage() {
           margin-top: 2px;
           text-shadow: 0 3px 0 rgba(0,0,0,0.28);
         }
-
         .mh-right {
           display: flex;
           gap: 10px;
@@ -685,7 +583,6 @@ export default function TeamPlayersPage() {
           flex-wrap: wrap;
           justify-content: flex-end;
         }
-
         .mh-btn {
           display: inline-block;
           background: rgba(0,0,0,0.80);
@@ -695,15 +592,14 @@ export default function TeamPlayersPage() {
           font-weight: 900;
           text-decoration: none;
           box-shadow: 0 3px 0 rgba(0,0,0,0.25);
+          color: #fff;
         }
-
         .mh-btn.ghost {
           background: rgba(255,255,255,0.92);
           color: #111;
           border: 1px solid rgba(0,0,0,0.20);
         }
 
-        /* PAGE LAYOUT */
         .pageWrap {
           display: flex;
           gap: 14px;
@@ -712,66 +608,6 @@ export default function TeamPlayersPage() {
           width: 100%;
         }
 
-        /* Sidebar skroz lijevo */
-        .sidebar {
-          flex: 0 0 265px;
-          width: 265px;
-          margin-left: 0;
-          padding-left: 0;
-        }
-        .sb-card {
-          background: #fff;
-          border: 1px solid #e6e6e6;
-          border-radius: 12px;
-          padding: 12px;
-        }
-        .sb-title {
-          font-weight: 900;
-          font-size: 16px;
-          margin-bottom: 8px;
-        }
-        .sb-group { margin-top: 10px; }
-        .sb-label {
-          font-weight: 800;
-          font-size: 12px;
-          opacity: 0.85;
-          text-transform: uppercase;
-          letter-spacing: 0.4px;
-          margin-bottom: 6px;
-        }
-        .sb-sponsor {
-          background: #fafafa;
-          border: 1px solid #eee;
-          border-radius: 10px;
-          padding: 9px 10px;
-          font-family: monospace;
-        }
-        .sb-list { list-style: none; padding: 0; margin: 0; }
-        .sb-list li {
-          padding: 7px 8px;
-          border-radius: 10px;
-          margin-bottom: 4px;
-        }
-        .sb-list li a { text-decoration: none; color: inherit; display: block; }
-        .sb-list li.active {
-          background: #eef3ff;
-          border: 1px solid #dfe9ff;
-          font-weight: 900;
-        }
-        .sb-list li.disabled { opacity: 0.45; }
-        .sb-divider {
-          margin: 12px 0;
-          height: 1px;
-          background: #eee;
-        }
-        .sb-hint {
-          margin-top: 12px;
-          font-size: 11px;
-          opacity: 0.6;
-          line-height: 1.35;
-        }
-
-        /* Main - širok */
         .main {
           flex: 1 1 auto;
           min-width: 0;
@@ -799,7 +635,6 @@ export default function TeamPlayersPage() {
         .toggles { display: flex; gap: 10px; align-items: center; }
         .toggle { display:flex; gap:6px; align-items:center; font-size: 12px; opacity: 0.85; }
 
-        /* FILTERS */
         .filters {
           display: flex;
           flex-wrap: wrap;
@@ -841,7 +676,6 @@ export default function TeamPlayersPage() {
           color: #111;
         }
 
-        /* Column picker */
         .colPicker {
           background: #fff;
           border: 1px solid #e6e6e6;
@@ -866,7 +700,6 @@ export default function TeamPlayersPage() {
           font-size: 13px;
         }
 
-        /* Messages */
         .errorBox {
           background: #fff2f2;
           border: 1px solid #ffd0d0;
@@ -877,19 +710,16 @@ export default function TeamPlayersPage() {
         }
         .muted { opacity: 0.7; padding: 8px 0; }
 
-        /* TABLE */
         .tableWrap {
           background: #fff;
           border: 1px solid #e6e6e6;
           border-radius: 12px;
           overflow: hidden;
         }
-
         .table {
           width: 100%;
           border-collapse: collapse;
         }
-
         .table th, .table td {
           border-bottom: 1px solid #f0f0f0;
           text-align: left;
@@ -897,7 +727,6 @@ export default function TeamPlayersPage() {
           white-space: nowrap;
           font-size: 13px;
         }
-
         .table thead th {
           position: sticky;
           top: 0;
@@ -905,7 +734,6 @@ export default function TeamPlayersPage() {
           font-weight: 900;
           z-index: 1;
         }
-
         .nameLink {
           text-decoration: none;
           font-weight: 900;
@@ -913,20 +741,16 @@ export default function TeamPlayersPage() {
         }
         .nameLink:hover { text-decoration: underline; }
 
-        /* compact mode */
         .tableWrap.compact .table th,
         .tableWrap.compact .table td {
           padding: 7px 8px;
           font-size: 12px;
         }
-
-        /* wrap mode */
         .tableWrap.wrap .table th,
         .tableWrap.wrap .table td {
           white-space: normal;
         }
 
-        /* responsive fallback */
         @media (max-width: 1100px) {
           .sidebar { display:none; }
         }
