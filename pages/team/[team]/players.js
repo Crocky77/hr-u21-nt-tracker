@@ -1,760 +1,894 @@
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+/* eslint-disable react/no-unescaped-entities */
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
-import Layout from "../../../components/Layout"; // zadrži kao i do sada
-import { supabase } from "../../../lib/supabaseClient"; // zadrži kao i do sada
-import TrackerSidebar from "../../../components/TrackerSidebar";
+import Link from "next/link";
+import { supabase } from "../../../lib/supabaseClient";
 
-/* ---------------------------
-   Helpers
----------------------------- */
-const nrm = (v) => String(v ?? "").toLowerCase().trim();
-const nnum = (v) => {
-  if (v === "" || v == null) return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-};
-const getVal = (p, key) => {
-  const map = {
-    full_name: ["full_name", "name"],
-    pos: ["pos", "position"],
-    age: ["age", "age_years"],
-    ht_id: ["ht_id", "htid", "ht_player_id"],
-    form: ["form", "fo"],
-    stamina: ["stamina", "st"],
-    tsi: ["tsi"],
-    wage: ["wage", "salary"],
-    nationality: ["nationality", "country"],
-    specialty: ["specialty", "spec", "specka"],
-    agreeability: ["agreeability"],
-    aggressiveness: ["aggressiveness"],
-    honesty: ["honesty"],
-    leadership: ["leadership"],
-    experience: ["experience", "xp"],
-    gk: ["gk", "skill_gk"],
-    def: ["def", "de", "skill_def"],
-    pm: ["pm", "skill_pm"],
-    wing: ["wing", "wg", "skill_wing"],
-    pass: ["pass", "ps", "skill_pass"],
-    scor: ["scor", "sc", "skill_score"],
-    sp: ["sp", "skill_sp"],
-    training_now: ["training_now"],
-    training_last: ["training_last"],
-    stamina_pct: ["stamina_pct"],
-    htms: ["htms", "ability_htms"],
-    htms28: ["htms28", "potential_htms", "htms_28"],
-    updated_at: ["updated_at", "last_update", "scouted_at"],
-    owning_team: ["owning_team", "team_name", "club_name"],
-    manager: ["manager", "owner", "user_name"],
-  };
+/**
+ * TEAM PLAYERS (NT / U21)
+ * URL: /team/:team/players  (team = "nt" | "u21")
+ *
+ * MVP:
+ * - Left sidebar (Portal-style)
+ * - Header (currently placeholder stripes)
+ * - Filters + column picker
+ * - Table
+ *
+ * NOTE: We are iterating step-by-step. Do NOT remove working parts.
+ */
 
-  const keys = map[key] || [key];
-  for (const k of keys) {
-    if (p && Object.prototype.hasOwnProperty.call(p, k) && p[k] != null) return p[k];
-  }
-  return null;
+const TEAM_LABEL = {
+  nt: "Hrvatska NT",
+  u21: "Hrvatska U21",
 };
 
-/* ---------------------------
-   Dropdown options (UI)
----------------------------- */
-const ALL_POSITIONS = ["GK","WB","CD","OCD","WING","IM","IMTW","WTM","OFFIM","PDIM","FORW","FTW","PNF","TDF"];
-const ALL_SPECIALTIES = [
-  { value: "all", label: "Speciality (all)" },
+const DEFAULT_TEAM = "nt";
+
+/** ---------- Column Definitions (logical order) ---------- */
+const ALL_COLUMNS = [
+  // identity
+  { key: "name", label: "Ime", group: "Osnovno", default: true },
+  { key: "htid", label: "HTID", group: "Osnovno", default: true },
+  { key: "specialty", label: "Specka", group: "Osnovno", default: true },
+  { key: "gk", label: "GK", group: "Skillovi", default: true },
+  { key: "def", label: "DEF", group: "Skillovi", default: true },
+  { key: "wing", label: "WING", group: "Skillovi", default: true },
+  { key: "pm", label: "PM", group: "Skillovi", default: true },
+  { key: "pass", label: "PASS", group: "Skillovi", default: true },
+  { key: "scor", label: "SCOR", group: "Skillovi", default: true },
+  { key: "sp", label: "SP", group: "Skillovi", default: true },
+
+  // meta
+  { key: "pos", label: "Poz", group: "Osnovno", default: true },
+  { key: "age", label: "Age", group: "Osnovno", default: true },
+
+  // extra (MVP subset; more later)
+  { key: "htms", label: "HTMS", group: "HTMS", default: false },
+  { key: "htms28", label: "HTMS28", group: "HTMS", default: false },
+  { key: "form", label: "Forma", group: "Stanje", default: false },
+  { key: "stamina", label: "Stamina", group: "Stanje", default: false },
+  { key: "stPercent", label: "St %", group: "Stanje", default: false },
+  { key: "tsi", label: "TSI", group: "Financije", default: false },
+  { key: "salary", label: "Plaća", group: "Financije", default: false },
+
+  { key: "agree", label: "Agree", group: "Osobine", default: false },
+  { key: "aggr", label: "Aggr", group: "Osobine", default: false },
+  { key: "hon", label: "Hon", group: "Osobine", default: false },
+  { key: "lead", label: "Lead", group: "Osobine", default: false },
+  { key: "xp", label: "XP", group: "Osobine", default: false },
+
+  { key: "updated", label: "Updated", group: "Ostalo", default: false },
+  { key: "lastTraining", label: "Last TR", group: "Trening", default: false },
+  { key: "currentTraining", label: "TR", group: "Trening", default: false },
+  { key: "club", label: "Klub", group: "Ostalo", default: false },
+  { key: "manager", label: "Mgr", group: "Ostalo", default: false },
+];
+
+function getDefaultVisibleColumns() {
+  const def = {};
+  ALL_COLUMNS.forEach((c) => {
+    def[c.key] = !!c.default;
+  });
+  return def;
+}
+
+/** ---------- Specialty options (placeholder set; can expand) ---------- */
+const SPECIALTY_OPTIONS = [
+  { value: "all", label: "Specka (sve)" },
   { value: "none", label: "Bez specke" },
-  { value: "Q", label: "Q (brz)" },
-  { value: "U", label: "U (nepredvidljiv)" },
-  { value: "T", label: "T (tehničar)" },
-  { value: "P", label: "P (snažan)" },
-  { value: "H", label: "H (glavonja)" },
+  { value: "T", label: "T (Tehničar)" },
+  { value: "Q", label: "Q (Brz)" },
+  { value: "U", label: "U (Nepredvidljiv)" },
+  { value: "H", label: "H (Glava)" },
+  { value: "P", label: "P (Snažan)" },
 ];
 
-async function rpcListTeamPlayers(teamSlug) {
-  let r = await supabase.rpc("list_team_players", { p_team_slug: teamSlug });
-  if (!r.error) return r;
-  return supabase.rpc("list_team_players", { team_slug: teamSlug });
-}
-
-/* ---------------------------
-   Columns (ostavljam široko kao prije)
----------------------------- */
-const COLUMN_DEFS = [
-  { key: "full_name", label: "Ime", compactLabel: "Ime" },
-  { key: "pos", label: "Poz", compactLabel: "Poz" },
-  { key: "age", label: "Age", compactLabel: "Age" },
-  { key: "ht_id", label: "HTID", compactLabel: "HTID" },
-  { key: "owning_team", label: "Owning team", compactLabel: "Club" },
-  { key: "manager", label: "Manager", compactLabel: "Mgr" },
-  { key: "tsi", label: "TSI", compactLabel: "TSI" },
-  { key: "wage", label: "Salary", compactLabel: "Sal" },
-  { key: "specialty", label: "Speciality", compactLabel: "Spec" },
-  { key: "agreeability", label: "Agreeability", compactLabel: "Agr" },
-  { key: "aggressiveness", label: "Aggressiveness", compactLabel: "Agg" },
-  { key: "honesty", label: "Honesty", compactLabel: "Hon" },
-  { key: "leadership", label: "Leadership", compactLabel: "Lead" },
-  { key: "experience", label: "Experience", compactLabel: "XP" },
-  { key: "form", label: "Form", compactLabel: "Fo" },
-  { key: "stamina", label: "Stamina", compactLabel: "St" },
-  { key: "stamina_pct", label: "St %", compactLabel: "St%" },
-  { key: "training_now", label: "Current training", compactLabel: "TR" },
-  { key: "training_last", label: "Last training", compactLabel: "Last TR" },
-  { key: "htms", label: "Ability HTMS", compactLabel: "HTMS" },
-  { key: "htms28", label: "Potential HTMS", compactLabel: "HTMS28" },
-  { key: "gk", label: "GK", compactLabel: "GK" },
-  { key: "def", label: "DEF", compactLabel: "DE" },
-  { key: "pm", label: "PM", compactLabel: "PM" },
-  { key: "wing", label: "WING", compactLabel: "WG" },
-  { key: "pass", label: "PASS", compactLabel: "PS" },
-  { key: "scor", label: "SCOR", compactLabel: "SC" },
-  { key: "sp", label: "SP", compactLabel: "SP" },
-  { key: "updated_at", label: "Updated", compactLabel: "Upd" },
+/** ---------- Position options ---------- */
+const POSITION_OPTIONS = [
+  { value: "all", label: "Pozicija (sve)" },
+  { value: "GK", label: "GK" },
+  { value: "CD", label: "CD" },
+  { value: "WB", label: "WB" },
+  { value: "IM", label: "IM" },
+  { value: "W", label: "W" },
+  { value: "FW", label: "FW" },
 ];
 
-function defaultColumnState() {
-  const state = {};
-  for (const c of COLUMN_DEFS) state[c.key] = true; // (Task 3 ćemo promijeniti default set)
-  return state;
-}
-
-/* ---------------------------
-   Page
----------------------------- */
 export default function TeamPlayersPage() {
   const router = useRouter();
   const { team } = router.query;
 
-  const teamSlug = useMemo(() => {
-    const t = (team || "").toString().toLowerCase();
-    return t === "nt" ? "nt" : "u21";
-  }, [team]);
+  const safeTeam = team === "u21" ? "u21" : "nt";
 
-  const pageTitle = teamSlug === "nt" ? "Igrači — NT" : "Igrači — U21";
-  const pregledText = teamSlug === "nt" ? "NT Pregled" : "U21 Pregled";
-
+  // UI State
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   const [players, setPlayers] = useState([]);
 
-  // local filters (inputs)
   const [search, setSearch] = useState("");
-  const [position, setPosition] = useState("all");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
+  const [posFilter, setPosFilter] = useState("all");
+  const [specialtyFilter, setSpecialtyFilter] = useState("all");
 
-  // extra portal-like filters (inputs)
-  const [reqFilter, setReqFilter] = useState("all"); // UI placeholder
-  const [personalFilter, setPersonalFilter] = useState("all"); // UI placeholder
+  const [requirementsFilter, setRequirementsFilter] = useState("all");
+  const [personalFilter, setPersonalFilter] = useState("all");
+  const [agreeFilter, setAgreeFilter] = useState("all");
+  const [aggrFilter, setAggrFilter] = useState("all");
+  const [honestyFilter, setHonestyFilter] = useState("all");
 
-  const [specialty, setSpecialty] = useState("all");
-  const [agreeability, setAgreeability] = useState("all");
-  const [aggressiveness, setAggressiveness] = useState("all");
-  const [honesty, setHonesty] = useState("all");
-
-  const [minGk, setMinGk] = useState("");
-  const [minDef, setMinDef] = useState("");
-  const [minPm, setMinPm] = useState("");
-  const [minWing, setMinWing] = useState("");
-  const [minPass, setMinPass] = useState("");
-  const [minScor, setMinScor] = useState("");
-  const [minSp, setMinSp] = useState("");
+  // Min skill filters (simple MVP)
+  const [minGK, setMinGK] = useState("");
+  const [minDEF, setMinDEF] = useState("");
+  const [minPM, setMinPM] = useState("");
+  const [minWING, setMinWING] = useState("");
+  const [minPASS, setMinPASS] = useState("");
+  const [minSCOR, setMinSCOR] = useState("");
+  const [minSP, setMinSP] = useState("");
   const [minHTMS, setMinHTMS] = useState("");
   const [minHTMS28, setMinHTMS28] = useState("");
 
-  // applied filters (only change on Apply)
-  const [applied, setApplied] = useState({
-    search: "",
-    position: "all",
-    ageMin: null,
-    ageMax: null,
-    reqFilter: "all",
-    personalFilter: "all",
-    specialty: "all",
-    agreeability: "all",
-    aggressiveness: "all",
-    honesty: "all",
-    mins: {
-      gk: null, def: null, pm: null, wing: null, pass: null, scor: null, sp: null,
-      htms: null, htms28: null
-    }
-  });
-
-  // columns
-  const [columns, setColumns] = useState(() => defaultColumnState());
-  const [showColumnPicker, setShowColumnPicker] = useState(false);
-
-  // table compaction controls
   const [compact, setCompact] = useState(true);
-  const [wrapCells, setWrapCells] = useState(false);
+  const [wrap, setWrap] = useState(false);
 
+  // Column Picker: should be hidden until button click
+  const [showColumns, setShowColumns] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState(getDefaultVisibleColumns());
+
+  const didLoadRef = useRef(false);
+
+  /** --------- Load players (Supabase RPC or view) --------- */
   useEffect(() => {
-    let mounted = true;
-    async function run() {
-      setLoading(true);
-      setError("");
+    if (!router.isReady) return;
+    if (didLoadRef.current) return;
+    didLoadRef.current = true;
 
-      const { data, error } = await rpcListTeamPlayers(teamSlug);
-      if (!mounted) return;
+    loadPlayers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router.isReady]);
 
-      if (error) {
-        setPlayers([]);
-        setError(error.message || "Greška kod dohvaćanja igrača.");
-        setLoading(false);
-        return;
-      }
+  async function loadPlayers() {
+    setLoading(true);
+    setError("");
 
-      const rows = Array.isArray(data) ? data : [];
+    try {
+      /**
+       * IMPORTANT:
+       * This project previously used RPC: list_team_players(team_slug)
+       * If you later change DB function names, keep this page in sync.
+       */
+      const { data, error: rpcError } = await supabase.rpc("list_team_players", {
+        team_slug: safeTeam,
+      });
+
+      if (rpcError) throw rpcError;
+
+      // Normalize and ensure no duplicate rows (basic dedupe by internal id/htid)
+      const normalized = (data || []).map((p) => ({
+        id: p.id ?? p.player_id ?? p.internal_id ?? null,
+        name: p.name ?? p.player_name ?? "",
+        htid: p.htid ?? p.ht_player_id ?? "",
+        pos: p.pos ?? p.position ?? "",
+        age: p.age ?? p.years ?? "",
+        specialty: p.specialty ?? p.spec ?? p.speciality ?? "",
+        gk: p.gk ?? p.skill_gk ?? p.keeper ?? "",
+        def: p.def ?? p.skill_def ?? p.defending ?? "",
+        wing: p.wing ?? p.skill_wing ?? p.winger ?? "",
+        pm: p.pm ?? p.skill_pm ?? p.playmaking ?? "",
+        pass: p.pass ?? p.skill_pass ?? p.passing ?? "",
+        scor: p.scor ?? p.skill_scor ?? p.scoring ?? "",
+        sp: p.sp ?? p.skill_sp ?? p.set_pieces ?? "",
+        htms: p.htms ?? p.ability_htms ?? "",
+        htms28: p.htms28 ?? p.potential_htms ?? "",
+        form: p.form ?? "",
+        stamina: p.stamina ?? "",
+        stPercent: p.st_percent ?? p.stPercent ?? "",
+        tsi: p.tsi ?? "",
+        salary: p.salary ?? "",
+        agree: p.agreeability ?? p.agree ?? "",
+        aggr: p.aggressiveness ?? p.aggr ?? "",
+        hon: p.honesty ?? p.hon ?? "",
+        lead: p.leadership ?? p.lead ?? "",
+        xp: p.experience ?? p.xp ?? "",
+        updated: p.updated ?? p.updated_at ?? "",
+        lastTraining: p.last_training ?? "",
+        currentTraining: p.current_training ?? "",
+        club: p.club ?? "",
+        manager: p.manager ?? "",
+      }));
+
       const seen = new Set();
       const deduped = [];
-      for (const r of rows) {
-        const key = (getVal(r, "ht_id") ?? r?.id ?? "").toString();
-        if (!key) { deduped.push(r); continue; }
+      for (const p of normalized) {
+        const key = `${p.id ?? ""}::${p.htid ?? ""}::${p.name ?? ""}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        deduped.push(r);
+        deduped.push(p);
       }
+
       setPlayers(deduped);
+    } catch (e) {
+      setError(e?.message || "Unknown error");
+    } finally {
       setLoading(false);
     }
-    run();
-    return () => { mounted = false; };
-  }, [teamSlug]);
-
-  const positionOptions = useMemo(() => {
-    const s = new Set(ALL_POSITIONS);
-    for (const p of players) {
-      const v = (getVal(p, "pos") ?? "").toString().trim();
-      if (v) s.add(v);
-    }
-    return Array.from(s).sort((a, b) => a.localeCompare(b));
-  }, [players]);
-
-  const specialtyOptions = useMemo(() => ALL_SPECIALTIES, []);
-
-  function applyFilters() {
-    setApplied({
-      search,
-      position,
-      ageMin: nnum(ageMin),
-      ageMax: nnum(ageMax),
-      reqFilter,
-      personalFilter,
-      specialty,
-      agreeability,
-      aggressiveness,
-      honesty,
-      mins: {
-        gk: nnum(minGk),
-        def: nnum(minDef),
-        pm: nnum(minPm),
-        wing: nnum(minWing),
-        pass: nnum(minPass),
-        scor: nnum(minScor),
-        sp: nnum(minSp),
-        htms: nnum(minHTMS),
-        htms28: nnum(minHTMS28),
-      }
-    });
   }
 
+  /** --------- Filtering (client-side MVP) --------- */
   const filteredPlayers = useMemo(() => {
-    const q = nrm(applied.search);
-    const pos = applied.position;
+    let rows = [...players];
 
-    const aMin = applied.ageMin;
-    const aMax = applied.ageMax;
+    const s = search.trim().toLowerCase();
+    if (s) {
+      rows = rows.filter((p) => {
+        const n = (p.name || "").toLowerCase();
+        const h = String(p.htid || "").toLowerCase();
+        const po = String(p.pos || "").toLowerCase();
+        return n.includes(s) || h.includes(s) || po.includes(s);
+      });
+    }
 
-    const sp = applied.specialty;
-    const agr = applied.agreeability;
-    const agg = applied.aggressiveness;
-    const hon = applied.honesty;
+    if (posFilter !== "all") {
+      rows = rows.filter((p) => String(p.pos || "").toUpperCase() === posFilter.toUpperCase());
+    }
 
-    const mins = applied.mins;
-
-    return players.filter((p) => {
-      const name = nrm(getVal(p, "full_name"));
-      const ht = nrm(getVal(p, "ht_id"));
-      const pp = (getVal(p, "pos") ?? "").toString();
-
-      if (q) {
-        const hay = `${name} ${ht} ${nrm(pp)}`;
-        if (!hay.includes(q)) return false;
+    if (specialtyFilter !== "all") {
+      if (specialtyFilter === "none") {
+        rows = rows.filter((p) => !p.specialty || String(p.specialty).trim() === "");
+      } else {
+        rows = rows.filter((p) => String(p.specialty || "").toUpperCase() === specialtyFilter);
       }
+    }
 
-      if (pos !== "all" && pp !== pos) return false;
+    const amin = ageMin !== "" ? Number(ageMin) : null;
+    const amax = ageMax !== "" ? Number(ageMax) : null;
+    if (amin !== null && !Number.isNaN(amin)) rows = rows.filter((p) => Number(p.age || 0) >= amin);
+    if (amax !== null && !Number.isNaN(amax)) rows = rows.filter((p) => Number(p.age || 0) <= amax);
 
-      const age = nnum(getVal(p, "age"));
-      if (aMin != null && age != null && age < aMin) return false;
-      if (aMax != null && age != null && age > aMax) return false;
-
-      const specVal = (getVal(p, "specialty") ?? "").toString().trim();
-      if (sp !== "all") {
-        if (sp === "none") {
-          if (specVal !== "") return false;
-        } else {
-          if (specVal !== sp) return false;
-        }
-      }
-
-      const agrVal = (getVal(p, "agreeability") ?? "").toString();
-      if (agr !== "all" && agrVal && agrVal !== agr) return false;
-
-      const aggVal = (getVal(p, "aggressiveness") ?? "").toString();
-      if (agg !== "all" && aggVal && aggVal !== agg) return false;
-
-      const honVal = (getVal(p, "honesty") ?? "").toString();
-      if (hon !== "all" && honVal && honVal !== hon) return false;
-
-      const checkMin = (key, min) => {
-        if (min == null) return true;
-        const v = nnum(getVal(p, key));
-        if (v == null) return true;
-        return v >= min;
-      };
-
-      if (!checkMin("gk", mins.gk)) return false;
-      if (!checkMin("def", mins.def)) return false;
-      if (!checkMin("pm", mins.pm)) return false;
-      if (!checkMin("wing", mins.wing)) return false;
-      if (!checkMin("pass", mins.pass)) return false;
-      if (!checkMin("scor", mins.scor)) return false;
-      if (!checkMin("sp", mins.sp)) return false;
-      if (!checkMin("htms", mins.htms)) return false;
-      if (!checkMin("htms28", mins.htms28)) return false;
-
-      return true;
+    // Min skill filters
+    const minFilters = [
+      ["gk", minGK],
+      ["def", minDEF],
+      ["pm", minPM],
+      ["wing", minWING],
+      ["pass", minPASS],
+      ["scor", minSCOR],
+      ["sp", minSP],
+      ["htms", minHTMS],
+      ["htms28", minHTMS28],
+    ];
+    minFilters.forEach(([key, val]) => {
+      if (val === "") return;
+      const n = Number(val);
+      if (Number.isNaN(n)) return;
+      rows = rows.filter((p) => Number(p[key] || 0) >= n);
     });
-  }, [players, applied]);
 
-  function toggleCol(key) {
-    setColumns((prev) => ({ ...prev, [key]: !prev[key] }));
+    return rows;
+  }, [
+    players,
+    search,
+    ageMin,
+    ageMax,
+    posFilter,
+    specialtyFilter,
+    minGK,
+    minDEF,
+    minPM,
+    minWING,
+    minPASS,
+    minSCOR,
+    minSP,
+    minHTMS,
+    minHTMS28,
+  ]);
+
+  const visibleColumnList = useMemo(() => {
+    return ALL_COLUMNS.filter((c) => visibleColumns[c.key]);
+  }, [visibleColumns]);
+
+  function toggleColumn(key) {
+    setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  const visibleCols = useMemo(() => {
-    return COLUMN_DEFS.filter((c) => !!columns[c.key]);
-  }, [columns]);
+  function resetColumns() {
+    setVisibleColumns(getDefaultVisibleColumns());
+  }
 
   return (
-    <Layout>
-      {/* HEADER – ostaje kakav je sada (header standard je sljedeći task) */}
-      <div className="moduleHeader">
-        <div className="mh-inner">
-          <div className="mh-left">
-            <div className="mh-kicker">Hrvatski Tracker</div>
-            <div className="mh-title">{pageTitle}</div>
-          </div>
+    <div className="pageRoot">
+      {/* HEADER */}
+      <div className="header">
+        <div className="headerLeft">
+          <div className="headerSmall">Hrvatska NT</div>
+          <div className="headerTitle">NT Pregled</div>
+        </div>
 
-          <div className="mh-right">
-            <Link legacyBehavior href={`/team/${teamSlug}/dashboard`}>
-              <a className="mh-btn">{pregledText}</a>
-            </Link>
-            <Link legacyBehavior href="/">
-              <a className="mh-btn ghost">Naslovnica</a>
-            </Link>
-          </div>
+        <div className="headerRight">
+          <Link className="headerBtn" href="/team/nt">
+            NT Pregled
+          </Link>
+          <Link className="headerBtn" href="/">
+            Naslovnica
+          </Link>
         </div>
       </div>
 
-      {/* LAYOUT: sidebar skroz lijevo + široki main */}
+      {/* CONTENT */}
       <div className="pageWrap">
-        <TrackerSidebar />
+        {/* SIDEBAR */}
+        <aside className="sidebar">
+          <div className="sbBlock">
+            <div className="sbMiniTitle">{TEAM_LABEL[safeTeam]}</div>
 
-        <div className="main">
+            <div className="sbMiniTitle2">SPONZORI</div>
+            <div className="sbSponsor">test</div>
+
+            <div className="sbMiniTitle2">NT</div>
+            <ul className="sbList">
+              <li>
+                <Link href="/team/nt/requests">Zahtjevi</Link>
+              </li>
+              <li>
+                <Link href="/team/nt/lists">Popisi</Link>
+              </li>
+              <li className="active">
+                <Link href="/team/nt/players">Igrači</Link>
+              </li>
+              <li>
+                <Link href="/team/nt/alerts">Upozorenja</Link>
+              </li>
+              <li>
+                <Link href="/team/nt/events">Kalendar natjecanja</Link>
+              </li>
+              <li>
+                <Link href="/team/nt/training-settings">Postavke treninga</Link>
+              </li>
+            </ul>
+
+            <div className="sbGap" />
+
+            <div className="sbMiniTitle2">HRVATSKA U21</div>
+            <ul className="sbList">
+              <li>
+                <Link href="/team/u21/requests">Zahtjevi</Link>
+              </li>
+              <li>
+                <Link href="/team/u21/lists">Popisi</Link>
+              </li>
+              <li>
+                <Link href="/team/u21/players">Igrači</Link>
+              </li>
+              <li>
+                <Link href="/team/u21/alerts">Upozorenja</Link>
+              </li>
+              <li>
+                <Link href="/team/u21/events">Kalendar natjecanja</Link>
+              </li>
+              <li>
+                <Link href="/team/u21/training-settings">Postavke treninga</Link>
+              </li>
+            </ul>
+
+            <div className="sbNote">* Sve stavke su rezervirane za kasnije.</div>
+          </div>
+        </aside>
+
+        {/* MAIN */}
+        <main className="main">
           <div className="topRow">
-            <Link legacyBehavior href={`/team/${teamSlug}/dashboard`}>
-              <a className="bigLink">Moduli</a>
+            <Link className="pillBtn" href="/team/nt">
+              Moduli
             </Link>
 
-            <div className="topInfo">
-              Ukupno: <b>{filteredPlayers.length}</b>
-            </div>
+            <div className="centerInfo">Ukupno: {filteredPlayers.length}</div>
 
             <div className="toggles">
               <label className="toggle">
-                <input type="checkbox" checked={compact} onChange={() => setCompact(v => !v)} />
+                <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} />
                 <span>Kompaktno</span>
               </label>
               <label className="toggle">
-                <input type="checkbox" checked={wrapCells} onChange={() => setWrapCells(v => !v)} />
+                <input type="checkbox" checked={wrap} onChange={(e) => setWrap(e.target.checked)} />
                 <span>Wrap</span>
               </label>
             </div>
           </div>
 
-          {/* Portal-like dodatni filteri (placeholderi) */}
-          <div className="filters portalLine">
-            <select className="inp" value={reqFilter} onChange={(e) => setReqFilter(e.target.value)}>
+          {/* Filters Row 1 */}
+          <div className="filters">
+            <select value={requirementsFilter} onChange={(e) => setRequirementsFilter(e.target.value)}>
               <option value="all">Requirement to players</option>
-              <option value="ui">UI placeholder</option>
             </select>
 
-            <select className="inp" value={personalFilter} onChange={(e) => setPersonalFilter(e.target.value)}>
+            <select value={personalFilter} onChange={(e) => setPersonalFilter(e.target.value)}>
               <option value="all">Personal filter</option>
-              <option value="ui">UI placeholder</option>
             </select>
 
-            <select className="inp" value={specialty} onChange={(e) => setSpecialty(e.target.value)}>
-              {ALL_SPECIALTIES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+            <select value={specialtyFilter} onChange={(e) => setSpecialtyFilter(e.target.value)}>
+              {SPECIALTY_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
             </select>
 
-            <select className="inp" value={agreeability} onChange={(e) => setAgreeability(e.target.value)}>
+            <select value={agreeFilter} onChange={(e) => setAgreeFilter(e.target.value)}>
               <option value="all">Agreeability</option>
-              <option value="pleasant">pleasant</option>
-              <option value="sympathetic">sympathetic</option>
-              <option value="neutral">neutral</option>
-              <option value="nasty">nasty</option>
             </select>
 
-            <select className="inp" value={aggressiveness} onChange={(e) => setAggressiveness(e.target.value)}>
+            <select value={aggrFilter} onChange={(e) => setAggrFilter(e.target.value)}>
               <option value="all">Aggressiveness</option>
-              <option value="calm">calm</option>
-              <option value="balanced">balanced</option>
-              <option value="aggressive">aggressive</option>
             </select>
 
-            <select className="inp" value={honesty} onChange={(e) => setHonesty(e.target.value)}>
+            <select value={honestyFilter} onChange={(e) => setHonestyFilter(e.target.value)}>
               <option value="all">Honesty</option>
-              <option value="honest">honest</option>
-              <option value="neutral">neutral</option>
-              <option value="dishonest">dishonest</option>
             </select>
           </div>
 
-          {/* Glavni filteri */}
+          {/* Filters Row 2 */}
           <div className="filters">
             <input
-              className="inp wide"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search: ime / HTID / pozicija…"
+              placeholder="Search: ime / HTID / pozicija..."
             />
 
-            <select className="inp" value={position} onChange={(e) => setPosition(e.target.value)}>
-              <option value="all">Pozicija (sve)</option>
-              {useMemo(() => {
-                const s = new Set(ALL_POSITIONS);
-                for (const p of players) {
-                  const v = (getVal(p, "pos") ?? "").toString().trim();
-                  if (v) s.add(v);
-                }
-                return Array.from(s).sort((a, b) => a.localeCompare(b));
-              }, [players]).map((p) => (
-                <option key={p} value={p}>{p}</option>
+            <select value={posFilter} onChange={(e) => setPosFilter(e.target.value)}>
+              {POSITION_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
             </select>
 
-            <input className="inp small" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} placeholder="Age min" inputMode="numeric" />
-            <input className="inp small" value={ageMax} onChange={(e) => setAgeMax(e.target.value)} placeholder="Age max" inputMode="numeric" />
-
-            <div className="mins">
-              <span className="minsLabel">Min:</span>
-              <input className="inp xsmall" value={minGk} onChange={(e) => setMinGk(e.target.value)} placeholder="GK" inputMode="numeric" />
-              <input className="inp xsmall" value={minDef} onChange={(e) => setMinDef(e.target.value)} placeholder="DE" inputMode="numeric" />
-              <input className="inp xsmall" value={minPm} onChange={(e) => setMinPm(e.target.value)} placeholder="PM" inputMode="numeric" />
-              <input className="inp xsmall" value={minWing} onChange={(e) => setMinWing(e.target.value)} placeholder="WG" inputMode="numeric" />
-              <input className="inp xsmall" value={minPass} onChange={(e) => setMinPass(e.target.value)} placeholder="PS" inputMode="numeric" />
-              <input className="inp xsmall" value={minScor} onChange={(e) => setMinScor(e.target.value)} placeholder="SC" inputMode="numeric" />
-              <input className="inp xsmall" value={minSp} onChange={(e) => setMinSp(e.target.value)} placeholder="SP" inputMode="numeric" />
-              <input className="inp small" value={minHTMS} onChange={(e) => setMinHTMS(e.target.value)} placeholder="HTMS ≥" inputMode="numeric" />
-              <input className="inp small" value={minHTMS28} onChange={(e) => setMinHTMS28(e.target.value)} placeholder="HTMS28 ≥" inputMode="numeric" />
-            </div>
-
-            <button className="btn" onClick={applyFilters}>Primijeni</button>
-            <button className="btn ghost" onClick={() => setShowColumnPicker((v) => !v)}>Kolone</button>
+            <input value={ageMin} onChange={(e) => setAgeMin(e.target.value)} placeholder="Age min" />
+            <input value={ageMax} onChange={(e) => setAgeMax(e.target.value)} placeholder="Age max" />
           </div>
 
-          {/* Odabir kolona */}
-          {showColumnPicker && (
-            <div className="colPicker">
-              <div className="colPickerTitle">Odaberi kolone (gdje nema podatka prikazuje “—”)</div>
-              <div className="colGrid">
-                {COLUMN_DEFS.map((c) => (
-                  <label key={c.key} className="chk">
-                    <input type="checkbox" checked={!!columns[c.key]} onChange={() => toggleCol(c.key)} />
+          {/* Min Skills */}
+          <div className="minSkills">
+            <div className="minLabel">Min skillovi</div>
+            <input value={minGK} onChange={(e) => setMinGK(e.target.value)} placeholder="GK" />
+            <input value={minDEF} onChange={(e) => setMinDEF(e.target.value)} placeholder="DEF" />
+            <input value={minWING} onChange={(e) => setMinWING(e.target.value)} placeholder="WING" />
+            <input value={minPM} onChange={(e) => setMinPM(e.target.value)} placeholder="PM" />
+            <input value={minPASS} onChange={(e) => setMinPASS(e.target.value)} placeholder="PASS" />
+            <input value={minSCOR} onChange={(e) => setMinSCOR(e.target.value)} placeholder="SCOR" />
+            <input value={minSP} onChange={(e) => setMinSP(e.target.value)} placeholder="SP" />
+            <input value={minHTMS} onChange={(e) => setMinHTMS(e.target.value)} placeholder="HTMS ≥" />
+            <input value={minHTMS28} onChange={(e) => setMinHTMS28(e.target.value)} placeholder="HTMS28 ≥" />
+          </div>
+
+          {/* Action Row */}
+          <div className="actions">
+            <button className="btnPrimary" onClick={() => loadPlayers()}>
+              Primijeni
+            </button>
+            <button className="btn" onClick={() => setShowColumns((v) => !v)}>
+              Kolone
+            </button>
+          </div>
+
+          {/* Columns Picker (hidden until clicked) */}
+          {showColumns && (
+            <div className="columnsBox">
+              <div className="columnsTitle">
+                Odaberi kolone (Portal-style, gdje nema podatka prikazuje "—")
+              </div>
+
+              <div className="columnsGrid">
+                {ALL_COLUMNS.map((c) => (
+                  <label key={c.key} className="colItem">
+                    <input type="checkbox" checked={!!visibleColumns[c.key]} onChange={() => toggleColumn(c.key)} />
                     <span>{c.label}</span>
                   </label>
                 ))}
               </div>
+
+              <div className="columnsFooter">
+                <button className="btn" onClick={resetColumns}>
+                  Reset
+                </button>
+              </div>
             </div>
           )}
 
-          {error && (
-            <div className="errorBox">
-              <b>Greška:</b> {error}
-            </div>
-          )}
+          {/* Error / Loading */}
+          {error && <div className="errorBox">Greška: {error}</div>}
+          {loading && <div className="loadingBox">Učitavanje...</div>}
 
-          {loading && <div className="muted">Učitavanje…</div>}
-
-          {/* Tablica */}
-          <div className={`tableWrap ${compact ? "compact" : ""} ${wrapCells ? "wrap" : ""}`}>
-            <table className="table">
-              <thead>
-                <tr>
-                  {visibleCols.map((c) => (
-                    <th key={c.key}>{compact ? (c.compactLabel ?? c.label) : c.label}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {!loading && filteredPlayers.length === 0 ? (
+          {/* Table */}
+          {!loading && (
+            <div className={`tableWrap ${compact ? "compact" : ""} ${wrap ? "wrap" : ""}`}>
+              <table className="table">
+                <thead>
                   <tr>
-                    <td className="muted" colSpan={visibleCols.length || 1}>
-                      Nema podataka.
-                    </td>
+                    {visibleColumnList.map((c) => (
+                      <th key={c.key}>{c.label}</th>
+                    ))}
                   </tr>
-                ) : (
-                  filteredPlayers.map((p) => {
-                    const pid = p?.id ?? p?.player_id ?? null;
-                    const href = pid ? `/players/${pid}?team=${teamSlug}` : "#";
-
-                    return (
-                      <tr key={`${pid ?? "x"}_${getVal(p, "ht_id") ?? "y"}`}>
-                        {visibleCols.map((c) => {
-                          const v = getVal(p, c.key);
-                          const display = (v === null || v === undefined || v === "") ? "—" : String(v);
-
-                          if (c.key === "full_name") {
-                            return (
-                              <td key={c.key} className="nameCell">
-                                {pid ? (
-                                  <Link legacyBehavior href={href}>
-                                    <a className="nameLink">{display}</a>
-                                  </Link>
-                                ) : (
-                                  display
-                                )}
-                              </td>
-                            );
-                          }
-                          return <td key={c.key}>{display}</td>;
-                        })}
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+                </thead>
+                <tbody>
+                  {filteredPlayers.map((p) => (
+                    <tr key={`${p.id ?? ""}-${p.htid ?? ""}-${p.name ?? ""}`}>
+                      {visibleColumnList.map((c) => {
+                        const val = p[c.key];
+                        const out = val === null || val === undefined || val === "" ? "—" : val;
+                        return <td key={c.key}>{out}</td>;
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </main>
       </div>
 
-      {/* Styles – zadržavam postojeće + layout za sidebar */}
       <style jsx>{`
-        .moduleHeader {
-          position: relative;
-          color: #fff;
-          padding: 14px 12px;
-          overflow: hidden;
-          border-bottom: 2px solid rgba(0,0,0,0.25);
-          box-shadow: inset 0 -8px 0 rgba(0,0,0,0.15);
-          background:
-            linear-gradient(135deg,
-              rgba(255,255,255,0.22) 0%,
-              rgba(255,255,255,0.06) 35%,
-              rgba(0,0,0,0.10) 100%);
-        }
-        .mh-inner {
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-        }
-        .mh-kicker {
-          font-size: 12px;
-          font-weight: 800;
-          opacity: 0.92;
-          text-shadow: 0 2px 0 rgba(0,0,0,0.25);
-        }
-        .mh-title {
-          font-size: 22px;
-          font-weight: 900;
-          letter-spacing: 0.2px;
-          margin-top: 2px;
-          text-shadow: 0 3px 0 rgba(0,0,0,0.28);
-        }
-        .mh-right {
-          display: flex;
-          gap: 10px;
-          align-items: center;
-          flex-wrap: wrap;
-          justify-content: flex-end;
-        }
-        .mh-btn {
-          display: inline-block;
-          background: rgba(0,0,0,0.80);
-          border: 1px solid rgba(255,255,255,0.25);
-          padding: 10px 14px;
-          border-radius: 12px;
-          font-weight: 900;
-          text-decoration: none;
-          box-shadow: 0 3px 0 rgba(0,0,0,0.25);
-          color: #fff;
-        }
-        .mh-btn.ghost {
-          background: rgba(255,255,255,0.92);
-          color: #111;
-          border: 1px solid rgba(0,0,0,0.20);
-        }
-
-        .pageWrap {
-          display: flex;
-          gap: 14px;
-          align-items: flex-start;
-          padding: 0 10px 16px 0;
+        .pageRoot {
           width: 100%;
         }
 
+        /* HEADER */
+        .header {
+          height: 72px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 14px;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+          background: repeating-linear-gradient(
+            -45deg,
+            #b23a2e 0px,
+            #b23a2e 10px,
+            #ffffff 10px,
+            #ffffff 20px
+          );
+          position: sticky;
+          top: 0;
+          z-index: 10;
+        }
+
+        .headerLeft {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .headerSmall {
+          font-size: 12px;
+          font-weight: 700;
+          opacity: 0.9;
+        }
+
+        .headerTitle {
+          font-size: 18px;
+          font-weight: 800;
+          letter-spacing: 0.2px;
+        }
+
+        .headerRight {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+        }
+
+        .headerBtn {
+          display: inline-block;
+          padding: 8px 12px;
+          border-radius: 10px;
+          background: rgba(0, 0, 0, 0.65);
+          color: #fff;
+          font-weight: 700;
+          font-size: 13px;
+          text-decoration: none;
+          border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        /* LAYOUT */
+        .pageWrap {
+          display: flex;
+          align-items: flex-start;
+          gap: 16px;
+          padding: 10px 10px 16px 0; /* no left padding */
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+          width: 210px;
+          flex: 0 0 210px;
+          position: sticky;
+          top: 82px;
+          align-self: flex-start;
+          margin-left: 0;
+        }
+
+        .sbBlock {
+          background: rgba(0, 0, 0, 0.03);
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          border-radius: 12px;
+          padding: 12px;
+        }
+
+        .sbMiniTitle {
+          font-weight: 800;
+          font-size: 14px;
+          margin-bottom: 8px;
+        }
+
+        .sbMiniTitle2 {
+          font-weight: 800;
+          font-size: 11px;
+          margin-top: 10px;
+          margin-bottom: 6px;
+          letter-spacing: 0.4px;
+          opacity: 0.85;
+        }
+
+        .sbSponsor {
+          font-size: 13px;
+          padding: 6px 8px;
+          background: rgba(255, 255, 255, 0.7);
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          border-radius: 8px;
+          margin-bottom: 4px;
+        }
+
+        .sbList {
+          list-style: disc;
+          padding-left: 18px;
+          margin: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .sbList a {
+          color: #1a1a1a;
+          text-decoration: none;
+          font-size: 13px;
+          opacity: 0.9;
+        }
+
+        .sbList .active a {
+          font-weight: 800;
+          text-decoration: underline;
+        }
+
+        .sbGap {
+          height: 8px;
+        }
+
+        .sbNote {
+          margin-top: 10px;
+          font-size: 11px;
+          opacity: 0.65;
+        }
+
+        /* MAIN */
         .main {
-          flex: 1 1 auto;
+          flex: 1;
           min-width: 0;
-          padding-left: 10px;
         }
 
         .topRow {
+          display: grid;
+          grid-template-columns: 120px 1fr 260px;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 10px;
+        }
+
+        .pillBtn {
+          display: inline-block;
+          width: fit-content;
+          padding: 8px 12px;
+          border-radius: 12px;
+          background: rgba(0, 0, 0, 0.65);
+          color: #fff;
+          font-weight: 800;
+          text-decoration: none;
+          font-size: 13px;
+        }
+
+        .centerInfo {
+          text-align: center;
+          font-weight: 700;
+          opacity: 0.75;
+        }
+
+        .toggles {
+          display: flex;
+          justify-content: flex-end;
+          gap: 12px;
+        }
+
+        .toggle {
           display: flex;
           align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          margin: 8px 0 10px;
+          gap: 6px;
+          font-size: 12px;
+          font-weight: 700;
+          opacity: 0.85;
         }
-        .bigLink {
-          display: inline-block;
-          background: #111;
-          color: #fff;
-          text-decoration: none;
-          font-weight: 900;
-          border-radius: 12px;
-          padding: 10px 14px;
-          box-shadow: 0 3px 0 rgba(0,0,0,0.18);
-        }
-        .topInfo { font-size: 13px; opacity: 0.8; }
-        .toggles { display: flex; gap: 10px; align-items: center; }
-        .toggle { display:flex; gap:6px; align-items:center; font-size: 12px; opacity: 0.85; }
 
         .filters {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          background: #fff;
-          border: 1px solid #e6e6e6;
-          border-radius: 12px;
-          padding: 10px;
-          margin-bottom: 10px;
-        }
-        .filters.portalLine {
-          border-style: dashed;
-        }
-        .inp {
-          border: 1px solid #ddd;
-          border-radius: 10px;
-          padding: 9px 10px;
-          font-size: 13px;
-          background: #fff;
-        }
-        .inp.wide { min-width: 280px; }
-        .inp.small { width: 110px; }
-        .inp.xsmall { width: 72px; }
-        .mins { display:flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-        .minsLabel { font-weight: 900; font-size: 12px; opacity: 0.7; }
-
-        .btn {
-          border: 1px solid #111;
-          background: #111;
-          color: #fff;
-          border-radius: 10px;
-          padding: 9px 12px;
-          font-weight: 900;
-          cursor: pointer;
-        }
-        .btn.ghost {
-          border: 1px solid #ddd;
-          background: #fff;
-          color: #111;
-        }
-
-        .colPicker {
-          background: #fff;
-          border: 1px solid #e6e6e6;
-          border-radius: 12px;
-          padding: 10px;
-          margin-bottom: 10px;
-        }
-        .colPickerTitle { font-weight: 900; margin-bottom: 8px; font-size: 13px; }
-        .colGrid {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 8px;
+          grid-template-columns: repeat(6, 1fr);
+          gap: 10px;
+          margin-bottom: 10px;
         }
-        .chk {
-          display: flex;
+
+        .filters input,
+        .filters select {
+          width: 100%;
+          padding: 8px 10px;
+          border-radius: 10px;
+          border: 1px solid rgba(0, 0, 0, 0.12);
+          background: rgba(255, 255, 255, 0.65);
+          font-size: 13px;
+        }
+
+        .minSkills {
+          display: grid;
+          grid-template-columns: 90px repeat(9, 1fr);
           gap: 8px;
           align-items: center;
-          background: #fafafa;
-          border: 1px solid #eee;
+          margin-bottom: 10px;
+        }
+
+        .minLabel {
+          font-weight: 800;
+          opacity: 0.85;
+          font-size: 12px;
+        }
+
+        .minSkills input {
+          width: 100%;
+          padding: 8px 10px;
           border-radius: 10px;
-          padding: 7px 8px;
+          border: 1px solid rgba(0, 0, 0, 0.12);
+          background: rgba(255, 255, 255, 0.65);
           font-size: 13px;
+        }
+
+        .actions {
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          margin-bottom: 10px;
+        }
+
+        .btnPrimary {
+          padding: 8px 12px;
+          border-radius: 10px;
+          border: 1px solid rgba(0, 0, 0, 0.2);
+          background: rgba(0, 0, 0, 0.75);
+          color: #fff;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .btn {
+          padding: 8px 12px;
+          border-radius: 10px;
+          border: 1px solid rgba(0, 0, 0, 0.18);
+          background: rgba(255, 255, 255, 0.65);
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .columnsBox {
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          border-radius: 12px;
+          background: rgba(0, 0, 0, 0.02);
+          padding: 12px;
+          margin-bottom: 10px;
+        }
+
+        .columnsTitle {
+          font-weight: 800;
+          margin-bottom: 10px;
+        }
+
+        .columnsGrid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .colItem {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          opacity: 0.9;
+        }
+
+        .columnsFooter {
+          margin-top: 10px;
+          display: flex;
+          justify-content: flex-end;
         }
 
         .errorBox {
-          background: #fff2f2;
-          border: 1px solid #ffd0d0;
-          border-radius: 12px;
-          padding: 10px;
-          margin-bottom: 10px;
-          color: #7a1a1a;
+          margin: 10px 0;
+          padding: 10px 12px;
+          border-radius: 10px;
+          background: rgba(255, 0, 0, 0.08);
+          border: 1px solid rgba(255, 0, 0, 0.18);
+          font-weight: 700;
         }
-        .muted { opacity: 0.7; padding: 8px 0; }
+
+        .loadingBox {
+          margin: 10px 0;
+          padding: 10px 12px;
+          border-radius: 10px;
+          background: rgba(0, 0, 0, 0.04);
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          font-weight: 700;
+          opacity: 0.8;
+        }
 
         .tableWrap {
-          background: #fff;
-          border: 1px solid #e6e6e6;
+          overflow: auto;
           border-radius: 12px;
-          overflow: hidden;
+          border: 1px solid rgba(0, 0, 0, 0.06);
+          background: rgba(255, 255, 255, 0.65);
         }
+
         .table {
           width: 100%;
           border-collapse: collapse;
+          min-width: 900px;
         }
-        .table th, .table td {
-          border-bottom: 1px solid #f0f0f0;
-          text-align: left;
-          padding: 10px 10px;
-          white-space: nowrap;
+
+        .table th,
+        .table td {
+          padding: 10px 12px;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
           font-size: 13px;
+          white-space: nowrap;
+          color: #111; /* names & values must be black (not green) */
         }
-        .table thead th {
+
+        .table th {
+          font-weight: 800;
+          background: rgba(0, 0, 0, 0.03);
           position: sticky;
           top: 0;
-          background: #fafafa;
-          font-weight: 900;
           z-index: 1;
         }
-        .nameLink {
-          text-decoration: none;
-          font-weight: 900;
-          color: #111;
-        }
-        .nameLink:hover { text-decoration: underline; }
 
         .tableWrap.compact .table th,
         .tableWrap.compact .table td {
-          padding: 7px 8px;
+          padding: 7px 10px;
           font-size: 12px;
         }
-        .tableWrap.wrap .table th,
+
         .tableWrap.wrap .table td {
           white-space: normal;
         }
 
         @media (max-width: 1100px) {
-          .sidebar { display:none; }
+          .filters {
+            grid-template-columns: repeat(3, 1fr);
+          }
+          .minSkills {
+            grid-template-columns: 90px repeat(3, 1fr);
+          }
+          .sidebar {
+            display: none;
+          }
+          .pageWrap {
+            padding-left: 0;
+          }
         }
       `}</style>
-    </Layout>
+    </div>
   );
 }
