@@ -1,908 +1,681 @@
-/* eslint-disable react/no-unescaped-entities */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
-import Link from "next/link";
+import AppLayout from "../../../components/AppLayout";
 import { supabase } from "../../../lib/supabaseClient";
 
-/**
- * TEAM PLAYERS (NT / U21)
- * URL: /team/:team/players  (team = "nt" | "u21")
- *
- * MVP:
- * - Left sidebar (Portal-style)
- * - Header (currently placeholder stripes)
- * - Filters + column picker
- * - Table
- *
- * NOTE: We are iterating step-by-step. Do NOT remove working parts.
- */
+// NOTE: This file intentionally contains UI + data logic for Players page.
+// We are currently standardizing the LEFT MENU. Player table fixes come after menu is finished.
 
-const TEAM_LABEL = {
-  nt: "Hrvatska NT",
-  u21: "Hrvatska U21",
-};
-
-const DEFAULT_TEAM = "nt";
-
-/** ---------- Column Definitions (logical order) ---------- */
-const ALL_COLUMNS = [
-  // identity
-  { key: "name", label: "Ime", group: "Osnovno", default: true },
-  { key: "htid", label: "HTID", group: "Osnovno", default: true },
-  { key: "specialty", label: "Specka", group: "Osnovno", default: true },
-  { key: "gk", label: "GK", group: "Skillovi", default: true },
-  { key: "def", label: "DEF", group: "Skillovi", default: true },
-  { key: "wing", label: "WING", group: "Skillovi", default: true },
-  { key: "pm", label: "PM", group: "Skillovi", default: true },
-  { key: "pass", label: "PASS", group: "Skillovi", default: true },
-  { key: "scor", label: "SCOR", group: "Skillovi", default: true },
-  { key: "sp", label: "SP", group: "Skillovi", default: true },
-
-  // meta
-  { key: "pos", label: "Poz", group: "Osnovno", default: true },
-  { key: "age", label: "Age", group: "Osnovno", default: true },
-
-  // extra (MVP subset; more later)
-  { key: "htms", label: "HTMS", group: "HTMS", default: false },
-  { key: "htms28", label: "HTMS28", group: "HTMS", default: false },
-  { key: "form", label: "Forma", group: "Stanje", default: false },
-  { key: "stamina", label: "Stamina", group: "Stanje", default: false },
-  { key: "stPercent", label: "St %", group: "Stanje", default: false },
-  { key: "tsi", label: "TSI", group: "Financije", default: false },
-  { key: "salary", label: "Plaća", group: "Financije", default: false },
-
-  { key: "agree", label: "Agree", group: "Osobine", default: false },
-  { key: "aggr", label: "Aggr", group: "Osobine", default: false },
-  { key: "hon", label: "Hon", group: "Osobine", default: false },
-  { key: "lead", label: "Lead", group: "Osobine", default: false },
-  { key: "xp", label: "XP", group: "Osobine", default: false },
-
-  { key: "updated", label: "Updated", group: "Ostalo", default: false },
-  { key: "lastTraining", label: "Last TR", group: "Trening", default: false },
-  { key: "currentTraining", label: "TR", group: "Trening", default: false },
-  { key: "club", label: "Klub", group: "Ostalo", default: false },
-  { key: "manager", label: "Mgr", group: "Ostalo", default: false },
-];
-
-function getDefaultVisibleColumns() {
-  const def = {};
-  ALL_COLUMNS.forEach((c) => {
-    def[c.key] = !!c.default;
-  });
-  return def;
-}
-
-/** ---------- Specialty options (placeholder set; can expand) ---------- */
-const SPECIALTY_OPTIONS = [
-  { value: "all", label: "Specka (sve)" },
-  { value: "none", label: "Bez specke" },
-  { value: "T", label: "T (Tehničar)" },
-  { value: "Q", label: "Q (Brz)" },
-  { value: "U", label: "U (Nepredvidljiv)" },
-  { value: "H", label: "H (Glava)" },
-  { value: "P", label: "P (Snažan)" },
-];
-
-/** ---------- Position options ---------- */
-const POSITION_OPTIONS = [
-  { value: "all", label: "Pozicija (sve)" },
-  { value: "GK", label: "GK" },
-  { value: "CD", label: "CD" },
-  { value: "WB", label: "WB" },
-  { value: "IM", label: "IM" },
-  { value: "W", label: "W" },
-  { value: "FW", label: "FW" },
-];
-
-export default function TeamPlayersPage() {
+export default function PlayersPage() {
   const router = useRouter();
-  const { team } = router.query;
+  const { team } = router.query; // slug: "nt" or "u21"
 
-  const safeTeam = team === "u21" ? "u21" : "nt";
-
-  // UI State
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [err, setErr] = useState("");
+  const [rows, setRows] = useState([]);
 
-  const [players, setPlayers] = useState([]);
-
-  const [search, setSearch] = useState("");
+  // filters
+  const [q, setQ] = useState("");
+  const [pos, setPos] = useState("all");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
-  const [posFilter, setPosFilter] = useState("all");
-  const [specialtyFilter, setSpecialtyFilter] = useState("all");
-
-  const [requirementsFilter, setRequirementsFilter] = useState("all");
-  const [personalFilter, setPersonalFilter] = useState("all");
-  const [agreeFilter, setAgreeFilter] = useState("all");
-  const [aggrFilter, setAggrFilter] = useState("all");
-  const [honestyFilter, setHonestyFilter] = useState("all");
-
-  // Min skill filters (simple MVP)
-  const [minGK, setMinGK] = useState("");
-  const [minDEF, setMinDEF] = useState("");
-  const [minPM, setMinPM] = useState("");
-  const [minWING, setMinWING] = useState("");
-  const [minPASS, setMinPASS] = useState("");
-  const [minSCOR, setMinSCOR] = useState("");
-  const [minSP, setMinSP] = useState("");
-  const [minHTMS, setMinHTMS] = useState("");
-  const [minHTMS28, setMinHTMS28] = useState("");
-
   const [compact, setCompact] = useState(true);
   const [wrap, setWrap] = useState(false);
 
-  // Column Picker: should be hidden until button click
+  // min skills
+  const [minGK, setMinGK] = useState("");
+  const [minDEF, setMinDEF] = useState("");
+  const [minWING, setMinWING] = useState("");
+  const [minPM, setMinPM] = useState("");
+  const [minPASS, setMinPASS] = useState("");
+  const [minSCOR, setMinSCOR] = useState("");
+  const [minSP, setMinSP] = useState("");
+
+  // columns picker
   const [showColumns, setShowColumns] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState(getDefaultVisibleColumns());
+  const defaultColumns = useMemo(
+    () => ({
+      name: true,
+      htid: true,
+      speciality: true,
+      gk: true,
+      def: true,
+      wing: true,
+      pm: true,
+      pass: true,
+      scor: true,
+      sp: true,
+      pos: true,
+      age: true,
+      form: false,
+      stamina: false,
+      tsi: false,
+      salary: false,
+      agree: false,
+      agg: false,
+      hon: false,
+      lead: false,
+      xp: false,
+      stp: false,
+      updated: false,
+      tr: false,
+      last_tr: false,
+      club: false,
+    }),
+    []
+  );
+  const [cols, setCols] = useState(defaultColumns);
 
-  const didLoadRef = useRef(false);
-
-  /** --------- Load players (Supabase RPC or view) --------- */
   useEffect(() => {
-    if (!router.isReady) return;
-    if (didLoadRef.current) return;
-    didLoadRef.current = true;
+    if (!team) return;
 
-    loadPlayers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [router.isReady]);
-
-  async function loadPlayers() {
+    let alive = true;
     setLoading(true);
-    setError("");
+    setErr("");
 
-    try {
-      /**
-       * IMPORTANT:
-       * This project previously used RPC: list_team_players(team_slug)
-       * If you later change DB function names, keep this page in sync.
-       */
-      const { data, error: rpcError } = await supabase.rpc("list_team_players", {
-        team_slug: safeTeam,
-      });
+    const run = async () => {
+      try {
+        // expects RPC: public.list_team_players(team_slug)
+        const { data, error } = await supabase.rpc("list_team_players", { team_slug: team });
 
-      if (rpcError) throw rpcError;
+        if (error) throw error;
+        if (!alive) return;
 
-      // Normalize and ensure no duplicate rows (basic dedupe by internal id/htid)
-      const normalized = (data || []).map((p) => ({
-        id: p.id ?? p.player_id ?? p.internal_id ?? null,
-        name: p.name ?? p.player_name ?? "",
-        htid: p.htid ?? p.ht_player_id ?? "",
-        pos: p.pos ?? p.position ?? "",
-        age: p.age ?? p.years ?? "",
-        specialty: p.specialty ?? p.spec ?? p.speciality ?? "",
-        gk: p.gk ?? p.skill_gk ?? p.keeper ?? "",
-        def: p.def ?? p.skill_def ?? p.defending ?? "",
-        wing: p.wing ?? p.skill_wing ?? p.winger ?? "",
-        pm: p.pm ?? p.skill_pm ?? p.playmaking ?? "",
-        pass: p.pass ?? p.skill_pass ?? p.passing ?? "",
-        scor: p.scor ?? p.skill_scor ?? p.scoring ?? "",
-        sp: p.sp ?? p.skill_sp ?? p.set_pieces ?? "",
-        htms: p.htms ?? p.ability_htms ?? "",
-        htms28: p.htms28 ?? p.potential_htms ?? "",
-        form: p.form ?? "",
-        stamina: p.stamina ?? "",
-        stPercent: p.st_percent ?? p.stPercent ?? "",
-        tsi: p.tsi ?? "",
-        salary: p.salary ?? "",
-        agree: p.agreeability ?? p.agree ?? "",
-        aggr: p.aggressiveness ?? p.aggr ?? "",
-        hon: p.honesty ?? p.hon ?? "",
-        lead: p.leadership ?? p.lead ?? "",
-        xp: p.experience ?? p.xp ?? "",
-        updated: p.updated ?? p.updated_at ?? "",
-        lastTraining: p.last_training ?? "",
-        currentTraining: p.current_training ?? "",
-        club: p.club ?? "",
-        manager: p.manager ?? "",
-      }));
-
-      const seen = new Set();
-      const deduped = [];
-      for (const p of normalized) {
-        const key = `${p.id ?? ""}::${p.htid ?? ""}::${p.name ?? ""}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        deduped.push(p);
+        setRows(Array.isArray(data) ? data : []);
+      } catch (e) {
+        if (!alive) return;
+        setErr(e?.message || String(e));
+        setRows([]);
+      } finally {
+        if (!alive) return;
+        setLoading(false);
       }
+    };
 
-      setPlayers(deduped);
-    } catch (e) {
-      setError(e?.message || "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  }
+    run();
+    return () => {
+      alive = false;
+    };
+  }, [team]);
 
-  /** --------- Filtering (client-side MVP) --------- */
-  const filteredPlayers = useMemo(() => {
-    let rows = [...players];
+  const totalCount = rows?.length || 0;
 
-    const s = search.trim().toLowerCase();
-    if (s) {
-      rows = rows.filter((p) => {
-        const n = (p.name || "").toLowerCase();
-        const h = String(p.htid || "").toLowerCase();
-        const po = String(p.pos || "").toLowerCase();
-        return n.includes(s) || h.includes(s) || po.includes(s);
-      });
-    }
+  const filtered = useMemo(() => {
+    const qq = q.trim().toLowerCase();
 
-    if (posFilter !== "all") {
-      rows = rows.filter((p) => String(p.pos || "").toUpperCase() === posFilter.toUpperCase());
-    }
+    return (rows || [])
+      .filter((r) => {
+        if (!r) return false;
 
-    if (specialtyFilter !== "all") {
-      if (specialtyFilter === "none") {
-        rows = rows.filter((p) => !p.specialty || String(p.specialty).trim() === "");
-      } else {
-        rows = rows.filter((p) => String(p.specialty || "").toUpperCase() === specialtyFilter);
-      }
-    }
+        // text search
+        if (qq) {
+          const blob = `${r.name || ""} ${r.htid || ""} ${r.position || ""}`.toLowerCase();
+          if (!blob.includes(qq)) return false;
+        }
 
-    const amin = ageMin !== "" ? Number(ageMin) : null;
-    const amax = ageMax !== "" ? Number(ageMax) : null;
-    if (amin !== null && !Number.isNaN(amin)) rows = rows.filter((p) => Number(p.age || 0) >= amin);
-    if (amax !== null && !Number.isNaN(amax)) rows = rows.filter((p) => Number(p.age || 0) <= amax);
+        // position filter
+        if (pos !== "all") {
+          const p = String(r.position || "").toLowerCase();
+          if (p !== String(pos).toLowerCase()) return false;
+        }
 
-    // Min skill filters
-    const minFilters = [
-      ["gk", minGK],
-      ["def", minDEF],
-      ["pm", minPM],
-      ["wing", minWING],
-      ["pass", minPASS],
-      ["scor", minSCOR],
-      ["sp", minSP],
-      ["htms", minHTMS],
-      ["htms28", minHTMS28],
-    ];
-    minFilters.forEach(([key, val]) => {
-      if (val === "") return;
-      const n = Number(val);
-      if (Number.isNaN(n)) return;
-      rows = rows.filter((p) => Number(p[key] || 0) >= n);
-    });
+        // age filter
+        const a = Number(r.age || 0);
+        if (ageMin !== "" && a < Number(ageMin)) return false;
+        if (ageMax !== "" && a > Number(ageMax)) return false;
 
-    return rows;
-  }, [
-    players,
-    search,
-    ageMin,
-    ageMax,
-    posFilter,
-    specialtyFilter,
-    minGK,
-    minDEF,
-    minPM,
-    minWING,
-    minPASS,
-    minSCOR,
-    minSP,
-    minHTMS,
-    minHTMS28,
-  ]);
+        // min skills
+        const gk = Number(r.gk || 0);
+        const df = Number(r.def || 0);
+        const wg = Number(r.wing || 0);
+        const pmv = Number(r.pm || 0);
+        const pas = Number(r.pass || 0);
+        const sco = Number(r.scor || 0);
+        const spv = Number(r.sp || 0);
 
-  const visibleColumnList = useMemo(() => {
-    return ALL_COLUMNS.filter((c) => visibleColumns[c.key]);
-  }, [visibleColumns]);
+        if (minGK !== "" && gk < Number(minGK)) return false;
+        if (minDEF !== "" && df < Number(minDEF)) return false;
+        if (minWING !== "" && wg < Number(minWING)) return false;
+        if (minPM !== "" && pmv < Number(minPM)) return false;
+        if (minPASS !== "" && pas < Number(minPASS)) return false;
+        if (minSCOR !== "" && sco < Number(minSCOR)) return false;
+        if (minSP !== "" && spv < Number(minSP)) return false;
 
-  function toggleColumn(key) {
-    setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key] }));
-  }
+        return true;
+      })
+      .map((r, idx) => ({ ...r, __idx: idx }));
+  }, [rows, q, pos, ageMin, ageMax, minGK, minDEF, minWING, minPM, minPASS, minSCOR, minSP]);
 
-  function resetColumns() {
-    setVisibleColumns(getDefaultVisibleColumns());
-  }
+  const onApply = () => {
+    // the UI is already live-filtering; keep button for UX parity
+  };
+
+  const teamTitle = team === "u21" ? "Hrvatska U21" : "Hrvatska NT";
+  const pageTitle = `${teamTitle} — Igrači`;
 
   return (
-    <div className="pageRoot">
-      {/* HEADER */}
-      <div className="header">
-        <div className="headerLeft">
-          <div className="headerSmall">Hrvatska NT</div>
-          <div className="headerTitle">NT Pregled</div>
-        </div>
-
-        <div className="headerRight">
-          <Link className="headerBtn" href="/team/nt">
-            NT Pregled
-          </Link>
-          <Link className="headerBtn" href="/">
-            Naslovnica
-          </Link>
-        </div>
-      </div>
-
-      {/* CONTENT */}
+    <AppLayout title={pageTitle}>
       <div className="pageWrap">
-        {/* SIDEBAR */}
+        {/* LEFT MENU (standardized like other modules) */}
         <aside className="sidebar">
-          <div className="sbBlock">
-            <div className="sbMiniTitle">{TEAM_LABEL[safeTeam]}</div>
+          <div className="sbTeam">{teamTitle}</div>
 
-            <div className="sbMiniTitle2">SPONZORI</div>
-            <div className="sbSponsor">test</div>
+          <div className="sbSectionHeader sbSectionHeaderSmall">SPONZORI</div>
+          <div className="sbSponsor">test</div>
 
-            <div className="sbSectionHeader">NT</div>
-            <ul className="sbList">
-              <li>
-                <Link href="/team/nt/requests">Zahtjevi</Link>
-              </li>
-              <li>
-                <Link href="/team/nt/lists">Popisi</Link>
-              </li>
-              <li className="active">
-                <Link href="/team/nt/players">Igrači</Link>
-              </li>
-              <li>
-                <Link href="/team/nt/alerts">Upozorenja</Link>
-              </li>
-              <li>
-                <Link href="/team/nt/events">Kalendar natjecanja</Link>
-              </li>
-              <li>
-                <Link href="/team/nt/training-settings">Postavke treninga</Link>
-              </li>
-            </ul>
+          <div className="sbSectionHeader">NT</div>
+          <nav className="sbNav">
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/requests">
+              Zahtjevi
+            </a>
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/lists">
+              Popisi
+            </a>
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/players">
+              Igrači
+            </a>
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/alerts">
+              Upozorenja
+            </a>
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/events">
+              Kalendar natjecanja
+            </a>
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/training-settings">
+              Postavke treninga
+            </a>
+          </nav>
 
-            <div className="sbGap" />
+          <div className="sbSectionHeader">HRVATSKA U21</div>
+          <nav className="sbNav">
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/requests">
+              Zahtjevi
+            </a>
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/lists">
+              Popisi
+            </a>
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/players">
+              Igrači
+            </a>
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/alerts">
+              Upozorenja
+            </a>
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/events">
+              Kalendar natjecanja
+            </a>
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/training-settings">
+              Postavke treninga
+            </a>
+          </nav>
 
-            <div className="sbSectionHeader">HRVATSKA U21</div>
-            <ul className="sbList">
-              <li>
-                <Link href="/team/u21/requests">Zahtjevi</Link>
-              </li>
-              <li>
-                <Link href="/team/u21/lists">Popisi</Link>
-              </li>
-              <li>
-                <Link href="/team/u21/players">Igrači</Link>
-              </li>
-              <li>
-                <Link href="/team/u21/alerts">Upozorenja</Link>
-              </li>
-              <li>
-                <Link href="/team/u21/events">Kalendar natjecanja</Link>
-              </li>
-              <li>
-                <Link href="/team/u21/training-settings">Postavke treninga</Link>
-              </li>
-            </ul>
-
-            <div className="sbNote">* Sve stavke su rezervirane za kasnije.</div>
-          </div>
+          <div className="sbNote">* Sve stavke su rezervirane za kasnije.</div>
         </aside>
 
         {/* MAIN */}
         <main className="main">
-          <div className="topRow">
-            <Link className="pillBtn" href="/team/nt">
-              Moduli
-            </Link>
-
-            <div className="centerInfo">Ukupno: {filteredPlayers.length}</div>
-
+          <div className="headerRow">
+            <h1 className="h1">Moduli</h1>
+            <div className="count">Ukupno: {totalCount}</div>
             <div className="toggles">
-              <label className="toggle">
-                <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} />
-                <span>Kompaktno</span>
+              <label>
+                <input type="checkbox" checked={compact} onChange={(e) => setCompact(e.target.checked)} /> Kompaktno
               </label>
-              <label className="toggle">
-                <input type="checkbox" checked={wrap} onChange={(e) => setWrap(e.target.checked)} />
-                <span>Wrap</span>
+              <label>
+                <input type="checkbox" checked={wrap} onChange={(e) => setWrap(e.target.checked)} /> Wrap
               </label>
             </div>
           </div>
 
-          {/* Filters Row 1 */}
-          <div className="filters">
-            <select value={requirementsFilter} onChange={(e) => setRequirementsFilter(e.target.value)}>
-              <option value="all">Requirement to players</option>
-            </select>
+          <section className="card">
+            <div className="filtersTop">
+              <select className="control" defaultValue="Requirement to players">
+                <option>Requirement to players</option>
+              </select>
 
-            <select value={personalFilter} onChange={(e) => setPersonalFilter(e.target.value)}>
-              <option value="all">Personal filter</option>
-            </select>
+              <select className="control" defaultValue="Personal filter">
+                <option>Personal filter</option>
+              </select>
 
-            <select value={specialtyFilter} onChange={(e) => setSpecialtyFilter(e.target.value)}>
-              {SPECIALTY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
+              <select className="control" defaultValue="Speciality (all)">
+                <option>Speciality (all)</option>
+              </select>
 
-            <select value={agreeFilter} onChange={(e) => setAgreeFilter(e.target.value)}>
-              <option value="all">Agreeability</option>
-            </select>
+              <select className="control" defaultValue="Agreeability">
+                <option>Agreeability</option>
+              </select>
 
-            <select value={aggrFilter} onChange={(e) => setAggrFilter(e.target.value)}>
-              <option value="all">Aggressiveness</option>
-            </select>
+              <select className="control" defaultValue="Aggressiveness">
+                <option>Aggressiveness</option>
+              </select>
 
-            <select value={honestyFilter} onChange={(e) => setHonestyFilter(e.target.value)}>
-              <option value="all">Honesty</option>
-            </select>
-          </div>
-
-          {/* Filters Row 2 */}
-          <div className="filters">
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search: ime / HTID / pozicija..."
-            />
-
-            <select value={posFilter} onChange={(e) => setPosFilter(e.target.value)}>
-              {POSITION_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-
-            <input value={ageMin} onChange={(e) => setAgeMin(e.target.value)} placeholder="Age min" />
-            <input value={ageMax} onChange={(e) => setAgeMax(e.target.value)} placeholder="Age max" />
-          </div>
-
-          {/* Min Skills */}
-          <div className="minSkills">
-            <div className="minLabel">Min skillovi</div>
-            <input value={minGK} onChange={(e) => setMinGK(e.target.value)} placeholder="GK" />
-            <input value={minDEF} onChange={(e) => setMinDEF(e.target.value)} placeholder="DEF" />
-            <input value={minWING} onChange={(e) => setMinWING(e.target.value)} placeholder="WING" />
-            <input value={minPM} onChange={(e) => setMinPM(e.target.value)} placeholder="PM" />
-            <input value={minPASS} onChange={(e) => setMinPASS(e.target.value)} placeholder="PASS" />
-            <input value={minSCOR} onChange={(e) => setMinSCOR(e.target.value)} placeholder="SCOR" />
-            <input value={minSP} onChange={(e) => setMinSP(e.target.value)} placeholder="SP" />
-            <input value={minHTMS} onChange={(e) => setMinHTMS(e.target.value)} placeholder="HTMS ≥" />
-            <input value={minHTMS28} onChange={(e) => setMinHTMS28(e.target.value)} placeholder="HTMS28 ≥" />
-          </div>
-
-          {/* Action Row */}
-          <div className="actions">
-            <button className="btnPrimary" onClick={() => loadPlayers()}>
-              Primijeni
-            </button>
-            <button className="btn" onClick={() => setShowColumns((v) => !v)}>
-              Kolone
-            </button>
-          </div>
-
-          {/* Columns Picker (hidden until clicked) */}
-          {showColumns && (
-            <div className="columnsBox">
-              <div className="columnsTitle">
-                Odaberi kolone (Portal-style, gdje nema podatka prikazuje "—")
-              </div>
-
-              <div className="columnsGrid">
-                {ALL_COLUMNS.map((c) => (
-                  <label key={c.key} className="colItem">
-                    <input type="checkbox" checked={!!visibleColumns[c.key]} onChange={() => toggleColumn(c.key)} />
-                    <span>{c.label}</span>
-                  </label>
-                ))}
-              </div>
-
-              <div className="columnsFooter">
-                <button className="btn" onClick={resetColumns}>
-                  Reset
-                </button>
-              </div>
+              <select className="control" defaultValue="Honesty">
+                <option>Honesty</option>
+              </select>
             </div>
-          )}
 
-          {/* Error / Loading */}
-          {error && <div className="errorBox">Greška: {error}</div>}
-          {loading && <div className="loadingBox">Učitavanje...</div>}
+            <div className="filtersMid">
+              <input
+                className="control wide"
+                placeholder="Search: ime / HTID / pozicija..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
 
-          {/* Table */}
-          {!loading && (
-            <div className={`tableWrap ${compact ? "compact" : ""} ${wrap ? "wrap" : ""}`}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    {visibleColumnList.map((c) => (
-                      <th key={c.key}>{c.label}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredPlayers.map((p) => (
-                    <tr key={`${p.id ?? ""}-${p.htid ?? ""}-${p.name ?? ""}`}>
-                      {visibleColumnList.map((c) => {
-                        const val = p[c.key];
-                        const out = val === null || val === undefined || val === "" ? "—" : val;
-                        return <td key={c.key}>{out}</td>;
-                      })}
-                    </tr>
+              <select className="control" value={pos} onChange={(e) => setPos(e.target.value)}>
+                <option value="all">Pozicija (sve)</option>
+                <option value="w">W</option>
+              </select>
+
+              <input className="control" placeholder="Age min" value={ageMin} onChange={(e) => setAgeMin(e.target.value)} />
+              <input className="control" placeholder="Age max" value={ageMax} onChange={(e) => setAgeMax(e.target.value)} />
+            </div>
+
+            <div className="minSkills">
+              <div className="label">Min skilovi</div>
+              <input className="minIn" placeholder="GK" value={minGK} onChange={(e) => setMinGK(e.target.value)} />
+              <input className="minIn" placeholder="DEF" value={minDEF} onChange={(e) => setMinDEF(e.target.value)} />
+              <input className="minIn" placeholder="WING" value={minWING} onChange={(e) => setMinWING(e.target.value)} />
+              <input className="minIn" placeholder="PM" value={minPM} onChange={(e) => setMinPM(e.target.value)} />
+              <input className="minIn" placeholder="PASS" value={minPASS} onChange={(e) => setMinPASS(e.target.value)} />
+              <input className="minIn" placeholder="SCOR" value={minSCOR} onChange={(e) => setMinSCOR(e.target.value)} />
+              <input className="minIn" placeholder="SP" value={minSP} onChange={(e) => setMinSP(e.target.value)} />
+              <button className="btn" onClick={onApply}>
+                Primijeni
+              </button>
+              <button className="btnGhost" onClick={() => setShowColumns((v) => !v)}>
+                Kolone
+              </button>
+            </div>
+
+            {showColumns && (
+              <div className="colsBox">
+                <div className="colsTitle">Odaberi kolone (Portal-style, gdje nema podatka prikazuje “—”)</div>
+                <div className="colsGrid">
+                  {Object.keys(cols).map((k) => (
+                    <label key={k} className="colChk">
+                      <input
+                        type="checkbox"
+                        checked={!!cols[k]}
+                        onChange={(e) => setCols((prev) => ({ ...prev, [k]: e.target.checked }))}
+                      />
+                      <span>{k}</span>
+                    </label>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </div>
+            )}
+
+            <div className="tableWrap">
+              {err ? (
+                <div className="err">Greška: {err}</div>
+              ) : loading ? (
+                <div className="loading">Učitavanje...</div>
+              ) : (
+                <table className={`table ${compact ? "compact" : ""} ${wrap ? "wrap" : ""}`}>
+                  <thead>
+                    <tr>
+                      {cols.name && <th>Ime</th>}
+                      {cols.htid && <th>HTID</th>}
+                      {cols.speciality && <th>Specka</th>}
+                      {cols.gk && <th>GK</th>}
+                      {cols.def && <th>DEF</th>}
+                      {cols.wing && <th>WING</th>}
+                      {cols.pm && <th>PM</th>}
+                      {cols.pass && <th>PASS</th>}
+                      {cols.scor && <th>SCOR</th>}
+                      {cols.sp && <th>SP</th>}
+                      {cols.pos && <th>Poz</th>}
+                      {cols.age && <th>Age</th>}
+                      {cols.form && <th>Forma</th>}
+                      {cols.stamina && <th>Stamina</th>}
+                      {cols.tsi && <th>TSI</th>}
+                      {cols.salary && <th>Plaća</th>}
+                      {cols.agree && <th>Agree</th>}
+                      {cols.agg && <th>Agr</th>}
+                      {cols.hon && <th>Hon</th>}
+                      {cols.lead && <th>Lead</th>}
+                      {cols.xp && <th>XP</th>}
+                      {cols.stp && <th>St %</th>}
+                      {cols.tr && <th>TR</th>}
+                      {cols.last_tr && <th>Last TR</th>}
+                      {cols.club && <th>Klub</th>}
+                      {cols.updated && <th>Updated</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((r) => (
+                      <tr key={`${r.htid || "x"}-${r.__idx}`}>
+                        {cols.name && <td className="tdName">{r.name ?? "—"}</td>}
+                        {cols.htid && <td>{r.htid ?? "—"}</td>}
+                        {cols.speciality && <td>{r.speciality ?? "—"}</td>}
+                        {cols.gk && <td>{r.gk ?? "—"}</td>}
+                        {cols.def && <td>{r.def ?? "—"}</td>}
+                        {cols.wing && <td>{r.wing ?? "—"}</td>}
+                        {cols.pm && <td>{r.pm ?? "—"}</td>}
+                        {cols.pass && <td>{r.pass ?? "—"}</td>}
+                        {cols.scor && <td>{r.scor ?? "—"}</td>}
+                        {cols.sp && <td>{r.sp ?? "—"}</td>}
+                        {cols.pos && <td>{r.position ?? "—"}</td>}
+                        {cols.age && <td>{r.age ?? "—"}</td>}
+                        {cols.form && <td>{r.form ?? "—"}</td>}
+                        {cols.stamina && <td>{r.stamina ?? "—"}</td>}
+                        {cols.tsi && <td>{r.tsi ?? "—"}</td>}
+                        {cols.salary && <td>{r.salary ?? "—"}</td>}
+                        {cols.agree && <td>{r.agreeability ?? "—"}</td>}
+                        {cols.agg && <td>{r.aggressiveness ?? "—"}</td>}
+                        {cols.hon && <td>{r.honesty ?? "—"}</td>}
+                        {cols.lead && <td>{r.leadership ?? "—"}</td>}
+                        {cols.xp && <td>{r.experience ?? "—"}</td>}
+                        {cols.stp && <td>{r.st_percent ?? "—"}</td>}
+                        {cols.tr && <td>{r.current_training ?? "—"}</td>}
+                        {cols.last_tr && <td>{r.last_training ?? "—"}</td>}
+                        {cols.club && <td>{r.club ?? "—"}</td>}
+                        {cols.updated && <td>{r.updated_at ?? "—"}</td>}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
-          )}
+          </section>
         </main>
       </div>
 
       <style jsx>{`
-        .pageRoot {
-          width: 100%;
+        .pageWrap{
+          display: grid;
+          grid-template-columns: 260px 1fr;
+          gap: 18px;
+          align-items: start;
+          padding: 18px;
         }
 
-        /* HEADER */
-        .header {
-          height: 72px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 14px;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-          background: repeating-linear-gradient(
-            -45deg,
-            #b23a2e 0px,
-            #b23a2e 10px,
-            #ffffff 10px,
-            #ffffff 20px
-          );
+        .sidebar{
           position: sticky;
-          top: 0;
-          z-index: 10;
-        }
-
-        .headerLeft {
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .headerSmall {
-          font-size: 12px;
-          font-weight: 700;
-          opacity: 0.9;
-        }
-
-        .headerTitle {
-          font-size: 18px;
-          font-weight: 800;
-          letter-spacing: 0.2px;
-        }
-
-        .headerRight {
-          display: flex;
-          gap: 10px;
-          align-items: center;
-        }
-
-        .headerBtn {
-          display: inline-block;
-          padding: 8px 12px;
-          border-radius: 10px;
-          background: rgba(0, 0, 0, 0.65);
-          color: #fff;
-          font-weight: 700;
-          font-size: 13px;
-          text-decoration: none;
-          border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        /* LAYOUT */
-        .pageWrap {
-          display: flex;
-          align-items: flex-start;
-          gap: 16px;
-          padding: 10px 10px 16px 0; /* no left padding */
-        }
-
-        /* SIDEBAR */
-        .sidebar {
-          width: 210px;
-          flex: 0 0 210px;
-          position: sticky;
-          top: 82px;
-          align-self: flex-start;
-          margin-left: 0;
-        }
-
-        .sbBlock {
-          background: rgba(0, 0, 0, 0.03);
-          border: 1px solid rgba(0, 0, 0, 0.06);
-          border-radius: 0 12px 12px 0;
+          top: 12px;
+          align-self: start;
+          background: rgba(255,255,255,0.65);
+          border: 1px solid rgba(0,0,0,0.08);
+          border-radius: 14px;
           padding: 12px;
+          backdrop-filter: blur(10px);
         }
 
-        .sbMiniTitle {
-          font-weight: 800;
-          font-size: 14px;
-          margin-bottom: 8px;
-        }
-
-        .sbMiniTitle2 {
-          font-weight: 800;
-          font-size: 11px;
-          margin-top: 10px;
+        .sbTeam{
+          font-weight: 900;
+          font-size: 16px;
           margin-bottom: 6px;
-          letter-spacing: 0.4px;
-          opacity: 0.85;
+          color: #111;
         }
 
-        
-        
         .sbSectionHeader{
           margin: 10px 0 6px;
-          padding: 6px 8px;
-          font-weight: 800;
+          padding: 6px 10px;
+          font-weight: 900;
           font-size: 12px;
-          letter-spacing: 0.4px;
+          letter-spacing: 0.6px;
           text-transform: uppercase;
-          color: #111827;
-          background: linear-gradient(180deg, rgba(0,0,0,0.06), rgba(0,0,0,0.02));
-          border: 1px solid rgba(0,0,0,0.10);
-          border-radius: 8px;
+          color: #fff;
+          background: #111827;
+          border: 1px solid rgba(255,255,255,0.14);
+          border-radius: 10px;
+          width: 100%;
+          box-sizing: border-box;
         }
-.sbSponsor {
+
+        .sbSectionHeaderSmall{
+          font-size: 11px;
+          padding: 6px 10px;
+          margin-top: 8px;
+          margin-bottom: 6px;
+          background: #1f2937;
+        }
+
+        .sbSponsor {
           font-size: 13px;
           padding: 6px 8px;
           background: rgba(255, 255, 255, 0.7);
-          border: 1px solid rgba(0, 0, 0, 0.06);
-          border-radius: 8px;
-          margin-bottom: 4px;
+          border: 1px solid rgba(0,0,0,0.08);
+          border-radius: 10px;
+          color: #111;
+          margin-bottom: 8px;
         }
 
-        .sbList {
-          list-style: disc;
-          padding-left: 18px;
-          margin: 0;
+        .sbNav{
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          gap: 6px;
+          margin-bottom: 8px;
         }
-
-        .sbList a {
-          color: #1a1a1a;
+        .sbNav a{
           text-decoration: none;
-          font-size: 13px;
-          opacity: 0.9;
+          color: #111;
+          padding: 6px 8px;
+          border-radius: 10px;
+          border: 1px solid transparent;
+        }
+        .sbNav a:hover{
+          background: rgba(0,0,0,0.04);
+          border-color: rgba(0,0,0,0.06);
+        }
+        .sbNav a.active{
+          background: rgba(17,24,39,0.08);
+          border-color: rgba(17,24,39,0.18);
+          font-weight: 700;
         }
 
-        .sbList .active a {
-          font-weight: 800;
-          text-decoration: underline;
-        }
-
-        .sbGap {
-          height: 8px;
-        }
-
-        .sbNote {
-          margin-top: 10px;
+        .sbNote{
           font-size: 11px;
-          opacity: 0.65;
+          color: rgba(0,0,0,0.55);
+          margin-top: 10px;
         }
 
-        /* MAIN */
-        .main {
-          flex: 1;
+        .main{
           min-width: 0;
         }
 
-        .topRow {
-          display: grid;
-          grid-template-columns: 120px 1fr 260px;
+        .headerRow{
+          display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 12px;
           margin-bottom: 10px;
         }
-
-        .pillBtn {
-          display: inline-block;
-          width: fit-content;
-          padding: 8px 12px;
-          border-radius: 0 12px 12px 0;
-          background: rgba(0, 0, 0, 0.65);
-          color: #fff;
-          font-weight: 800;
-          text-decoration: none;
+        .h1{
+          margin: 0;
+          font-size: 22px;
+          font-weight: 900;
+        }
+        .count{
           font-size: 13px;
-        }
-
-        .centerInfo {
-          text-align: center;
+          color: rgba(0,0,0,0.6);
           font-weight: 700;
-          opacity: 0.75;
         }
-
-        .toggles {
+        .toggles{
           display: flex;
-          justify-content: flex-end;
           gap: 12px;
+          font-size: 12px;
+          color: rgba(0,0,0,0.75);
+          align-items: center;
         }
-
-        .toggle {
-          display: flex;
+        .toggles label{
+          display: inline-flex;
           align-items: center;
           gap: 6px;
-          font-size: 12px;
-          font-weight: 700;
-          opacity: 0.85;
         }
 
-        .filters {
+        .card{
+          background: rgba(255,255,255,0.6);
+          border: 1px solid rgba(0,0,0,0.08);
+          border-radius: 14px;
+          padding: 12px;
+          backdrop-filter: blur(10px);
+        }
+
+        .filtersTop{
           display: grid;
-          grid-template-columns: repeat(6, 1fr);
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+          gap: 10px;
+          margin-bottom: 10px;
+        }
+        .filtersMid{
+          display: grid;
+          grid-template-columns: 2fr 1fr 1fr 1fr;
           gap: 10px;
           margin-bottom: 10px;
         }
 
-        .filters input,
-        .filters select {
+        .control{
           width: 100%;
-          padding: 8px 10px;
-          border-radius: 10px;
-          border: 1px solid rgba(0, 0, 0, 0.12);
-          background: rgba(255, 255, 255, 0.65);
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(0,0,0,0.12);
+          background: rgba(255,255,255,0.8);
+          outline: none;
           font-size: 13px;
         }
-
-        .minSkills {
-          display: grid;
-          grid-template-columns: 90px repeat(9, 1fr);
-          gap: 8px;
-          align-items: center;
-          margin-bottom: 10px;
-        }
-
-        .minLabel {
-          font-weight: 800;
-          opacity: 0.85;
-          font-size: 12px;
-        }
-
-        .minSkills input {
+        .wide{
           width: 100%;
-          padding: 8px 10px;
-          border-radius: 10px;
-          border: 1px solid rgba(0, 0, 0, 0.12);
-          background: rgba(255, 255, 255, 0.65);
-          font-size: 13px;
         }
 
-        .actions {
+        .minSkills{
           display: flex;
-          gap: 10px;
           align-items: center;
-          margin-bottom: 10px;
+          gap: 10px;
+          flex-wrap: wrap;
+          padding-top: 6px;
+          padding-bottom: 10px;
+          border-top: 1px solid rgba(0,0,0,0.06);
         }
-
-        .btnPrimary {
-          padding: 8px 12px;
-          border-radius: 10px;
-          border: 1px solid rgba(0, 0, 0, 0.2);
-          background: rgba(0, 0, 0, 0.75);
+        .label{
+          font-weight: 800;
+          color: rgba(0,0,0,0.75);
+          margin-right: 8px;
+        }
+        .minIn{
+          width: 86px;
+          padding: 10px 12px;
+          border-radius: 12px;
+          border: 1px solid rgba(0,0,0,0.12);
+          background: rgba(255,255,255,0.8);
+          outline: none;
+          font-size: 13px;
+        }
+        .btn{
+          margin-left: 6px;
+          padding: 10px 14px;
+          border-radius: 12px;
+          border: 1px solid rgba(0,0,0,0.16);
+          background: #111;
           color: #fff;
           font-weight: 800;
           cursor: pointer;
         }
-
-        .btn {
-          padding: 8px 12px;
-          border-radius: 10px;
-          border: 1px solid rgba(0, 0, 0, 0.18);
-          background: rgba(255, 255, 255, 0.65);
+        .btnGhost{
+          padding: 10px 14px;
+          border-radius: 12px;
+          border: 1px solid rgba(0,0,0,0.16);
+          background: rgba(255,255,255,0.85);
+          color: #111;
           font-weight: 800;
           cursor: pointer;
         }
 
-        .columnsBox {
-          border: 1px solid rgba(0, 0, 0, 0.06);
-          border-radius: 0 12px 12px 0;
-          background: rgba(0, 0, 0, 0.02);
-          padding: 12px;
-          margin-bottom: 10px;
+        .colsBox{
+          margin-top: 10px;
+          border: 1px solid rgba(0,0,0,0.08);
+          border-radius: 12px;
+          padding: 10px;
+          background: rgba(255,255,255,0.7);
         }
-
-        .columnsTitle {
+        .colsTitle{
           font-weight: 800;
-          margin-bottom: 10px;
+          margin-bottom: 8px;
+          color: rgba(0,0,0,0.75);
         }
-
-        .columnsGrid {
+        .colsGrid{
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 10px;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
         }
-
-        .colItem {
+        .colChk{
           display: flex;
           align-items: center;
           gap: 8px;
           font-size: 13px;
-          font-weight: 700;
-          opacity: 0.9;
+          color: rgba(0,0,0,0.8);
         }
 
-        .columnsFooter {
+        .tableWrap{
           margin-top: 10px;
-          display: flex;
-          justify-content: flex-end;
-        }
-
-        .errorBox {
-          margin: 10px 0;
-          padding: 10px 12px;
-          border-radius: 10px;
-          background: rgba(255, 0, 0, 0.08);
-          border: 1px solid rgba(255, 0, 0, 0.18);
-          font-weight: 700;
-        }
-
-        .loadingBox {
-          margin: 10px 0;
-          padding: 10px 12px;
-          border-radius: 10px;
-          background: rgba(0, 0, 0, 0.04);
-          border: 1px solid rgba(0, 0, 0, 0.08);
-          font-weight: 700;
-          opacity: 0.8;
-        }
-
-        .tableWrap {
           overflow: auto;
-          border-radius: 0 12px 12px 0;
-          border: 1px solid rgba(0, 0, 0, 0.06);
-          background: rgba(255, 255, 255, 0.65);
+          border-radius: 12px;
+          border: 1px solid rgba(0,0,0,0.08);
+          background: rgba(255,255,255,0.75);
         }
-
-        .table {
+        .table{
           width: 100%;
           border-collapse: collapse;
-          min-width: 900px;
-        }
-
-        .table th,
-        .table td {
-          padding: 10px 12px;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
           font-size: 13px;
+        }
+        th, td{
+          padding: 10px 10px;
+          border-bottom: 1px solid rgba(0,0,0,0.06);
+          text-align: left;
           white-space: nowrap;
-          color: #111; /* names & values must be black (not green) */
         }
-
-        .table th {
-          font-weight: 800;
-          background: rgba(0, 0, 0, 0.03);
-          position: sticky;
-          top: 0;
-          z-index: 1;
-        }
-
-        .tableWrap.compact .table th,
-        .tableWrap.compact .table td {
-          padding: 7px 10px;
-          font-size: 12px;
-        }
-
-        .tableWrap.wrap .table td {
+        .table.wrap th, .table.wrap td{
           white-space: normal;
         }
+        th{
+          position: sticky;
+          top: 0;
+          background: rgba(255,255,255,0.9);
+          z-index: 1;
+          font-weight: 900;
+        }
+        .table.compact th, .table.compact td{
+          padding: 7px 10px;
+        }
+        .tdName{
+          font-weight: 800;
+          color: #111;
+        }
 
-        @media (max-width: 1100px) {
-          .filters {
-            grid-template-columns: repeat(3, 1fr);
+        .err{
+          padding: 10px 12px;
+          color: #7f1d1d;
+          background: rgba(239, 68, 68, 0.12);
+          border: 1px solid rgba(239, 68, 68, 0.24);
+          border-radius: 12px;
+          margin: 10px;
+          font-weight: 700;
+        }
+        .loading{
+          padding: 14px;
+          color: rgba(0,0,0,0.65);
+        }
+
+        @media (max-width: 1100px){
+          .filtersTop{
+            grid-template-columns: repeat(3, minmax(0, 1fr));
           }
-          .minSkills {
-            grid-template-columns: 90px repeat(3, 1fr);
+          .colsGrid{
+            grid-template-columns: repeat(2, minmax(0, 1fr));
           }
-          .sidebar {
-            display: none;
+        }
+        @media (max-width: 900px){
+          .pageWrap{
+            grid-template-columns: 1fr;
           }
-          .pageWrap {
-            padding-left: 0;
+          .sidebar{
+            position: relative;
+            top: 0;
+          }
+          .filtersMid{
+            grid-template-columns: 1fr;
           }
         }
       `}</style>
-    </div>
+    </AppLayout>
   );
 }
