@@ -1,124 +1,140 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 
-export default function TrackerSidebar({ teamSlug = "nt" }) {
+export default function TrackerSidebar() {
   const router = useRouter();
-  const safeTeam = teamSlug === "nt" ? "nt" : "u21";
+  const team = router.query.team;
 
-  const isActive = (href) => {
-    // Aktivno ako je putanja ista ili ako je segment u url-u
-    return router.asPath === href || router.asPath.startsWith(href + "?") || router.asPath.startsWith(href + "/");
-  };
+  const isActive = (href) => router.asPath === href;
 
-  const Item = ({ href, label }) => (
-    <li className={isActive(href) ? "active" : ""}>
-      <Link href={href}>{label}</Link>
-    </li>
+  const TeamLink = ({ href, children }) => (
+    <Link href={href} className={isActive(href) ? "sb-link sb-linkActive" : "sb-link"}>
+      {children}
+    </Link>
   );
 
   return (
     <aside className="sb">
       <div className="sb-card">
-        <div className="sb-title">Hrvatska NT</div>
+        <div className="sb-title">Hrvatska {team === "u21" ? "U21" : "NT"}</div>
 
-        <div className="sb-label">SPONZORI</div>
-        <div className="sb-sponsor">test</div>
+        <div className="sb-section">
+          <div className="sb-label">SPONZORI</div>
+          <div className="sb-sponsor">test</div>
+        </div>
 
-        <div className="sb-label sb-section">NT</div>
-        <ul className="sb-list">
-          <Item href={`/team/nt/requests`} label="Zahtjevi" />
-          <Item href={`/team/nt/lists`} label="Popisi" />
-          <Item href={`/team/nt/players`} label="Igrači" />
-          <Item href={`/team/nt/alerts`} label="Upozorenja" />
-          <Item href={`/team/nt/events`} label="Kalendar natjecanja" />
-          <Item href={`/team/nt/training-settings`} label="Postavke treninga" />
-        </ul>
+        <div className="sb-section">
+          <div className="sb-label">NT</div>
+          <nav className="sb-nav">
+            <TeamLink href="/team/nt/requests">Zahtjevi</TeamLink>
+            <TeamLink href="/team/nt/lists">Popisi</TeamLink>
+            <TeamLink href="/team/nt/players">Igrači</TeamLink>
+            <TeamLink href="/team/nt/alerts">Upozorenja</TeamLink>
+            <TeamLink href="/team/nt/events">Kalendar natjecanja</TeamLink>
+            <TeamLink href="/team/nt/training">Postavke treninga</TeamLink>
+          </nav>
+        </div>
 
-        <div className="sb-label sb-section">Hrvatska U21</div>
-        <ul className="sb-list">
-          <Item href={`/team/u21/requests`} label="Zahtjevi" />
-          <Item href={`/team/u21/lists`} label="Popisi" />
-          <Item href={`/team/u21/players`} label="Igrači" />
-          <Item href={`/team/u21/alerts`} label="Upozorenja" />
-          <Item href={`/team/u21/events`} label="Kalendar natjecanja" />
-          <Item href={`/team/u21/training-settings`} label="Postavke treninga" />
-        </ul>
+        <div className="sb-divider" />
 
-        <div className="sb-footnote">* Sve stavke su rezervirane za kasnije.</div>
+        <div className="sb-section">
+          <div className="sb-label">HRVATSKA U21</div>
+          <nav className="sb-nav">
+            <TeamLink href="/team/u21/requests">Zahtjevi</TeamLink>
+            <TeamLink href="/team/u21/lists">Popisi</TeamLink>
+            <TeamLink href="/team/u21/players">Igrači</TeamLink>
+            <TeamLink href="/team/u21/alerts">Upozorenja</TeamLink>
+            <TeamLink href="/team/u21/events">Kalendar natjecanja</TeamLink>
+            <TeamLink href="/team/u21/training">Postavke treninga</TeamLink>
+          </nav>
+        </div>
+
+        <div className="sb-note">* Sve stavke su rezervirane za kasnije.</div>
       </div>
 
       <style jsx>{`
         .sb {
-          width: 265px;
-          flex: 0 0 265px;
+          width: 260px;
+          flex: 0 0 260px;
         }
 
         .sb-card {
-          background: rgba(255, 255, 255, 0.55);
+          background: rgba(255, 255, 255, 0.65);
           border: 1px solid rgba(0, 0, 0, 0.08);
           border-radius: 14px;
-          padding: 14px 12px;
-          backdrop-filter: blur(10px);
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+          padding: 12px;
+          box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
         }
 
         .sb-title {
-          font-weight: 800;
-          margin-bottom: 10px;
+          font-weight: 900;
+          font-size: 15px;
+          margin-bottom: 8px;
         }
 
+        .sb-section {
+          margin-top: 10px;
+        }
+
+        /* MINI HEADER (ispunjeni) */
         .sb-label {
-          font-size: 12px;
+          display: inline-block;
           font-weight: 800;
-          opacity: 0.7;
-          margin-top: 12px;
-          margin-bottom: 6px;
-          letter-spacing: 0.04em;
-        }
-
-        .sb-label.sb-section {
-          background: #111827;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 0.6px;
           color: #ffffff;
-          opacity: 1;
+          background: rgba(0, 0, 0, 0.78);
+          border: 1px solid rgba(0, 0, 0, 0.35);
           padding: 6px 10px;
           border-radius: 10px;
-          margin: 14px 0 8px;
-          box-shadow: 0 1px 0 rgba(255, 255, 255, 0.25) inset, 0 2px 8px rgba(0, 0, 0, 0.15);
-          text-transform: none;
-          letter-spacing: 0;
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+          margin-bottom: 8px;
         }
 
         .sb-sponsor {
-          padding: 8px 10px;
-          background: rgba(255, 255, 255, 0.55);
-          border: 1px solid rgba(0, 0, 0, 0.08);
+          font-size: 13px;
+          padding: 6px 8px;
           border-radius: 10px;
+          background: rgba(255, 255, 255, 0.7);
+          border: 1px dashed rgba(0, 0, 0, 0.18);
         }
 
-        .sb-list {
-          list-style: none;
-          padding: 0;
-          margin: 0;
+        .sb-nav {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-top: 6px;
         }
 
-        .sb-list li {
-          padding: 4px 0;
-        }
-
-        .sb-list li a {
-          color: #111827;
+        .sb-link {
+          display: block;
+          padding: 8px 10px;
+          border-radius: 10px;
+          color: rgba(0, 0, 0, 0.9);
           text-decoration: none;
+          border: 1px solid transparent;
+          background: rgba(255, 255, 255, 0.55);
         }
 
-        .sb-list li.active a {
-          font-weight: 800;
-          text-decoration: underline;
+        .sb-link:hover {
+          border-color: rgba(0, 0, 0, 0.15);
+          background: rgba(255, 255, 255, 0.8);
         }
 
-        .sb-footnote {
+        .sb-linkActive {
+          background: rgba(0, 0, 0, 0.82);
+          color: #fff;
+        }
+
+        .sb-divider {
+          height: 10px;
+        }
+
+        .sb-note {
           margin-top: 12px;
-          font-size: 12px;
-          opacity: 0.7;
+          font-size: 11px;
+          opacity: 0.75;
         }
       `}</style>
     </aside>
