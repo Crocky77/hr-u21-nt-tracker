@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import AppLayout from "../../../components/AppLayout";
-import TrackerSidebar from "../../../components/TrackerSidebar";
 import { supabase } from "../../../lib/supabaseClient";
 
 // NOTE: This file intentionally contains UI + data logic for Players page.
@@ -155,11 +154,61 @@ export default function PlayersPage() {
   const pageTitle = `${teamTitle} — Igrači`;
 
   return (
+    // fullWidth = sidebar flush left like other modules (requests/alerts)
     <AppLayout title={pageTitle} fullWidth>
       <div className="pageWrap">
-        {/* LEFT MENU (shared component, same on every module) */}
-        <aside className="sidebarWrap">
-          <TrackerSidebar />
+        {/* LEFT MENU (standardized like other modules) */}
+        <aside className="sidebar">
+          <div className="sbTeam">{teamTitle}</div>
+
+          <div className="sbSectionHeader sbSectionHeaderSmall">SPONZORI</div>
+          <div className="sbSponsor">test</div>
+
+          <div className="sbSectionHeader">NT</div>
+          <nav className="sbNav">
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/requests">
+              Zahtjevi
+            </a>
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/lists">
+              Popisi
+            </a>
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/players">
+              Igrači
+            </a>
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/alerts">
+              Upozorenja
+            </a>
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/events">
+              Kalendar natjecanja
+            </a>
+            <a className={team === "nt" ? "active" : ""} href="/team/nt/training-settings">
+              Postavke treninga
+            </a>
+          </nav>
+
+          <div className="sbSectionHeader">HRVATSKA U21</div>
+          <nav className="sbNav">
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/requests">
+              Zahtjevi
+            </a>
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/lists">
+              Popisi
+            </a>
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/players">
+              Igrači
+            </a>
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/alerts">
+              Upozorenja
+            </a>
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/events">
+              Kalendar natjecanja
+            </a>
+            <a className={team === "u21" ? "active" : ""} href="/team/u21/training-settings">
+              Postavke treninga
+            </a>
+          </nav>
+
+          <div className="sbNote">* Sve stavke su rezervirane za kasnije.</div>
         </aside>
 
         {/* MAIN */}
@@ -332,25 +381,31 @@ export default function PlayersPage() {
         </main>
       </div>
 
-      <style jsx>{`
-        .pageWrap{
-          display: grid;
-          grid-template-columns: 260px 1fr;
-          gap: 18px;
-          align-items: start;
-          padding: 18px;
-        }
+	      <style jsx>{`
+	        /*
+	          Sidebar must be flush-left (same as other modules: requests/alerts).
+	          So we remove outer padding from the wrapper and apply padding only to
+	          the main content.
+	        */
+	        .pageWrap{
+	          display: flex;
+	          align-items: flex-start;
+	          gap: 0;
+	          padding: 0;
+	          width: 100%;
+	        }
 
-        .sidebarWrap{
-          position: sticky;
-          top: 12px;
-          align-self: start;
-          background: rgba(255,255,255,0.65);
-          border: 1px solid rgba(0,0,0,0.08);
-          border-radius: 14px;
-          padding: 12px;
-          backdrop-filter: blur(10px);
-        }
+	        .sidebar{
+	          position: sticky;
+	          top: 12px;
+	          align-self: flex-start;
+	          width: 260px;
+	          padding: 14px 0 18px 0;
+	          background: rgba(255,255,255,0.65);
+	          border: 1px solid rgba(0,0,0,0.08);
+	          border-radius: 14px;
+	          backdrop-filter: blur(10px);
+	        }
 
         .sbTeam{
           font-weight: 900;
@@ -422,7 +477,8 @@ export default function PlayersPage() {
         }
 
         .main{
-          min-width: 0;
+	          min-width: 0;
+	          padding: 14px 18px 24px 18px;
         }
 
         .headerRow{
@@ -617,12 +673,15 @@ export default function PlayersPage() {
         }
         @media (max-width: 900px){
           .pageWrap{
-            grid-template-columns: 1fr;
+	            flex-direction: column;
           }
-          .sidebarWrap{
+          .sidebar{
             position: relative;
             top: 0;
           }
+	          .main{
+	            padding: 12px 14px 20px 14px;
+	          }
           .filtersMid{
             grid-template-columns: 1fr;
           }
