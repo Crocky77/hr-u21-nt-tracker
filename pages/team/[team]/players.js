@@ -155,7 +155,7 @@ export default function PlayersPage() {
   const pageTitle = `${teamTitle} — Igrači`;
 
   return (
-    <AppLayout title={pageTitle}>
+    <AppLayout title={pageTitle} fullWidth>
       <div className="pageWrap">
         {/* LEFT MENU (shared component, same on every module) */}
         <aside className="sidebarWrap">
