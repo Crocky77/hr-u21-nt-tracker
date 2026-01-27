@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/router";
 import AppLayout from "../../../components/AppLayout";
+import TrackerSidebar from "../../../components/TrackerSidebar";
 import { supabase } from "../../../lib/supabaseClient";
 
 // NOTE: This file intentionally contains UI + data logic for Players page.
@@ -156,58 +157,9 @@ export default function PlayersPage() {
   return (
     <AppLayout title={pageTitle}>
       <div className="pageWrap">
-        {/* LEFT MENU (standardized like other modules) */}
-        <aside className="sidebar">
-          <div className="sbTeam">{teamTitle}</div>
-
-          <div className="sbSectionHeader sbSectionHeaderSmall">SPONZORI</div>
-          <div className="sbSponsor">test</div>
-
-          <div className="sbSectionHeader">NT</div>
-          <nav className="sbNav">
-            <a className={team === "nt" ? "active" : ""} href="/team/nt/requests">
-              Zahtjevi
-            </a>
-            <a className={team === "nt" ? "active" : ""} href="/team/nt/lists">
-              Popisi
-            </a>
-            <a className={team === "nt" ? "active" : ""} href="/team/nt/players">
-              Igrači
-            </a>
-            <a className={team === "nt" ? "active" : ""} href="/team/nt/alerts">
-              Upozorenja
-            </a>
-            <a className={team === "nt" ? "active" : ""} href="/team/nt/events">
-              Kalendar natjecanja
-            </a>
-            <a className={team === "nt" ? "active" : ""} href="/team/nt/training-settings">
-              Postavke treninga
-            </a>
-          </nav>
-
-          <div className="sbSectionHeader">HRVATSKA U21</div>
-          <nav className="sbNav">
-            <a className={team === "u21" ? "active" : ""} href="/team/u21/requests">
-              Zahtjevi
-            </a>
-            <a className={team === "u21" ? "active" : ""} href="/team/u21/lists">
-              Popisi
-            </a>
-            <a className={team === "u21" ? "active" : ""} href="/team/u21/players">
-              Igrači
-            </a>
-            <a className={team === "u21" ? "active" : ""} href="/team/u21/alerts">
-              Upozorenja
-            </a>
-            <a className={team === "u21" ? "active" : ""} href="/team/u21/events">
-              Kalendar natjecanja
-            </a>
-            <a className={team === "u21" ? "active" : ""} href="/team/u21/training-settings">
-              Postavke treninga
-            </a>
-          </nav>
-
-          <div className="sbNote">* Sve stavke su rezervirane za kasnije.</div>
+        {/* LEFT MENU (shared component, same on every module) */}
+        <aside className="sidebarWrap">
+          <TrackerSidebar />
         </aside>
 
         {/* MAIN */}
@@ -389,7 +341,7 @@ export default function PlayersPage() {
           padding: 18px;
         }
 
-        .sidebar{
+        .sidebarWrap{
           position: sticky;
           top: 12px;
           align-self: start;
@@ -667,7 +619,7 @@ export default function PlayersPage() {
           .pageWrap{
             grid-template-columns: 1fr;
           }
-          .sidebar{
+          .sidebarWrap{
             position: relative;
             top: 0;
           }
