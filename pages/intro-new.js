@@ -1,109 +1,72 @@
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 
-export default function Intro() {
+export default function IntroNew() {
   const router = useRouter();
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      router.replace("/");
-    }, 3000); // 3 sekunde
+    const t = setTimeout(() => {
+      router.push("/");
+    }, 5200);
 
-    return () => clearTimeout(timer);
+    return () => clearTimeout(t);
   }, [router]);
 
   return (
-    <div className="intro">
-      <div className="overlay" />
+    <div style={styles.wrapper}>
+      <div style={styles.background} />
 
-      <div className="content">
-        <img
-          src="/intro/logo.png"
-          alt="Hrvatski U21/NT Tracker"
-          className="logo"
-        />
+      <img
+        src="/intro/logo.png"
+        alt="HT U21/NT Tracker"
+        style={styles.logo}
+      />
 
-        <h1>Hrvatski U21/NT Tracker</h1>
-        <p>powered by Croatia NT Staff</p>
-      </div>
-
-      <style jsx>{`
-        .intro {
-          position: fixed;
-          inset: 0;
-          background-image: url("/intro/bg.jpg");
-          background-size: cover;
-          background-position: center;
-          background-repeat: no-repeat;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-
-        .overlay {
-          position: absolute;
-          inset: 0;
-          background: rgba(0, 0, 0, 0.55);
-        }
-
-        .content {
-          position: relative;
-          z-index: 2;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          color: #ffffff;
-        }
-
-        .logo {
-          width: 240px;
-          max-width: 70%;
-          margin-bottom: 28px;
-          opacity: 0;
-          animation: fadeScale 1.6s ease-out forwards;
-        }
-
-        h1 {
-          font-size: 36px;
-          font-weight: 800;
-          margin: 0;
-          opacity: 0;
-          animation: fadeUp 1.6s ease-out forwards;
-          animation-delay: 0.4s;
-        }
-
-        p {
-          margin-top: 12px;
-          font-size: 16px;
-          opacity: 0;
-          animation: fadeUp 1.6s ease-out forwards;
-          animation-delay: 0.8s;
-          color: #e6e6e6;
-        }
-
-        @keyframes fadeScale {
-          from {
-            opacity: 0;
-            transform: scale(0.9);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        @keyframes fadeUp {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+      <h1 style={styles.title}>Hrvatski U21/NT Tracker</h1>
+      <p style={styles.subtitle}>powered by Croatia NT Staff</p>
     </div>
   );
 }
+
+const styles = {
+  wrapper: {
+    position: "fixed",
+    inset: 0,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#ffffff",
+    overflow: "hidden",
+  },
+  background: {
+    position: "absolute",
+    inset: 0,
+    backgroundImage: "url('/intro/bg.jpg')",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    opacity: 0.35,
+    zIndex: 0,
+  },
+  logo: {
+    width: "220px",
+    height: "auto",
+    zIndex: 1,
+    animation: "fadeInScale 1.2s ease-out forwards",
+  },
+  title: {
+    marginTop: "24px",
+    fontSize: "36px",
+    fontWeight: "800",
+    color: "#111",
+    zIndex: 1,
+    animation: "fadeIn 1.5s ease-out forwards",
+  },
+  subtitle: {
+    marginTop: "8px",
+    fontSize: "16px",
+    color: "#444",
+    zIndex: 1,
+    animation: "fadeIn 2s ease-out forwards",
+  },
+};
