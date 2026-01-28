@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 import Lottie from "lottie-react";
-import animationData from "../public/intro.json";
 
 export default function IntroPage() {
   const router = useRouter();
@@ -9,7 +8,7 @@ export default function IntroPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       router.replace("/");
-    }, 5200); // 5.2 sekunde
+    }, 5200); // 5.2 s
 
     return () => clearTimeout(timer);
   }, [router]);
@@ -27,7 +26,8 @@ export default function IntroPage() {
       }}
     >
       <Lottie
-        animationData={animationData}
+        animationData={null}
+        path="/intro.json"
         loop={false}
         autoplay
         style={{
