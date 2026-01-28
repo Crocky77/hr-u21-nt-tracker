@@ -1,11 +1,27 @@
 import { useEffect } from "react";
 import { useRouter } from "next/router";
 
-export default function IntroNew() {
+export default function Intro() {
   const router = useRouter();
 
   useEffect(() => {
-    const t = setTimeout(() => router.replace("/"), 6200);
+    // Ako je intro već prikazan u ovoj sesiji – preskoči
+    if (typeof window !== "undefined") {
+      const seen = sessionStorage.getItem("intro_seen");
+      if (seen === "1") {
+        router.replace("/");
+        return;
+      }
+
+      // Označi da je intro prikazan
+      sessionStorage.setItem("intro_seen", "1");
+    }
+
+    // Redirect nakon pune sekvence (~6.2s)
+    const t = setTimeout(() => {
+      router.replace("/");
+    }, 6200);
+
     return () => clearTimeout(t);
   }, [router]);
 
