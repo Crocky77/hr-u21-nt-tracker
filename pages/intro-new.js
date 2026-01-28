@@ -7,24 +7,22 @@ export default function IntroNew() {
   useEffect(() => {
     const timer = setTimeout(() => {
       router.push("/");
-    }, 5000);
+    }, 7500);
 
     return () => clearTimeout(timer);
   }, [router]);
 
   return (
     <div className="intro">
-      <div className="overlay" />
-
       <div className="content">
         <img
           src="/intro/logo.png"
-          alt="Hrvatski U21/NT Tracker"
+          alt="HT U21/NT Tracker"
           className="logo"
         />
 
-        <h1>Hrvatski U21/NT Tracker</h1>
-        <p>powered by Croatia NT Staff</p>
+        <h1 className="title">Hrvatski U21/NT Tracker</h1>
+        <p className="subtitle">powered by Croatia NT Staff</p>
       </div>
 
       <style jsx>{`
@@ -35,61 +33,91 @@ export default function IntroNew() {
           background-size: cover;
           background-position: center;
           background-repeat: no-repeat;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        }
-
-        /* Tamni cinematic overlay */
-        .overlay {
-          position: absolute;
-          inset: 0;
-          background: radial-gradient(
-            circle at center,
-            rgba(0, 0, 0, 0.35),
-            rgba(0, 0, 0, 0.85)
-          );
-          z-index: 1;
+          animation: bgFadeIn 1.5s ease forwards;
         }
 
         .content {
-          position: relative;
-          z-index: 2;
+          position: absolute;
+          inset: 0;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          color: white;
           text-align: center;
-          color: #ffffff;
-          animation: fadeIn 1.6s ease-out;
         }
 
+        /* LOGO */
         .logo {
-          width: 340px;
+          width: 380px;
           max-width: 80vw;
-          height: auto;
-          margin-bottom: 28px;
-          filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.7));
+          opacity: 0;
+          transform: scale(0.85);
+          animation: logoIn 1.5s ease forwards;
+          animation-delay: 1.5s;
+          background: transparent;
+          filter: drop-shadow(0 20px 40px rgba(0,0,0,0.7));
         }
 
-        h1 {
-          font-size: 40px;
+        /* TITLE */
+        .title {
+          margin-top: 32px;
+          font-size: 42px;
           font-weight: 800;
-          letter-spacing: 0.5px;
-          margin: 0;
+          opacity: 0;
+          animation: textIn 1.2s ease forwards;
+          animation-delay: 3.5s;
         }
 
-        p {
+        /* SUBTITLE */
+        .subtitle {
           margin-top: 12px;
           font-size: 16px;
-          opacity: 0.85;
+          opacity: 0;
+          animation: textIn 1.2s ease forwards;
+          animation-delay: 5s;
         }
 
-        @keyframes fadeIn {
+        /* FADE OUT EVERYTHING */
+        .content {
+          animation: fadeOut 0.8s ease forwards;
+          animation-delay: 6.7s;
+        }
+
+        @keyframes bgFadeIn {
           from {
             opacity: 0;
-            transform: translateY(16px);
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes logoIn {
+          from {
+            opacity: 0;
+            transform: scale(0.85);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        @keyframes textIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
           }
           to {
             opacity: 1;
             transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeOut {
+          to {
+            opacity: 0;
           }
         }
       `}</style>
