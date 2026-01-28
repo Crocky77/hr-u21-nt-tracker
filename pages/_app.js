@@ -1,11 +1,11 @@
-import "@/styles/globals.css";
+import "../styles/globals.css";
 
 export default function App({ Component, pageProps, router }) {
-  // ⛔ INTRO PAGE → BEZ LAYOUTA
+  // INTRO STRANICA — bez ikakvog layouta
   if (router.pathname === "/intro") {
     return <Component {...pageProps} />;
   }
 
-  // ✅ SVE OSTALE STRANICE → NORMALAN APP
+  // SVE OSTALE STRANICE
   return <Component {...pageProps} />;
 }
