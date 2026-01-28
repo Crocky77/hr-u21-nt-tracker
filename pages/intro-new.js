@@ -5,88 +5,61 @@ export default function IntroNew() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect after full sequence (~6.8s)
-    const t = setTimeout(() => router.replace("/"), 6800);
+    const t = setTimeout(() => router.replace("/"), 6200);
     return () => clearTimeout(t);
   }, [router]);
 
   return (
     <div className="root">
-      {/* Background */}
       <div className="bg" />
-      {/* Fire glow layers */}
-      <div className="fire fire-1" />
-      <div className="fire fire-2" />
+      <div className="fire" />
 
-      {/* Content */}
       <div className="content">
-        {/* LOGO */}
         <img
           src="/intro/logo.png"
           alt="Hrvatski U21/NT Tracker"
           className="logo"
         />
 
-        {/* TITLE */}
-        <h1 className="title">Hrvatski U21/NT Tracker</h1>
+        <h1 className="title">
+          <span>Hrvatski U21/NT Tracker</span>
+        </h1>
 
-        {/* SUBTITLE */}
         <p className="subtitle">powered by Croatia NT Staff</p>
       </div>
 
       <style jsx>{`
-        /* ROOT */
         .root {
           position: fixed;
           inset: 0;
-          overflow: hidden;
           background: #000;
+          overflow: hidden;
         }
 
         /* BACKGROUND */
         .bg {
           position: absolute;
           inset: 0;
-          background-image: url("/intro/bg.jpg");
-          background-size: cover;
-          background-position: center;
-          background-repeat: no-repeat;
-          filter: saturate(0.95);
-          animation: bgIn 1.1s ease-out forwards;
+          background: url("/intro/bg.jpg") center / cover no-repeat;
+          opacity: 0;
+          animation: bgIn 0.8s ease forwards;
         }
 
-        /* FIRE GLOW (SIMULATED) */
+        /* FIRE GLOW */
         .fire {
           position: absolute;
-          inset: -20%;
-          pointer-events: none;
+          inset: -15%;
+          background: radial-gradient(
+            35% 30% at 50% 55%,
+            rgba(255, 90, 20, 0.55),
+            rgba(255, 90, 20, 0.15) 40%,
+            transparent 65%
+          );
           opacity: 0;
-          mix-blend-mode: screen;
+          animation: fireIn 1.4s ease forwards;
+          animation-delay: 0.6s;
         }
 
-        .fire-1 {
-          background: radial-gradient(
-            40% 35% at 50% 55%,
-            rgba(255, 80, 0, 0.55),
-            rgba(255, 80, 0, 0.15) 35%,
-            rgba(0, 0, 0, 0) 60%
-          );
-          animation: firePulse 1.2s ease-out forwards;
-          animation-delay: 0.4s;
-        }
-
-        .fire-2 {
-          background: radial-gradient(
-            30% 28% at 50% 52%,
-            rgba(255, 160, 60, 0.45),
-            rgba(255, 160, 60, 0.12) 30%,
-            rgba(0, 0, 0, 0) 55%
-          );
-          animation: firePulse 1.1s ease-out forwards;
-          animation-delay: 0.55s;
-        }
-
-        /* CONTENT */
         .content {
           position: relative;
           z-index: 2;
@@ -98,98 +71,95 @@ export default function IntroNew() {
           color: #fff;
           text-align: center;
 
-          /* CLEAN FADE-OUT (short) */
-          animation: fadeOut 0.7s ease forwards;
-          animation-delay: 5.9s;
+          animation: fadeOut 0.6s ease forwards;
+          animation-delay: 5.2s;
         }
 
-        /* LOGO – THEATRICAL ENTRY */
+        /* LOGO – EMERGE */
         .logo {
           width: 300px;
           max-width: 70vw;
-          height: auto;
-
           opacity: 0;
-          transform: scale(0.86);
-          filter: blur(14px)
+          transform: scale(0.88);
+          filter: blur(10px)
             drop-shadow(0 0 0 rgba(255, 120, 40, 0));
 
-          animation: logoImpact 1.35s
+          animation: logoIn 1.4s
             cubic-bezier(0.22, 1, 0.36, 1) forwards;
-          animation-delay: 0.7s;
+          animation-delay: 0.8s;
         }
 
-        /* TITLE */
+        /* TITLE – SCRATCH REVEAL */
         .title {
-          margin-top: 26px;
+          margin-top: 28px;
           font-size: 36px;
           font-weight: 800;
           letter-spacing: 0.3px;
-
-          opacity: 0;
-          transform: translateY(10px);
-          animation: textIn 0.8s ease forwards;
-          animation-delay: 2.3s;
+          overflow: hidden;
         }
 
-        /* SUBTITLE */
+        .title span {
+          display: inline-block;
+          transform: translateY(100%);
+          animation: scratchUp 1.2s ease forwards;
+          animation-delay: 2.4s;
+        }
+
+        /* SUBTITLE – FORGE HIT */
         .subtitle {
-          margin-top: 8px;
+          margin-top: 10px;
           font-size: 14px;
           opacity: 0;
-          animation: fadeIn 0.6s ease forwards;
-          animation-delay: 3.1s;
+          transform: scale(0.96);
+          animation: forgeIn 0.6s ease forwards;
+          animation-delay: 3.9s;
         }
 
         /* ANIMATIONS */
         @keyframes bgIn {
-          from { opacity: 0; }
           to { opacity: 1; }
         }
 
-        @keyframes firePulse {
-          0% { opacity: 0; }
-          60% { opacity: 1; }
-          100% { opacity: 0.65; }
+        @keyframes fireIn {
+          to { opacity: 1; }
         }
 
-        @keyframes logoImpact {
+        @keyframes logoIn {
           0% {
             opacity: 0;
-            transform: scale(0.86);
-            filter: blur(14px)
+            transform: scale(0.88);
+            filter: blur(10px)
               drop-shadow(0 0 0 rgba(255, 120, 40, 0));
           }
-          65% {
+          70% {
             opacity: 1;
             transform: scale(1.02);
             filter: blur(2px)
-              drop-shadow(0 18px 40px rgba(255, 120, 40, 0.65));
+              drop-shadow(0 18px 36px rgba(255, 120, 40, 0.6));
           }
           100% {
             opacity: 1;
             transform: scale(1);
             filter: blur(0)
-              drop-shadow(0 22px 48px rgba(0, 0, 0, 0.75));
+              drop-shadow(0 22px 44px rgba(0, 0, 0, 0.75));
           }
         }
 
-        @keyframes textIn {
+        @keyframes scratchUp {
+          to { transform: translateY(0); }
+        }
+
+        @keyframes forgeIn {
           to {
             opacity: 1;
-            transform: translateY(0);
+            transform: scale(1);
           }
-        }
-
-        @keyframes fadeIn {
-          to { opacity: 1; }
         }
 
         @keyframes fadeOut {
           to { opacity: 0; }
         }
 
-        /* RESPONSIVE */
         @media (max-width: 600px) {
           .logo { width: 220px; }
           .title { font-size: 26px; }
