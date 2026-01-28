@@ -1,72 +1,89 @@
-import { useEffect } from "react";
-import { useRouter } from "next/router";
+import Head from "next/head";
 
 export default function IntroNew() {
-  const router = useRouter();
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      router.push("/");
-    }, 5200);
-
-    return () => clearTimeout(t);
-  }, [router]);
-
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.background} />
+    <>
+      <Head>
+        <title>Hrvatski U21/NT Tracker</title>
+      </Head>
 
-      <img
-        src="/intro/logo.png"
-        alt="HT U21/NT Tracker"
-        style={styles.logo}
-      />
+      <div className="intro-root">
+        <div className="overlay" />
 
-      <h1 style={styles.title}>Hrvatski U21/NT Tracker</h1>
-      <p style={styles.subtitle}>powered by Croatia NT Staff</p>
-    </div>
+        <div className="content">
+          <img
+            src="/intro/logo.png"
+            alt="HT U21/NT Tracker"
+            className="logo"
+          />
+
+          <h1>Hrvatski U21/NT Tracker</h1>
+          <p>powered by Croatia NT Staff</p>
+        </div>
+      </div>
+
+      <style jsx>{`
+        .intro-root {
+          position: fixed;
+          inset: 0;
+          background-image: url("/intro/bg.jpg");
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .overlay {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(
+            circle at center,
+            rgba(0, 0, 0, 0.25) 0%,
+            rgba(0, 0, 0, 0.65) 100%
+          );
+        }
+
+        .content {
+          position: relative;
+          z-index: 2;
+          text-align: center;
+          color: #ffffff;
+          padding: 40px;
+        }
+
+        .logo {
+          width: 320px;
+          max-width: 80vw;
+          margin-bottom: 28px;
+          filter: drop-shadow(0 18px 40px rgba(0, 0, 0, 0.6));
+        }
+
+        h1 {
+          font-size: 36px;
+          font-weight: 800;
+          margin: 0;
+          letter-spacing: 0.5px;
+        }
+
+        p {
+          margin-top: 10px;
+          font-size: 14px;
+          opacity: 0.85;
+          letter-spacing: 0.3px;
+        }
+
+        @media (max-width: 600px) {
+          .logo {
+            width: 220px;
+          }
+
+          h1 {
+            font-size: 26px;
+          }
+        }
+      `}</style>
+    </>
   );
 }
-
-const styles = {
-  wrapper: {
-    position: "fixed",
-    inset: 0,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#ffffff",
-    overflow: "hidden",
-  },
-  background: {
-    position: "absolute",
-    inset: 0,
-    backgroundImage: "url('/intro/bg.jpg')",
-    backgroundSize: "cover",
-    backgroundPosition: "center",
-    opacity: 0.35,
-    zIndex: 0,
-  },
-  logo: {
-    width: "220px",
-    height: "auto",
-    zIndex: 1,
-    animation: "fadeInScale 1.2s ease-out forwards",
-  },
-  title: {
-    marginTop: "24px",
-    fontSize: "36px",
-    fontWeight: "800",
-    color: "#111",
-    zIndex: 1,
-    animation: "fadeIn 1.5s ease-out forwards",
-  },
-  subtitle: {
-    marginTop: "8px",
-    fontSize: "16px",
-    color: "#444",
-    zIndex: 1,
-    animation: "fadeIn 2s ease-out forwards",
-  },
-};
