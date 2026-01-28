@@ -1,15 +1,11 @@
-// pages/_app.js
-import "../styles/globals.css";
-import AdminBadge from "../components/AdminBadge";
+import "@/styles/globals.css";
 
-function MyApp({ Component, pageProps }) {
-  return (
-    <>
-      <Component {...pageProps} />
-      {/* Globalni admin badge + Odjava (samo kad je user prijavljen) */}
-      <AdminBadge />
-    </>
-  );
+export default function App({ Component, pageProps, router }) {
+  // ⛔ INTRO PAGE → BEZ LAYOUTA
+  if (router.pathname === "/intro") {
+    return <Component {...pageProps} />;
+  }
+
+  // ✅ SVE OSTALE STRANICE → NORMALAN APP
+  return <Component {...pageProps} />;
 }
-
-export default MyApp;
