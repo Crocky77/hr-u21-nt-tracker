@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 export default function HomePage() {
-  // 8 klikabilnih “U izradi” modula (neutralni linkovi za sada)
+  // 8 klikabilnih “U izradi” (neutralno, ali klikabilno)
   const tiles = Array.from({ length: 8 }).map((_, i) => ({
     id: i + 1,
     label: "U izradi",
@@ -10,15 +10,15 @@ export default function HomePage() {
 
   return (
     <div className="page">
-      {/* HEADER (samo na naslovnici, kao slika 3) */}
+      {/* HEADER (kao slika 3) */}
       <div className="topbar">
         <div className="brand">
           <img className="logo" src="/logo.png" alt="Logo" />
-          <div className="brandText">Hrvatski U21 / NT TRACKER</div>
+          <div className="brandText">HRVATSKI U21 / NT TRACKER</div>
         </div>
       </div>
 
-      {/* CENTRALNI PANEL */}
+      {/* CENTRALNI PANEL (kao slika 3) */}
       <div className="wrap">
         <div className="panel">
           <h1 className="title">Moji igrači u Hrvatskom trackeru</h1>
@@ -28,71 +28,79 @@ export default function HomePage() {
 
           {/* 3 gornje kartice (klikabilne) */}
           <div className="topCards">
-            <Link href="/team/nt" className="topCard nt">
-              <span className="topCardText">NT Hrvatska</span>
+            <Link href="/team/nt" legacyBehavior>
+              <a className="topCard nt">
+                <span className="topCardText">NT Hrvatska</span>
+              </a>
             </Link>
 
-            <Link href="/team/u21" className="topCard u21">
-              <span className="topCardText">U21 Hrvatska</span>
+            <Link href="/team/u21" legacyBehavior>
+              <a className="topCard u21">
+                <span className="topCardText">U21 Hrvatska</span>
+              </a>
             </Link>
 
-            <Link href="/team/nt/transfers" className="topCard transfer">
-              <span className="topCardText">
-                <span className="arrow">⇵</span> Transfer lista
-              </span>
+            {/* Transfer mora biti klikabilan, ali “disabled” vizualno */}
+            <Link href="/team/nt/transfers" legacyBehavior>
+              <a className="topCard transfer disabled" aria-disabled="true" title="Privremeno isključeno do CHPP licence">
+                <span className="topCardText">
+                  <span className="arrow">⇵</span> Transfer lista
+                </span>
+              </a>
             </Link>
           </div>
 
-          {/* 8 “U izradi” (klikabilni) */}
+          {/* 8 widgeta u 2 reda po 4 (klikabilni) */}
           <div className="grid">
             {tiles.map((t) => (
-              <Link key={t.id} href={t.href} className="tile">
-                {t.label}
+              <Link key={t.id} href={t.href} legacyBehavior>
+                <a className="tile">{t.label}</a>
               </Link>
             ))}
           </div>
 
           {/* FOOTER LINKOVI */}
           <div className="footer">
-            <Link href="/about">O alatu</Link>
-            <Link href="/help">Pomoć</Link>
-            <Link href="/donate">Donacije</Link>
-            <Link href="/privacy">Privacy</Link>
-            <Link href="/terms">Terms</Link>
+            <Link href="/about" legacyBehavior><a>O alatu</a></Link>
+            <Link href="/help" legacyBehavior><a>Pomoć</a></Link>
+            <Link href="/donate" legacyBehavior><a>Donacije</a></Link>
+            <Link href="/privacy" legacyBehavior><a>Privacy</a></Link>
+            <Link href="/terms" legacyBehavior><a>Terms</a></Link>
           </div>
         </div>
       </div>
 
       <style jsx>{`
+        /* ✅ BEZ HERO POZADINE (nema slike igrača) — samo crveno/crno kao slika 3 */
         .page {
           min-height: 100vh;
           width: 100%;
-          /* POZADINA kao “slika 3” (crveni glow + tekstura) */
-          background: radial-gradient(circle at 50% 38%, rgba(210, 0, 0, 0.55), rgba(0, 0, 0, 0.92)),
-            url("/backgrounds/hr-hero.jpg") center / cover no-repeat;
+          background:
+            radial-gradient(circle at 50% 40%, rgba(255, 0, 0, 0.35), rgba(0, 0, 0, 0.92)),
+            radial-gradient(circle at 50% 55%, rgba(120, 0, 0, 0.55), rgba(0, 0, 0, 0.96));
         }
 
         /* TOP BAR */
         .topbar {
           height: 110px;
           width: 100%;
-          background: linear-gradient(to right, rgba(0, 0, 0, 0.92), rgba(30, 0, 0, 0.82));
-          border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-          position: relative;
+          background: linear-gradient(to right, rgba(0, 0, 0, 0.92), rgba(35, 0, 0, 0.88));
+          border-bottom: 1px solid rgba(255, 255, 255, 0.12);
         }
 
+        /* Logo skroz lijevo + malo “preko” */
         .brand {
           height: 100%;
           display: flex;
           align-items: center;
           gap: 18px;
-          padding-left: 18px; /* skroz lijevo */
+          padding-left: 10px;
         }
 
         .logo {
-          height: 96px;
+          height: 92px;
           width: auto;
-          margin-top: -18px; /* da ide malo “preko” kao slika 3 */
+          margin-top: -16px;
         }
 
         .brandText {
@@ -103,7 +111,7 @@ export default function HomePage() {
           text-transform: uppercase;
         }
 
-        /* PANEL WRAP */
+        /* PANEL */
         .wrap {
           max-width: 1200px;
           margin: 0 auto;
@@ -113,7 +121,7 @@ export default function HomePage() {
         .panel {
           border-radius: 18px;
           padding: 44px 38px 28px;
-          background: rgba(10, 10, 10, 0.58);
+          background: rgba(10, 10, 10, 0.62);
           border: 1px solid rgba(255, 255, 255, 0.12);
           box-shadow: 0 18px 55px rgba(0, 0, 0, 0.55);
           backdrop-filter: blur(10px);
@@ -131,7 +139,7 @@ export default function HomePage() {
         .subtitle {
           margin-top: 10px;
           text-align: center;
-          color: rgba(255, 255, 255, 0.75);
+          color: rgba(255, 255, 255, 0.78);
           font-size: 16px;
         }
 
@@ -179,8 +187,13 @@ export default function HomePage() {
 
         .transfer {
           color: #fff;
-          background: linear-gradient(135deg, rgba(60, 0, 0, 0.9), rgba(25, 0, 0, 0.86));
+          background: linear-gradient(135deg, rgba(60, 0, 0, 0.92), rgba(25, 0, 0, 0.90));
           justify-content: center;
+        }
+
+        /* “disabled” vizualno, ali klikabilno (kako si tražio) */
+        .disabled {
+          opacity: 0.78;
         }
 
         .arrow {
@@ -219,7 +232,7 @@ export default function HomePage() {
           box-shadow: 0 16px 30px rgba(0, 0, 0, 0.40);
         }
 
-        /* footer links */
+        /* footer */
         .footer {
           margin-top: 26px;
           padding-top: 18px;
@@ -229,13 +242,13 @@ export default function HomePage() {
           gap: 26px;
         }
 
-        .footer :global(a) {
+        .footer a {
           color: rgba(255, 255, 255, 0.78);
           text-decoration: none;
           font-weight: 700;
         }
 
-        .footer :global(a:hover) {
+        .footer a:hover {
           color: #fff;
           text-decoration: underline;
         }
