@@ -1,43 +1,45 @@
+import { useRouter } from "next/router";
 import Header from "./Header";
-import Footer from "./Footer";
 
-export default function Layout({
-  title,
-  children,
-  mode = "hero", // hero | data
-  showNavLinks = false,
-}) {
+export default function Layout({ children }) {
+  const router = useRouter();
+  const isHome = router.pathname === "/";
+
+  // Home koristi crvenu pozadinu + centrirani panel
+  // Data stranice ostaju “bijele” (one već imaju svoj UI), ali header je isti (bez TopBar-a).
   return (
-    <div className={`page ${mode}`}>
-      <Header title={title} showNavLinks={showNavLinks} />
+    <div className={isHome ? "appShell appShellHome" : "appShell appShellDefault"}>
+      <Header showNav={!isHome} />
+      <main className={isHome ? "mainHome" : "mainDefault"}>{children}</main>
 
-      <main className="content">{children}</main>
-
-      <Footer />
-
-      <style jsx>{`
-        .page.hero {
+      <style jsx global>{`
+        .appShell {
           min-height: 100vh;
           width: 100%;
-          background: linear-gradient(
-              to bottom,
-              rgba(0, 0, 0, 0.55),
-              rgba(0, 0, 0, 0.9)
-            ),
-            url("/backgrounds/hero-bg.jpg") center top / cover no-repeat;
-          color: #ffffff;
         }
 
-        .page.data {
-          min-height: 100vh;
+        /* HOME background */
+        .appShellHome {
+          background: url("/backgrounds/home-red.jpg") center top / cover no-repeat fixed;
+        }
+
+        /* Default background (za sve druge stranice) */
+        .appShellDefault {
           background: #ffffff;
-          color: #111111;
         }
 
-        .content {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 48px 32px;
+        /* HOME layout */
+        .mainHome {
+          min-height: calc(100vh - 86px);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 36px 16px 64px;
+        }
+
+        /* Default pages */
+        .mainDefault {
+          padding: 0;
         }
       `}</style>
     </div>
