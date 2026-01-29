@@ -1,15 +1,18 @@
-import Link from 'next/link';
-import AppLayout from '../components/AppLayout';
+// pages/index.js
+import Link from "next/link";
+import AppLayout from "../components/AppLayout";
 
 export default function HomePage() {
   return (
-    <AppLayout variant="home" headerTitle="Hrvatski U21/NT Tracker" showHeaderNav={false}>
+    <AppLayout variant="home" headerTitle="Hrvatski U21/NT Tracker">
       <div className="hr-container">
         <div className="hr-homePanel">
           <h1 className="hr-homeTitle">Moji igrači u Hrvatskom trackeru</h1>
-          <p className="hr-homeSub">CHPP dozvola je kasnije. Za sada pripremamo UI + DB za "moji igrači".</p>
+          <p className="hr-homeSub">
+            CHPP dozvola je kasnije. Za sada pripremamo UI + DB za "moji igrači".
+          </p>
 
-          {/* Samo ovaj widget je klikabilan (ne pola stranice) */}
+          {/* samo ovaj widget klikabilan */}
           <Link href="/my-players" className="hr-myPlayersWidget" aria-label="Moji igrači">
             <div>
               <div className="hr-myPlayersWidgetTitle">Moji igrači u Hrvatskom trackeru</div>
@@ -23,15 +26,18 @@ export default function HomePage() {
             <Link href="/team/nt" className="hr-homeBigBtn hr-homeBigBtn--nt" aria-label="NT Hrvatska">
               <span className="hr-homeBigBtnText">NT Hrvatska</span>
             </Link>
+
             <Link href="/team/u21" className="hr-homeBigBtn hr-homeBigBtn--u21" aria-label="U21 Hrvatska">
               <span className="hr-homeBigBtnText">U21 Hrvatska</span>
             </Link>
+
+            {/* NEMAŠ sliku za transfer – koristimo “naš” dizajn (tamni) */}
             <Link href="/team/nt/transfers" className="hr-homeBigBtn hr-homeBigBtn--tr" aria-label="Transfer lista">
               <span className="hr-homeBigBtnText">Transfer lista</span>
             </Link>
           </div>
 
-          {/* DRUGI + TREĆI RED (8 widgeta) */}
+          {/* 8 widgeta (2 reda po 4) */}
           <div className="hr-homeGrid">
             {Array.from({ length: 8 }).map((_, idx) => (
               <div key={idx} className="hr-homeSmallCard">
