@@ -1,21 +1,32 @@
 import "../styles/globals.css";
-import Layout from "../components/Layout";
+import TopBar from "../components/TopBar";
 
 export default function App({ Component, pageProps, router }) {
-  // ✅ INTRO je zaključan i ide bez layouta
+  // INTRO STRANICA — bez ikakvog layouta
   if (router.pathname === "/intro") {
     return <Component {...pageProps} />;
   }
 
-  // ✅ NASLOVNICA je potpuno custom (zaključani dizajn kao slika 3) — bez Layout-a
-  if (router.pathname === "/") {
-    return <Component {...pageProps} />;
-  }
+  // Na kojim stranicama želimo tamni "home" background
+  const darkRoutes = [
+    "/", // naslovnica
+    "/my-players",
+    "/coming-soon",
+    "/team/[team]/transfers",
+  ];
 
-  // ✅ Sve ostale stranice: DATA mod (bijela pozadina), header s linkovima
+  const isDark =
+    router.pathname === "/" ||
+    router.pathname === "/my-players" ||
+    router.pathname === "/coming-soon" ||
+    router.pathname === "/team/[team]/transfers";
+
   return (
-    <Layout title="HR U21 / NT Tracker" mode="data" showNavLinks={true}>
-      <Component {...pageProps} />
-    </Layout>
+    <div className={isDark ? "app app--dark" : "app app--light"}>
+      <TopBar />
+      <main className="app__main">
+        <Component {...pageProps} />
+      </main>
+    </div>
   );
 }
