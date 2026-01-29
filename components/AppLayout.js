@@ -1,17 +1,10 @@
-// components/AppLayout.js
 import Header from "./Header";
 
-export default function AppLayout({
-  children,
-  variant = "home", // "home" ili "module"
-  headerTitle = "Hrvatski U21/NT Tracker",
-}) {
-  const pageClass = variant === "home" ? "hr-homePage" : "";
-
+export default function AppLayout({ children }) {
   return (
-    <div className={`hr-app ${pageClass}`}>
-      <Header title={headerTitle} />
-      {children}
+    <div className="hr-homeBg">
+      <Header />
+      <main className="hr-main">{children}</main>
     </div>
   );
 }
