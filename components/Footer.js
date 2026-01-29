@@ -1,27 +1,43 @@
-import Link from "next/link";
+import Link from 'next/link'
 
 export default function Footer() {
-  const year = new Date().getFullYear();
-
   return (
-    <footer className="hr-footerLite">
-      <div className="hr-footerLiteInner">
-        <div className="hr-footerLinks">
-          <Link href="/about">O alatu</Link>
-          <span className="hr-dot">•</span>
-          <Link href="/help">Pomoć</Link>
-          <span className="hr-dot">•</span>
-          <Link href="/donate">Donacije</Link>
-          <span className="hr-dot">•</span>
-          <Link href="/privacy">Privacy</Link>
-          <span className="hr-dot">•</span>
-          <Link href="/terms">Terms</Link>
-        </div>
+    <footer className="footer">
+      <nav>
+        <Link href="/about">O alatu</Link>
+        <Link href="/help">Pomoć</Link>
+        <Link href="/donations">Donacije</Link>
+        <Link href="/privacy">Privacy</Link>
+        <Link href="/terms">Terms</Link>
+      </nav>
 
-        <div className="hr-footerCopy">
-          © {year} Hrvatski U21/NT Tracker — Sva prava pridržana. Zabranjeno kopiranje i dijeljenje bez dopuštenja.
-        </div>
-      </div>
+      <style jsx>{`
+        .footer {
+          margin-top: 60px;
+          padding: 20px 0;
+          text-align: center;
+          background: rgba(0,0,0,0.65);
+          border-top: 1px solid rgba(255,255,255,0.15);
+        }
+
+        nav {
+          display: flex;
+          justify-content: center;
+          gap: 24px;
+          flex-wrap: wrap;
+        }
+
+        nav :global(a) {
+          color: #ccc;
+          text-decoration: none;
+          font-size: 14px;
+        }
+
+        nav :global(a:hover) {
+          color: #fff;
+          text-decoration: underline;
+        }
+      `}</style>
     </footer>
-  );
+  )
 }
