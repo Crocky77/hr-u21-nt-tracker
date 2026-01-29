@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import AppLayout from "@/components/AppLayout";
-import { supabase } from "@/lib/supabaseClient";
+import AppLayout from "../../../components/AppLayout";
+import { supabase } from "../../../lib/supabaseClient";
 import { useRouter } from "next/router";
 
 export default function PlayersPage() {
@@ -8,46 +8,38 @@ export default function PlayersPage() {
   const { team } = router.query;
 
   const [loading, setLoading] = useState(true);
-
   const [requirements, setRequirements] = useState([]);
   const [selectedRequirement, setSelectedRequirement] = useState(null);
-
   const [players, setPlayers] = useState([]);
 
-  /* -------------------------
-     LOAD REQUIREMENTS
-  --------------------------*/
+  /* LOAD REQUIREMENTS */
   useEffect(() => {
     if (!team) return;
 
     const loadRequirements = async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("requirements")
         .select("id, name")
         .eq("team_type", team)
         .order("name");
 
-      if (!error) {
-        setRequirements(data || []);
-        if (data?.length) {
-          setSelectedRequirement(data[0].id); // default = prvi zahtjev
-        }
+      if (data?.length) {
+        setRequirements(data);
+        setSelectedRequirement(data[0].id);
       }
     };
 
     loadRequirements();
   }, [team]);
 
-  /* -------------------------
-     LOAD PLAYERS BY REQUIREMENT
-  --------------------------*/
+  /* LOAD PLAYERS BY REQUIREMENT */
   useEffect(() => {
     if (!team || !selectedRequirement) return;
 
     const loadPlayers = async () => {
       setLoading(true);
 
-      const { data, error } = await supabase.rpc(
+      const { data } = await supabase.rpc(
         "list_players_by_requirement",
         {
           p_team_type: team,
@@ -55,27 +47,19 @@ export default function PlayersPage() {
         }
       );
 
-      if (!error) {
-        // dedupe by ht_player_id OR full_name fallback
-        const map = new Map();
-        (data || []).forEach((p) => {
-          const key = p.ht_player_id || p.full_name;
-          if (!map.has(key)) map.set(key, p);
-        });
-        setPlayers([...map.values()]);
-      } else {
-        setPlayers([]);
-      }
+      const deduped = new Map();
+      (data || []).forEach((p) => {
+        const key = p.ht_player_id || p.full_name;
+        if (!deduped.has(key)) deduped.set(key, p);
+      });
 
+      setPlayers([...deduped.values()]);
       setLoading(false);
     };
 
     loadPlayers();
   }, [team, selectedRequirement]);
 
-  /* -------------------------
-     TABLE COLUMNS (STATIC FOR NOW)
-  --------------------------*/
   const columns = useMemo(
     () => [
       { key: "full_name", label: "Ime" },
@@ -95,24 +79,14 @@ export default function PlayersPage() {
 
   return (
     <AppLayout title="Igrači">
-      <div style={{ padding: "20px", maxWidth: "1400px" }}>
+      <div style={{ padding: 20, maxWidth: 1400 }}>
         <h1>Igrači ({team?.toUpperCase()})</h1>
-        <div style={{ marginBottom: 10, color: "#666" }}>
+        <div style={{ color: "#666", marginBottom: 10 }}>
           Aktivni tim: {team} · Popis igrača ({players.length})
         </div>
 
-        {/* -------------------------
-            FILTER BAR (REQUIREMENT)
-        --------------------------*/}
-        <div
-          style={{
-            display: "flex",
-            gap: 8,
-            alignItems: "center",
-            marginBottom: 16,
-            flexWrap: "wrap",
-          }}
-        >
+        {/* REQUIREMENT FILTER */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           <select
             value={selectedRequirement || ""}
             onChange={(e) => setSelectedRequirement(e.target.value)}
@@ -128,15 +102,13 @@ export default function PlayersPage() {
           <button disabled>Display column filter</button>
         </div>
 
-        {/* -------------------------
-            TABLE
-        --------------------------*/}
+        {/* TABLE */}
         <div style={{ overflowX: "auto" }}>
           <table
             style={{
               width: "100%",
               borderCollapse: "collapse",
-              minWidth: "1100px",
+              minWidth: 1100,
             }}
           >
             <thead>
@@ -147,8 +119,8 @@ export default function PlayersPage() {
                     style={{
                       textAlign: "left",
                       padding: "6px 8px",
-                      borderBottom: "1px solid #ccc",
                       background: "#f2f2f2",
+                      borderBottom: "1px solid #ccc",
                     }}
                   >
                     {c.label}
