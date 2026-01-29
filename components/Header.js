@@ -3,14 +3,12 @@ import Link from "next/link";
 export default function Header({ title, showNavLinks }) {
   return (
     <header className="header">
-      <div className="header-inner">
-        {/* LOGO + TITLE */}
+      <div className="inner">
         <div className="left">
           <img src="/logo.png" alt="Logo" className="logo" />
           <span className="title">{title}</span>
         </div>
 
-        {/* DESNI LINKOVI (samo izvan naslovnice) */}
         {showNavLinks && (
           <nav className="nav">
             <Link href="/">Naslovnica</Link>
@@ -23,14 +21,16 @@ export default function Header({ title, showNavLinks }) {
       <style jsx>{`
         .header {
           width: 100%;
-          background: linear-gradient(to right, #050505, #1a0000);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+          height: 110px;
+          background: linear-gradient(to right, rgba(0, 0, 0, 0.92), rgba(30, 0, 0, 0.82));
+          border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+          position: relative;
         }
 
-        .header-inner {
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 20px 32px;
+        .inner {
+          height: 100%;
+          width: 100%;
+          padding: 0 18px; /* skroz lijevo */
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -39,18 +39,21 @@ export default function Header({ title, showNavLinks }) {
         .left {
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 18px;
         }
 
         .logo {
-          height: 96px; /* HERO LOGO */
+          height: 96px;
           width: auto;
+          margin-top: -18px; /* “preko” */
         }
 
         .title {
-          color: #ffffff;
-          font-size: 24px;
-          font-weight: 700;
+          color: #fff;
+          font-size: 22px;
+          font-weight: 900;
+          letter-spacing: 0.6px;
+          text-transform: uppercase;
           white-space: nowrap;
         }
 
@@ -60,13 +63,13 @@ export default function Header({ title, showNavLinks }) {
         }
 
         .nav :global(a) {
-          color: #dddddd;
+          color: rgba(255, 255, 255, 0.85);
           text-decoration: none;
-          font-weight: 500;
+          font-weight: 700;
         }
 
         .nav :global(a:hover) {
-          color: #ffffff;
+          color: #fff;
           text-decoration: underline;
         }
       `}</style>
