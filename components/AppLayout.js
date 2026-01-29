@@ -1,26 +1,17 @@
-import Header from './Header';
+// components/AppLayout.js
+import Header from "./Header";
 
-/**
- * AppLayout:
- * - "home" varijanta: crvena teksturirana pozadina + centrirani sadržaj
- * - "light" varijanta: bijela pozadina (za module/tablice)
- */
 export default function AppLayout({
   children,
-  fullWidth = false,
-  variant = 'light',
-  headerTitle = 'Hrvatski U21/NT Tracker',
-  showHeaderNav = true,
+  variant = "home", // "home" ili "module"
+  headerTitle = "Hrvatski U21/NT Tracker",
 }) {
-  const bgClass = variant === 'home' ? 'hr-homeBg' : 'hr-lightBg';
+  const pageClass = variant === "home" ? "hr-homePage" : "";
 
   return (
-    <div className={bgClass}>
-      <Header title={headerTitle} showNav={showHeaderNav} />
-
-      <main className="hr-main" style={{ padding: fullWidth ? 0 : '20px 18px' }}>
-        {fullWidth ? children : <div className="hr-container">{children}</div>}
-      </main>
+    <div className={`hr-app ${pageClass}`}>
+      <Header title={headerTitle} />
+      {children}
     </div>
   );
 }
