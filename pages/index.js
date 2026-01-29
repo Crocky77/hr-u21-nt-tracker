@@ -1,62 +1,80 @@
-// pages/index.js
 import Link from "next/link";
-import AppLayout from "../components/AppLayout";
 
-export default function HomePage() {
+function TileImageLink({ href, imgSrc, alt }) {
   return (
-    <AppLayout variant="home" headerTitle="Hrvatski U21/NT Tracker">
-      <div className="hr-container">
-        <div className="hr-homePanel">
-          <h1 className="hr-homeTitle">Moji igrači u Hrvatskom trackeru</h1>
-          <p className="hr-homeSub">
-            CHPP dozvola je kasnije. Za sada pripremamo UI + DB za "moji igrači".
+    <Link href={href} className="tile tile--image" aria-label={alt}>
+      <img src={imgSrc} alt={alt} className="tile__img" />
+    </Link>
+  );
+}
+
+function TileComingSoon({ index }) {
+  return (
+    <Link
+      href={`/coming-soon?slot=${index}`}
+      className="tile tile--soon"
+      aria-label="U izradi"
+    >
+      U izradi
+    </Link>
+  );
+}
+
+export default function Home() {
+  return (
+    <div className="home">
+      <Link href="/my-players" className="home__cardLink" aria-label="Moji igrači">
+        <section className="home__card">
+          <h1 className="home__headline">Moji igrači u Hrvatskom trackeru</h1>
+          <p className="home__sub">
+            CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
           </p>
 
-          {/* samo ovaj widget klikabilan */}
-          <Link href="/my-players" className="hr-myPlayersWidget" aria-label="Moji igrači">
-            <div>
-              <div className="hr-myPlayersWidgetTitle">Moji igrači u Hrvatskom trackeru</div>
-              <div className="hr-myPlayersWidgetSub">Otvori modul i prijavi se (CHPP kasnije).</div>
-            </div>
-            <span className="hr-myPlayersBtn">Prijava (CHPP kasnije)</span>
-          </Link>
-
-          {/* PRVI RED */}
-          <div className="hr-homeTopRow">
-            <Link href="/team/nt" className="hr-homeBigBtn hr-homeBigBtn--nt" aria-label="NT Hrvatska">
-              <span className="hr-homeBigBtnText">NT Hrvatska</span>
-            </Link>
-
-            <Link href="/team/u21" className="hr-homeBigBtn hr-homeBigBtn--u21" aria-label="U21 Hrvatska">
-              <span className="hr-homeBigBtnText">U21 Hrvatska</span>
-            </Link>
-
-            {/* NEMAŠ sliku za transfer – koristimo “naš” dizajn (tamni) */}
-            <Link href="/team/nt/transfers" className="hr-homeBigBtn hr-homeBigBtn--tr" aria-label="Transfer lista">
-              <span className="hr-homeBigBtnText">Transfer lista</span>
-            </Link>
+          <div className="home__gridTop">
+            <TileImageLink
+              href="/team/nt"
+              imgSrc="/home/tile-nt.png"
+              alt="NT Hrvatska"
+            />
+            <TileImageLink
+              href="/team/u21"
+              imgSrc="/home/tile-u21.png"
+              alt="U21 Hrvatska"
+            />
+            <TileImageLink
+              href="/team/nt/transfers"
+              imgSrc="/home/tile-transfers.png"
+              alt="Transfer lista"
+            />
           </div>
 
-          {/* 8 widgeta (2 reda po 4) */}
-          <div className="hr-homeGrid">
-            {Array.from({ length: 8 }).map((_, idx) => (
-              <div key={idx} className="hr-homeSmallCard">
-                U izradi
-              </div>
+          <div className="home__gridSoon">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <TileComingSoon key={i} index={i + 1} />
             ))}
           </div>
 
-          <div className="hr-homeFooter">
-            <div className="hr-homeFooterLinks">
-              <span className="hr-homeFooterLink">O alatu</span>
-              <span className="hr-homeFooterLink">Pomoć</span>
-              <span className="hr-homeFooterLink">Donacije</span>
-              <span className="hr-homeFooterLink">Privacy</span>
-              <span className="hr-homeFooterLink">Terms</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </AppLayout>
+          <div className="home__divider" />
+
+          <footer className="home__footer">
+            <Link href="/about" className="home__footerLink">
+              O alatu
+            </Link>
+            <Link href="/help" className="home__footerLink">
+              Pomoć
+            </Link>
+            <Link href="/donations" className="home__footerLink">
+              Donacije
+            </Link>
+            <Link href="/privacy" className="home__footerLink">
+              Privacy
+            </Link>
+            <Link href="/terms" className="home__footerLink">
+              Terms
+            </Link>
+          </footer>
+        </section>
+      </Link>
+    </div>
   );
 }
