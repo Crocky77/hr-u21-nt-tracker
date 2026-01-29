@@ -1,80 +1,61 @@
 import Link from "next/link";
-
-function TileImageLink({ href, imgSrc, alt }) {
-  return (
-    <Link href={href} className="tile tile--image" aria-label={alt}>
-      <img src={imgSrc} alt={alt} className="tile__img" />
-    </Link>
-  );
-}
-
-function TileComingSoon({ index }) {
-  return (
-    <Link
-      href={`/coming-soon?slot=${index}`}
-      className="tile tile--soon"
-      aria-label="U izradi"
-    >
-      U izradi
-    </Link>
-  );
-}
+import AppLayout from "../components/AppLayout";
 
 export default function Home() {
   return (
-    <div className="home">
-      <Link href="/my-players" className="home__cardLink" aria-label="Moji igrači">
-        <section className="home__card">
-          <h1 className="home__headline">Moji igrači u Hrvatskom trackeru</h1>
-          <p className="home__sub">
-            CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
-          </p>
+    <AppLayout>
+      <section className="hr-homePanel">
+        <h1 className="hr-homeTitle">Moji igrači u Hrvatskom trackeru</h1>
+        <p className="hr-homeSub">
+          CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
+        </p>
 
-          <div className="home__gridTop">
-            <TileImageLink
-              href="/team/nt"
-              imgSrc="/home/tile-nt.png"
-              alt="NT Hrvatska"
-            />
-            <TileImageLink
-              href="/team/u21"
-              imgSrc="/home/tile-u21.png"
-              alt="U21 Hrvatska"
-            />
-            <TileImageLink
-              href="/team/nt/transfers"
-              imgSrc="/home/tile-transfers.png"
-              alt="Transfer lista"
-            />
+        {/* WIDE CLICKABLE WIDGET: samo ovaj je klikabilan */}
+        <Link href="/my-players" className="hr-wideWidget" aria-label="Moji igrači">
+          <div className="hr-wideWidgetLeft">
+            <div className="hr-wideWidgetTitle">Moji igrači u Hrvatskom trackeru</div>
+            <div className="hr-wideWidgetDesc">Otvori modul i prijavi se (CHPP kasnije).</div>
           </div>
 
-          <div className="home__gridSoon">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <TileComingSoon key={i} index={i + 1} />
-            ))}
+          <div className="hr-wideWidgetRight">
+            {/* gumb je samo vizual; modul je klik cijelog widgeta */}
+            <span className="hr-loginBtn">Prijava (CHPP kasnije)</span>
           </div>
+        </Link>
 
-          <div className="home__divider" />
+        {/* 1. red (NT / U21 / Transfers) */}
+        <div className="hr-topTiles">
+          <Link href="/team/nt" className="hr-tile hr-tileNt">
+            <span className="hr-tileText">NT Hrvatska</span>
+          </Link>
 
-          <footer className="home__footer">
-            <Link href="/about" className="home__footerLink">
-              O alatu
-            </Link>
-            <Link href="/help" className="home__footerLink">
-              Pomoć
-            </Link>
-            <Link href="/donations" className="home__footerLink">
-              Donacije
-            </Link>
-            <Link href="/privacy" className="home__footerLink">
-              Privacy
-            </Link>
-            <Link href="/terms" className="home__footerLink">
-              Terms
-            </Link>
-          </footer>
-        </section>
-      </Link>
-    </div>
+          <Link href="/team/u21" className="hr-tile hr-tileU21">
+            <span className="hr-tileText">U21 Hrvatska</span>
+          </Link>
+
+          {/* NEMAŠ sliku za transfer: radimo svoj dizajn */}
+          <Link href="/team/nt/transfers" className="hr-tile hr-tileTransfer">
+            <span className="hr-tileText">Transfer lista</span>
+          </Link>
+        </div>
+
+        {/* 2 reda: ukupno 8 widgeta */}
+        <div className="hr-grid8">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div className="hr-miniWidget" key={i}>
+              U izradi
+            </div>
+          ))}
+        </div>
+
+        <footer className="hr-footerLite">
+          <a href="#" className="hr-footerLink">O alatu</a>
+          <a href="#" className="hr-footerLink">Pomoć</a>
+          <a href="#" className="hr-footerLink">Donacije</a>
+          <a href="#" className="hr-footerLink">Privacy</a>
+          <a href="#" className="hr-footerLink">Terms</a>
+        </footer>
+      </section>
+    </AppLayout>
   );
 }
