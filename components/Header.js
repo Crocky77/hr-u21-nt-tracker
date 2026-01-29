@@ -1,76 +1,113 @@
 import Link from "next/link";
 
-export default function Header({ title, showNavLinks }) {
+export default function Header({ showNav = true }) {
   return (
-    <header className="header">
-      <div className="inner">
+    <header className="hdr">
+      {/* cijeli header klikabilan -> naslovnica */}
+      <Link href="/" className="hdrClick" aria-label="Naslovnica">
+        <span />
+      </Link>
+
+      <div className="hdrInner">
         <div className="left">
-          <img src="/logo.png" alt="Logo" className="logo" />
-          <span className="title">{title}</span>
+          <img className="logo" src="/logo.png" alt="HR U21/NT Tracker" />
+          <div className="title">Hrvatski U21/NT Tracker</div>
         </div>
 
-        {showNavLinks && (
+        {showNav && (
           <nav className="nav">
-            <Link href="/">Naslovnica</Link>
-            <Link href="/team/nt">NT</Link>
-            <Link href="/team/u21">U21</Link>
+            <Link href="/" className="navLink">
+              Naslovnica
+            </Link>
+            <Link href="/team/nt" className="navLink">
+              NT
+            </Link>
+            <Link href="/team/u21" className="navLink">
+              U21
+            </Link>
           </nav>
         )}
       </div>
 
       <style jsx>{`
-        .header {
-          width: 100%;
-          height: 110px;
-          background: linear-gradient(to right, rgba(0, 0, 0, 0.92), rgba(30, 0, 0, 0.82));
-          border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-          position: relative;
+        .hdr {
+          position: sticky;
+          top: 0;
+          z-index: 50;
+          height: 86px;
+          background: rgba(10, 10, 10, 0.55);
+          backdrop-filter: blur(6px);
+          border-bottom: 1px solid rgba(255, 255, 255, 0.18); /* tanka linija 1px */
         }
 
-        .inner {
-          height: 100%;
-          width: 100%;
-          padding: 0 18px; /* skroz lijevo */
+        .hdrClick {
+          position: absolute;
+          inset: 0;
+          display: block;
+        }
+
+        .hdrInner {
+          position: relative;
+          height: 86px;
           display: flex;
           align-items: center;
           justify-content: space-between;
+          padding: 0 22px 0 10px; /* skroz lijevo */
+          pointer-events: none; /* da klik ide na overlay */
         }
 
         .left {
           display: flex;
           align-items: center;
-          gap: 18px;
+          gap: 14px;
         }
 
         .logo {
-          height: 96px;
-          width: auto;
-          margin-top: -18px; /* “preko” */
+          width: 62px; /* veći logo */
+          height: 62px;
+          object-fit: contain;
+          margin-left: 2px;
         }
 
         .title {
-          color: #fff;
           font-size: 22px;
           font-weight: 900;
-          letter-spacing: 0.6px;
-          text-transform: uppercase;
-          white-space: nowrap;
+          letter-spacing: 1px;
+          text-transform: none;
+          color: #ffffff;
+          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
         }
 
         .nav {
           display: flex;
-          gap: 22px;
+          align-items: center;
+          gap: 18px;
+          pointer-events: auto; /* nav linkovi moraju biti klikabilni */
         }
 
-        .nav :global(a) {
-          color: rgba(255, 255, 255, 0.85);
+        .navLink {
+          color: #ffffff;
+          font-weight: 800;
           text-decoration: none;
-          font-weight: 700;
+          opacity: 0.95;
         }
 
-        .nav :global(a:hover) {
-          color: #fff;
+        .navLink:hover {
           text-decoration: underline;
+          opacity: 1;
+        }
+
+        @media (max-width: 720px) {
+          .title {
+            font-size: 18px;
+          }
+          .logo {
+            width: 52px;
+            height: 52px;
+          }
+          .nav {
+            gap: 12px;
+          }
         }
       `}</style>
     </header>
