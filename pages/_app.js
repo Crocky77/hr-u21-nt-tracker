@@ -1,19 +1,32 @@
 import "../styles/globals.css";
-import { useRouter } from "next/router";
-import Layout from "../components/Layout";
+import TopBar from "../components/TopBar";
 
-export default function App({ Component, pageProps }) {
-  const router = useRouter();
-
-  // INTRO STRANICA — bez layouta
+export default function App({ Component, pageProps, router }) {
+  // INTRO STRANICA — bez ikakvog layouta
   if (router.pathname === "/intro") {
     return <Component {...pageProps} />;
   }
 
-  // SVE OSTALE STRANICE — zajednički header + background logika
+  // Na kojim stranicama želimo tamni "home" background
+  const darkRoutes = [
+    "/", // naslovnica
+    "/my-players",
+    "/coming-soon",
+    "/team/[team]/transfers",
+  ];
+
+  const isDark =
+    router.pathname === "/" ||
+    router.pathname === "/my-players" ||
+    router.pathname === "/coming-soon" ||
+    router.pathname === "/team/[team]/transfers";
+
   return (
-    <Layout>
-      <Component {...pageProps} />
-    </Layout>
+    <div className={isDark ? "app app--dark" : "app app--light"}>
+      <TopBar />
+      <main className="app__main">
+        <Component {...pageProps} />
+      </main>
+    </div>
   );
 }
