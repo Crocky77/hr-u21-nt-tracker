@@ -1,122 +1,101 @@
 import Link from "next/link";
 
 export default function HomePage() {
-  const comingSoon = [
-    { id: 1, label: "U izradi" },
-    { id: 2, label: "U izradi" },
-    { id: 3, label: "U izradi" },
-    { id: 4, label: "U izradi" },
-    { id: 5, label: "U izradi" },
-    { id: 6, label: "U izradi" },
-    { id: 7, label: "U izradi" },
-    { id: 8, label: "U izradi" },
-  ];
+  // 8 klikabilnih “U izradi” modula (neutralni linkovi za sada)
+  const tiles = Array.from({ length: 8 }).map((_, i) => ({
+    id: i + 1,
+    label: "U izradi",
+    href: `/#u-izradi-${i + 1}`,
+  }));
 
   return (
-    <div className="home">
-      {/* TOP HEADER (kao na slici 2) */}
-      <header className="topHeader">
-        <div className="topInner">
-          <div className="brand">
-            <img className="logo" src="/logo.png" alt="HR U21/NT Tracker logo" />
-            <div className="brandTitle">Hrvatski U21 / NT TRACKER</div>
-          </div>
+    <div className="page">
+      {/* HEADER (samo na naslovnici, kao slika 3) */}
+      <div className="topbar">
+        <div className="brand">
+          <img className="logo" src="/logo.png" alt="Logo" />
+          <div className="brandText">Hrvatski U21 / NT TRACKER</div>
         </div>
-      </header>
+      </div>
 
-      {/* MAIN GLASS PANEL */}
-      <main className="main">
-        <section className="glass">
-          <h1 className="h1">Moji igrači u Hrvatskom trackeru</h1>
-          <div className="sub">
+      {/* CENTRALNI PANEL */}
+      <div className="wrap">
+        <div className="panel">
+          <h1 className="title">Moji igrači u Hrvatskom trackeru</h1>
+          <div className="subtitle">
             CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
           </div>
 
-          {/* TOP 3 CARDS */}
+          {/* 3 gornje kartice (klikabilne) */}
           <div className="topCards">
-            <Link href="/team/nt" className="card cardNt" aria-label="NT Hrvatska">
-              <div className="cardLabel">NT Hrvatska</div>
+            <Link href="/team/nt" className="topCard nt">
+              <span className="topCardText">NT Hrvatska</span>
             </Link>
 
-            <Link href="/team/u21" className="card cardU21" aria-label="U21 Hrvatska">
-              <div className="cardLabel">U21 Hrvatska</div>
+            <Link href="/team/u21" className="topCard u21">
+              <span className="topCardText">U21 Hrvatska</span>
             </Link>
 
-            {/* Transfer lista (disabled look, ali klik vodi na stranicu koja već kaže da je modul ugašen) */}
-            <Link
-              href="/team/nt/transfers"
-              className="card cardTransfer cardDisabled"
-              aria-label="Transfer lista (privremeno isključeno)"
-              title="Privremeno isključeno do CHPP licence"
-            >
-              <div className="cardLabel">
+            <Link href="/team/nt/transfers" className="topCard transfer">
+              <span className="topCardText">
                 <span className="arrow">⇵</span> Transfer lista
-              </div>
+              </span>
             </Link>
           </div>
 
-          {/* 8 MODULES (klikabilni) */}
+          {/* 8 “U izradi” (klikabilni) */}
           <div className="grid">
-            {comingSoon.map((x) => (
-              <Link
-                key={x.id}
-                href={`/#u-izradi-${x.id}`}
-                className="tile"
-                aria-label={`${x.label} ${x.id}`}
-                title="U izradi"
-              >
-                {x.label}
+            {tiles.map((t) => (
+              <Link key={t.id} href={t.href} className="tile">
+                {t.label}
               </Link>
             ))}
           </div>
 
-          {/* FOOTER LINKS (kao na slici 2) */}
-          <footer className="footerLinks">
+          {/* FOOTER LINKOVI */}
+          <div className="footer">
             <Link href="/about">O alatu</Link>
             <Link href="/help">Pomoć</Link>
             <Link href="/donate">Donacije</Link>
             <Link href="/privacy">Privacy</Link>
             <Link href="/terms">Terms</Link>
-          </footer>
-        </section>
-      </main>
+          </div>
+        </div>
+      </div>
 
       <style jsx>{`
-        .home {
+        .page {
           min-height: 100vh;
           width: 100%;
-          background: radial-gradient(circle at 50% 40%, rgba(220, 0, 0, 0.55), rgba(0, 0, 0, 0.92)),
+          /* POZADINA kao “slika 3” (crveni glow + tekstura) */
+          background: radial-gradient(circle at 50% 38%, rgba(210, 0, 0, 0.55), rgba(0, 0, 0, 0.92)),
             url("/backgrounds/hr-hero.jpg") center / cover no-repeat;
         }
 
-        /* TOP HEADER */
-        .topHeader {
+        /* TOP BAR */
+        .topbar {
           height: 110px;
+          width: 100%;
           background: linear-gradient(to right, rgba(0, 0, 0, 0.92), rgba(30, 0, 0, 0.82));
           border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-        }
-
-        .topInner {
-          height: 100%;
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 0 28px;
-          display: flex;
-          align-items: center;
+          position: relative;
         }
 
         .brand {
+          height: 100%;
           display: flex;
           align-items: center;
-          gap: 16px;
+          gap: 18px;
+          padding-left: 18px; /* skroz lijevo */
         }
 
         .logo {
-          height: 86px;
+          height: 96px;
           width: auto;
+          margin-top: -18px; /* da ide malo “preko” kao slika 3 */
         }
 
-        .brandTitle {
+        .brandText {
           color: #fff;
           font-weight: 900;
           letter-spacing: 0.8px;
@@ -124,17 +103,14 @@ export default function HomePage() {
           text-transform: uppercase;
         }
 
-        /* MAIN */
-        .main {
+        /* PANEL WRAP */
+        .wrap {
           max-width: 1200px;
           margin: 0 auto;
-          padding: 56px 20px 80px;
-          display: flex;
-          justify-content: center;
+          padding: 60px 20px 80px;
         }
 
-        .glass {
-          width: 100%;
+        .panel {
           border-radius: 18px;
           padding: 44px 38px 28px;
           background: rgba(10, 10, 10, 0.58);
@@ -143,17 +119,16 @@ export default function HomePage() {
           backdrop-filter: blur(10px);
         }
 
-        .h1 {
+        .title {
           margin: 0;
           text-align: center;
           color: #fff;
-          font-size: 40px;
+          font-size: 42px;
           font-weight: 900;
-          letter-spacing: 0.3px;
-          text-shadow: 0 2px 16px rgba(0, 0, 0, 0.45);
+          text-shadow: 0 2px 18px rgba(0, 0, 0, 0.55);
         }
 
-        .sub {
+        .subtitle {
           margin-top: 10px;
           text-align: center;
           color: rgba(255, 255, 255, 0.75);
@@ -168,42 +143,41 @@ export default function HomePage() {
           gap: 16px;
         }
 
-        .card {
+        .topCard {
           display: flex;
           align-items: center;
-          justify-content: flex-start;
           padding: 18px 22px;
           border-radius: 14px;
           text-decoration: none;
-          cursor: pointer;
           border: 1px solid rgba(255, 255, 255, 0.14);
           box-shadow: 0 12px 22px rgba(0, 0, 0, 0.35);
           transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+          cursor: pointer;
         }
 
-        .card:hover {
+        .topCard:hover {
           transform: translateY(-2px);
           filter: brightness(1.03);
           box-shadow: 0 16px 30px rgba(0, 0, 0, 0.45);
         }
 
-        .cardLabel {
+        .topCardText {
           font-size: 22px;
           font-weight: 900;
           letter-spacing: 0.2px;
         }
 
-        .cardNt {
+        .nt {
           color: #7a0f18;
           background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(235, 235, 235, 0.92));
         }
 
-        .cardU21 {
+        .u21 {
           color: #fff;
           background: linear-gradient(135deg, rgba(200, 0, 0, 0.92), rgba(255, 80, 80, 0.78));
         }
 
-        .cardTransfer {
+        .transfer {
           color: #fff;
           background: linear-gradient(135deg, rgba(60, 0, 0, 0.9), rgba(25, 0, 0, 0.86));
           justify-content: center;
@@ -212,10 +186,6 @@ export default function HomePage() {
         .arrow {
           font-weight: 900;
           margin-right: 10px;
-        }
-
-        .cardDisabled {
-          opacity: 0.92;
         }
 
         /* 8 tiles */
@@ -249,8 +219,8 @@ export default function HomePage() {
           box-shadow: 0 16px 30px rgba(0, 0, 0, 0.40);
         }
 
-        /* Footer links */
-        .footerLinks {
+        /* footer links */
+        .footer {
           margin-top: 26px;
           padding-top: 18px;
           border-top: 1px solid rgba(255, 255, 255, 0.10);
@@ -259,23 +229,24 @@ export default function HomePage() {
           gap: 26px;
         }
 
-        .footerLinks :global(a) {
+        .footer :global(a) {
           color: rgba(255, 255, 255, 0.78);
           text-decoration: none;
           font-weight: 700;
         }
 
-        .footerLinks :global(a:hover) {
+        .footer :global(a:hover) {
           color: #fff;
           text-decoration: underline;
         }
 
         @media (max-width: 980px) {
-          .brandTitle {
+          .brandText {
             font-size: 20px;
           }
           .logo {
-            height: 64px;
+            height: 70px;
+            margin-top: -10px;
           }
           .topCards {
             grid-template-columns: 1fr;
@@ -283,7 +254,7 @@ export default function HomePage() {
           .grid {
             grid-template-columns: repeat(2, 1fr);
           }
-          .h1 {
+          .title {
             font-size: 30px;
           }
         }
