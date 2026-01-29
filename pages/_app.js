@@ -2,22 +2,22 @@ import "../styles/globals.css";
 import Layout from "../components/Layout";
 
 export default function App({ Component, pageProps, router }) {
-  // ✅ INTRO STRANICA ostaje potpuno bez layouta (zaključano)
+  // ✅ INTRO ostaje potpuno bez layouta (zaključano)
   if (router.pathname === "/intro") {
     return <Component {...pageProps} />;
   }
 
-  // ✅ Default vrijednosti za sve ostale stranice
-  // Naslovnica: bez nav linkova
-  const isHome = router.pathname === "/";
-  const title = isHome ? "Hrvatski U21 / NT Tracker" : "HR U21 / NT Tracker";
-  const showNavLinks = !isHome; // samo na ostalim stranicama (ne na naslovnici)
+  // ✅ NASLOVNICA ide potpuno custom (kao slika 2) — bez Layout headera/footera
+  if (router.pathname === "/") {
+    return <Component {...pageProps} />;
+  }
 
-  // ✅ HERO/DATA mod (za sad svi hero, kasnije ćemo precizno po stranicama)
-  const mode = "hero";
+  // ✅ sve ostalo ima Layout
+  const title = "HR U21 / NT Tracker";
+  const showNavLinks = true; // gore desno: Naslovnica | NT | U21 (na ostalim stranicama)
 
   return (
-    <Layout title={title} mode={mode} showNavLinks={showNavLinks}>
+    <Layout title={title} mode="hero" showNavLinks={showNavLinks}>
       <Component {...pageProps} />
     </Layout>
   );
