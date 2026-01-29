@@ -1,115 +1,107 @@
-import Link from "next/link";
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
+import { supabase } from '../utils/supabaseClient';
 
-export default function Header({ showNav = true }) {
+/**
+ * Globalni header (logo + naslov + opcionalni linkovi desno + info o prijavi).
+ * - Cijeli header je klikabilan (vodi na /)
+ * - Na naslovnici (home) NE prikazujemo desne linkove (Naslovnica / NT / U21)
+ */
+export default function Header({
+  title = 'Hrvatski U21/NT Tracker',
+  showNavLinks = true,
+  showUserInfo = true,
+}) {
+  const [user, setUser] = useState(null);
+  const [roleLabel, setRoleLabel] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function load() {
+      try {
+        const { data } = await supabase.auth.getUser();
+        if (!isMounted) return;
+        setUser(data?.user ?? null);
+
+        // Role (MVP): pokušaj dohvatiti iz localStorage (ako postoji), inače fallback.
+        try {
+          const storedRole = window.localStorage.getItem('hr_tracker_role');
+          if (storedRole) setRoleLabel(storedRole);
+        } catch (_) {}
+      } catch (_) {
+        if (!isMounted) return;
+        setUser(null);
+      }
+    }
+
+    load();
+
+    // Live auth updates
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      isMounted = false;
+      sub?.subscription?.unsubscribe?.();
+    };
+  }, []);
+
+  const userLabel = useMemo(() => {
+    if (!user) return null;
+    return user.user_metadata?.full_name || user.email || user.id;
+  }, [user]);
+
   return (
-    <header className="hdr">
-      {/* cijeli header klikabilan -> naslovnica */}
-      <Link href="/" className="hdrClick" aria-label="Naslovnica">
-        <span />
+    <header className="hrHeader">
+      <Link href="/" className="hrHeader__clickArea" aria-label="Naslovnica">
+        <div className="hrHeader__left">
+          <img
+            src="/logo.png"
+            alt="HR Tracker logo"
+            className="hrHeader__logo"
+          />
+          <div className="hrHeader__title">{title}</div>
+        </div>
       </Link>
 
-      <div className="hdrInner">
-        <div className="left">
-          <img className="logo" src="/logo.png" alt="HR U21/NT Tracker" />
-          <div className="title">Hrvatski U21/NT Tracker</div>
-        </div>
-
-        {showNav && (
-          <nav className="nav">
-            <Link href="/" className="navLink">
+      <div className="hrHeader__right">
+        {showNavLinks && (
+          <nav className="hrHeader__nav" aria-label="Glavni izbornik">
+            <Link href="/" className="hrHeader__navLink">
               Naslovnica
             </Link>
-            <Link href="/team/nt" className="navLink">
+            <Link href="/team/nt" className="hrHeader__navLink">
               NT
             </Link>
-            <Link href="/team/u21" className="navLink">
+            <Link href="/team/u21" className="hrHeader__navLink">
               U21
             </Link>
           </nav>
         )}
+
+        {showUserInfo && (
+          <div className="hrHeader__user">
+            {userLabel ? (
+              <>
+                <div className="hrHeader__userLine">
+                  Dobrodošao: <span className="hrHeader__userStrong">{userLabel}</span>
+                </div>
+                <div className="hrHeader__userLine">
+                  prijavljen kao:{' '}
+                  <span className="hrHeader__userStrong">{roleLabel || 'admin'}</span>
+                </div>
+              </>
+            ) : (
+              <div className="hrHeader__userLine">Niste prijavljeni</div>
+            )}
+          </div>
+        )}
       </div>
 
-      <style jsx>{`
-        .hdr {
-          position: sticky;
-          top: 0;
-          z-index: 50;
-          height: 86px;
-          background: rgba(10, 10, 10, 0.55);
-          backdrop-filter: blur(6px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.18); /* tanka linija 1px */
-        }
-
-        .hdrClick {
-          position: absolute;
-          inset: 0;
-          display: block;
-        }
-
-        .hdrInner {
-          position: relative;
-          height: 86px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 22px 0 10px; /* skroz lijevo */
-          pointer-events: none; /* da klik ide na overlay */
-        }
-
-        .left {
-          display: flex;
-          align-items: center;
-          gap: 14px;
-        }
-
-        .logo {
-          width: 62px; /* veći logo */
-          height: 62px;
-          object-fit: contain;
-          margin-left: 2px;
-        }
-
-        .title {
-          font-size: 22px;
-          font-weight: 900;
-          letter-spacing: 1px;
-          text-transform: none;
-          color: #ffffff;
-          text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
-        }
-
-        .nav {
-          display: flex;
-          align-items: center;
-          gap: 18px;
-          pointer-events: auto; /* nav linkovi moraju biti klikabilni */
-        }
-
-        .navLink {
-          color: #ffffff;
-          font-weight: 800;
-          text-decoration: none;
-          opacity: 0.95;
-        }
-
-        .navLink:hover {
-          text-decoration: underline;
-          opacity: 1;
-        }
-
-        @media (max-width: 720px) {
-          .title {
-            font-size: 18px;
-          }
-          .logo {
-            width: 52px;
-            height: 52px;
-          }
-          .nav {
-            gap: 12px;
-          }
-        }
-      `}</style>
+      {/* tanka crvena linija kao na referenci */}
+      <div className="hrHeader__separator" />
     </header>
   );
 }
