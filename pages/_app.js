@@ -2,22 +2,19 @@ import "../styles/globals.css";
 import Layout from "../components/Layout";
 
 export default function App({ Component, pageProps, router }) {
-  // ✅ INTRO ostaje potpuno bez layouta (zaključano)
+  // ✅ INTRO je zaključan i ide bez layouta
   if (router.pathname === "/intro") {
     return <Component {...pageProps} />;
   }
 
-  // ✅ NASLOVNICA ide potpuno custom (kao slika 2) — bez Layout headera/footera
+  // ✅ NASLOVNICA je potpuno custom (zaključani dizajn kao slika 3) — bez Layout-a
   if (router.pathname === "/") {
     return <Component {...pageProps} />;
   }
 
-  // ✅ sve ostalo ima Layout
-  const title = "HR U21 / NT Tracker";
-  const showNavLinks = true; // gore desno: Naslovnica | NT | U21 (na ostalim stranicama)
-
+  // ✅ Sve ostale stranice: DATA mod (bijela pozadina), header s linkovima
   return (
-    <Layout title={title} mode="hero" showNavLinks={showNavLinks}>
+    <Layout title="HR U21 / NT Tracker" mode="data" showNavLinks={true}>
       <Component {...pageProps} />
     </Layout>
   );
