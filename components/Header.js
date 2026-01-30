@@ -1,70 +1,40 @@
+import Link from "next/link";
 import Image from "next/image";
+import { useUser } from "../lib/useUser";
 
-export default function Header({ user }) {
+/**
+ * Globalni Header (bez topbara)
+ * - Lijevo: logo + title
+ * - Desno: status prijave
+ */
+export default function Header() {
+  const { user, userLabel, roleLabel, loading } = useUser();
+
+  const statusText = (() => {
+    if (loading) return "Provjera prijave...";
+    if (!user) return "Nisi prijavljen";
+    if (roleLabel) return `${userLabel} (${roleLabel})`;
+    return `${userLabel}`;
+  })();
+
   return (
-    <header style={styles.wrapper}>
-      <div style={styles.inner}>
-        <div style={styles.left}>
+    <header className="hr-siteHeader">
+      <div className="hr-siteHeaderInner">
+        <Link href="/" className="hr-siteHeaderLeft" style={{ textDecoration: "none" }}>
           <Image
             src="/logo.png"
             alt="Hrvatski U21/NT Tracker"
-            width={48}
-            height={48}
+            width={52}
+            height={52}
+            priority
           />
-          <span style={styles.title}>
-            Hrvatski U21/NT Tracker
-          </span>
-        </div>
+          <div className="hr-siteHeaderTitle">Hrvatski U21 / NT Tracker</div>
+        </Link>
 
-        <div style={styles.right}>
-          {user ? (
-            <span style={styles.user}>
-              Dobrodošao: {user.email} <strong>(admin)</strong>
-            </span>
-          ) : (
-            <span style={styles.user}>Nisi prijavljen</span>
-          )}
+        <div className="hr-siteHeaderRight">
+          <div className="hr-siteHeaderStatus">{statusText}</div>
         </div>
       </div>
-
-      {/* crvena linija */}
-      <div style={styles.divider} />
     </header>
   );
 }
-
-const styles = {
-  wrapper: {
-    background: "linear-gradient(90deg, #120000, #3a0000)",
-  },
-  inner: {
-    maxWidth: "1400px",
-    margin: "0 auto",
-    padding: "12px 20px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  left: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
-  title: {
-    color: "#ffffff",
-    fontSize: "20px",
-    fontWeight: "700",
-    letterSpacing: "0.5px",
-  },
-  right: {
-    color: "#ddd",
-    fontSize: "14px",
-  },
-  user: {
-    opacity: 0.9,
-  },
-  divider: {
-    height: "2px",
-    background: "#c40000",
-  },
-};
