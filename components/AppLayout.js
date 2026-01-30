@@ -1,10 +1,10 @@
 import Header from "./Header";
 
-export default function AppLayout({ children }) {
+export default function AppLayout({ children, user = null }) {
   return (
-    <div className="hr-homeBg">
-      <Header />
-      <main className="hr-main">{children}</main>
-    </div>
+    <>
+      <Header user={user} />
+      <main>{children}</main>
+    </>
   );
 }
