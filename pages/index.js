@@ -1,8 +1,11 @@
 import Link from "next/link";
+import Header from "../components/Header";
 
 export default function HomePage() {
   return (
     <div className="hr-homeBg">
+      <Header />
+
       <main className="hr-main">
         <div className="hr-container">
           <div className="hr-homeWrap">
