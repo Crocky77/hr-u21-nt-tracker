@@ -1,192 +1,170 @@
-import Head from "next/head";
+import Link from "next/link";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <>
-      <Head>
-        <title>Hrvatski U21 / NT Tracker</title>
-      </Head>
+    <div className="hr-homeBg">
+      <main className="hr-main">
+        <div className="hr-container">
+          <div className="hr-homeWrap">
+            <div className="hr-homeCardStack">
+              {/* HERO */}
+              <div className="hr-3dCard">
+                <div className="hr-3dCardInner">
+                  <div className="hr-homeHeroTitle">Hrvatski U21/NT Tracker</div>
+                  <div className="hr-homeHeroSub">
+                    Javni pregled strukture i “preview”. Igrači i skillovi su zaključani bez prijave.
+                  </div>
 
-      {/* BACKGROUND */}
-      <div
-        style={{
-          minHeight: "100vh",
-          backgroundImage: "url(/backgrounds/home-red.jpg)",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          paddingTop: 80,
-          paddingBottom: 80,
-        }}
-      >
-        {/* MAIN WRAPPER */}
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 1100,
-            background: "rgba(0,0,0,0.65)",
-            borderRadius: 16,
-            padding: 32,
-            color: "#fff",
-            boxShadow: "0 0 40px rgba(0,0,0,0.6)",
-          }}
-        >
-          {/* TITLE */}
-          <h1 style={{ textAlign: "center", marginBottom: 8 }}>
-            Moji igrači u Hrvatskom trackeru
-          </h1>
-          <p style={{ textAlign: "center", opacity: 0.85, marginBottom: 24 }}>
-            Prijava i upravljanje igračima (CHPP kasnije).
-          </p>
+                  {/* U21 / NT - 3D KVADRATI (klikajući) */}
+                  <div className="hr-homeGrid" style={{ marginTop: 12 }}>
+                    {/* U21 */}
+                    <Link
+                      href="/team/u21"
+                      className="hr-3dCard hr-3dHover hr-homeMiniCardU21"
+                      style={{ textDecoration: "none" }}
+                      aria-label="Otvori Hrvatska U21"
+                      title="Otvori Hrvatska U21"
+                    >
+                      <div className="hr-3dCardInner">
+                        <div className="hr-homeMiniHead">
+                          <div className="hr-homeMiniTitle">Hrvatska U21</div>
+                        </div>
 
-          {/* === MOJI IGRACI WIDGET (KLIKABILAN) === */}
-          <div
-            style={{
-              border: "2px solid #b11226",
-              borderRadius: 14,
-              padding: 20,
-              marginBottom: 30,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              background: "rgba(0,0,0,0.55)",
-            }}
-          >
-            <div>
-              <strong>Upravljanje mojim igračima</strong>
-              <div style={{ fontSize: 13, opacity: 0.8 }}>
-                Admin login (email) + CHPP povezivanje (uskoro)
+                        <div className="hr-homeMiniText">
+                          Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.
+                        </div>
+
+                        {/* OSOBLJE (U21) */}
+                        <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.35 }}>
+                          <div style={{ color: "#c3002f", fontWeight: 800 }}>Izbornik:</div>
+                          <div style={{ opacity: 0.85 }}>nepoznato</div>
+
+                          <div style={{ marginTop: 6, color: "#c3002f", fontWeight: 800 }}>
+                            Pomoćnik izbornika:
+                          </div>
+                          <div style={{ opacity: 0.85 }}>nepoznato</div>
+
+                          <div style={{ marginTop: 6, color: "#c3002f", fontWeight: 900 }}>Osoblje:</div>
+                          <div style={{ opacity: 0.9 }}>
+                            <span style={{ fontWeight: 800 }}>Glavni skaut:</span> nepoznato
+                          </div>
+                          <div style={{ opacity: 0.9 }}>
+                            <span style={{ fontWeight: 800 }}>Skaut(i):</span> nepoznato
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+
+                    {/* NT */}
+                    <Link
+                      href="/team/nt"
+                      className="hr-3dCard hr-3dHover hr-homeMiniCardNT"
+                      style={{ textDecoration: "none" }}
+                      aria-label="Otvori Hrvatska NT"
+                      title="Otvori Hrvatska NT"
+                    >
+                      <div className="hr-3dCardInner">
+                        <div className="hr-homeMiniHead">
+                          <div className="hr-homeMiniTitle">Hrvatska NT</div>
+                        </div>
+
+                        <div className="hr-homeMiniText">
+                          Pregled modula (preview). Igrači i skillovi su zaključani bez prijave.
+                        </div>
+
+                        {/* OSOBLJE (NT) */}
+                        <div style={{ marginTop: 10, fontSize: 12, lineHeight: 1.35 }}>
+                          <div style={{ color: "#0a3fa8", fontWeight: 800 }}>Izbornik:</div>
+                          <div style={{ opacity: 0.85 }}>nepoznato</div>
+
+                          <div style={{ marginTop: 6, color: "#0a3fa8", fontWeight: 800 }}>
+                            Pomoćnik izbornika:
+                          </div>
+                          <div style={{ opacity: 0.85 }}>nepoznato</div>
+
+                          <div style={{ marginTop: 6, color: "#0a3fa8", fontWeight: 900 }}>Osoblje:</div>
+                          <div style={{ opacity: 0.9 }}>
+                            <span style={{ fontWeight: 800 }}>Glavni skaut:</span> nepoznato
+                          </div>
+                          <div style={{ opacity: 0.9 }}>
+                            <span style={{ fontWeight: 800 }}>Skaut(i):</span> nepoznato
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+
+                  {/* Linkovi (pills) */}
+                  <div className="hr-homeLinks hr-homeLinksPills" style={{ marginTop: 12 }}>
+                    <Link href="/about" className="hr-homeLinkPill">O alatu</Link>
+                    <Link href="/help" className="hr-homeLinkPill">Pomoć</Link>
+                    <Link href="/donate" className="hr-homeLinkPill">Donacije</Link>
+                    <Link href="/privacy" className="hr-homeLinkPill">Privacy</Link>
+                    <Link href="/terms" className="hr-homeLinkPill">Terms</Link>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* ADMIN LOGIN – SIGURAN LINK */}
-            <a
-              href="/login"
-              style={{
-                padding: "8px 16px",
-                background: "#b11226",
-                color: "#fff",
-                borderRadius: 20,
-                fontWeight: 600,
-                textDecoration: "none",
-                pointerEvents: "auto",
-                position: "relative",
-                zIndex: 10,
-              }}
-            >
-              Admin login
-            </a>
-          </div>
+              {/* MOJI IGRACI */}
+              <div className="hr-3dCard" style={{ marginTop: 12 }}>
+                <div className="hr-3dCardInner">
+                  <div className="hr-homeRow">
+                    <div>
+                      <div style={{ fontWeight: 1000 }}>Moji igrači u Hrvatskom trackeru</div>
+                      <div style={{ marginTop: 4, opacity: 0.8, fontSize: 13 }}>
+                        CHPP spajanje dolazi kasnije. Za sada pripremamo UI + DB za “moji igrači”.
+                      </div>
+                    </div>
 
-          {/* === MAIN BUTTONS === */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: 16,
-              marginBottom: 24,
-            }}
-          >
-            <div
-              style={{
-                background: "#ddd",
-                color: "#000",
-                padding: 14,
-                borderRadius: 10,
-                textAlign: "center",
-                fontWeight: 600,
-              }}
-            >
-              NT Hrvatska
-            </div>
+                    <Link className="hr-homePill" href="/my-players" style={{ textDecoration: "none" }}>
+                      Prijava (CHPP kasnije)
+                    </Link>
+                  </div>
+                </div>
+              </div>
 
-            <div
-              style={{
-                background: "#b11226",
-                color: "#fff",
-                padding: 14,
-                borderRadius: 10,
-                textAlign: "center",
-                fontWeight: 600,
-              }}
-            >
-              U21 Hrvatska
-            </div>
-
-            <div
-              style={{
-                background: "#333",
-                color: "#fff",
-                padding: 14,
-                borderRadius: 10,
-                textAlign: "center",
-                fontWeight: 600,
-              }}
-            >
-              Transfer lista
-            </div>
-          </div>
-
-          {/* === PLACEHOLDER WIDGETS === */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: 12,
-            }}
-          >
-            {Array.from({ length: 8 }).map((_, i) => (
-              <a
-                key={i}
-                href="/uskoro"
+              {/* TRANSFER MODUL (PRIVREMENO ISKLJUČEN DO CHPP) */}
+              <div
+                className="hr-3dCard"
                 style={{
-                  background: "#eee",
-                  color: "#000",
-                  padding: 14,
-                  borderRadius: 10,
-                  textAlign: "center",
-                  textDecoration: "none",
-                  fontWeight: 500,
+                  marginTop: 12,
+                  border: "2px solid rgba(195,0,47,0.35)",
+                  boxShadow: "0 10px 25px rgba(10,63,168,0.10)",
                 }}
               >
-                U izradi
-              </a>
-            ))}
-          </div>
+                <div className="hr-3dCardInner">
+                  <div style={{ fontWeight: 1000 }}>Hrvatski U21/NT igrači na transfer listi</div>
+                  <div style={{ marginTop: 4, opacity: 0.85, fontSize: 13 }}>
+                    Modul je privremeno isključen do dobivanja službene CHPP licence.
+                  </div>
 
-          {/* FOOTER */}
-          <div
-            style={{
-              marginTop: 30,
-              paddingTop: 12,
-              borderTop: "1px solid rgba(255,255,255,0.2)",
-              display: "flex",
-              justifyContent: "center",
-              gap: 16,
-              fontSize: 13,
-              opacity: 0.8,
-            }}
-          >
-            <a href="/about" style={{ color: "#fff" }}>
-              O alatu
-            </a>
-            <a href="/help" style={{ color: "#fff" }}>
-              Pomoć
-            </a>
-            <a href="/donacije" style={{ color: "#fff" }}>
-              Donacije
-            </a>
-            <a href="/privacy" style={{ color: "#fff" }}>
-              Privacy
-            </a>
-            <a href="/terms" style={{ color: "#fff" }}>
-              Terms
-            </a>
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: 14,
+                      borderRadius: 14,
+                      background: "rgba(10,63,168,0.08)",
+                      border: "1px solid rgba(10,63,168,0.18)",
+                    }}
+                  >
+                    <div style={{ fontWeight: 1000, fontSize: 16 }}>Privremeno nedostupno</div>
+                    <div style={{ marginTop: 6, opacity: 0.9, lineHeight: 1.4 }}>
+                      Transfer modul je privremeno isključen.
+                      <br />
+                      Aktivirat će se nakon dobivanja službene <b>CHPP licence</b> (službeni izvor podataka).
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* NAPOMENA */}
+              <div className="hr-homeNote">
+                Napomena: u V1 gost vidi “preview” modula, ali sve stranice koje prikazuju igrače/skillove traže prijavu.
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-    </>
+      </main>
+    </div>
   );
 }
