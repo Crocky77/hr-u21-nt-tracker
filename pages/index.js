@@ -7,17 +7,16 @@ export default function Home() {
         <title>Hrvatski U21 / NT Tracker</title>
       </Head>
 
-      {/* CIJELA POZADINA – NE PRIMA KLIK */}
+      {/* POZADINA – SMIJE PRIMATI KLIK */}
       <div
         style={{
           minHeight: "100vh",
           background:
             "radial-gradient(circle at center, #c8381a 0%, #4a0d0d 55%, #120606 100%)",
           paddingTop: "120px",
-          pointerEvents: "none",
         }}
       >
-        {/* CENTRALNI WIDGET – PRIMA KLIK */}
+        {/* CENTRALNI CONTAINER */}
         <div
           style={{
             maxWidth: "1100px",
@@ -26,7 +25,6 @@ export default function Home() {
             background: "rgba(20,20,20,0.75)",
             borderRadius: "16px",
             boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
-            pointerEvents: "auto",
           }}
         >
           <h1 style={{ textAlign: "center", color: "#fff" }}>
@@ -44,7 +42,7 @@ export default function Home() {
             CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
           </p>
 
-          {/* MOJI IGRAČI */}
+          {/* === MOJI IGRAČI – GLAVNI WIDGET === */}
           <div
             style={{
               border: "2px solid #c8381a",
@@ -66,7 +64,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* LINK KOJI SADA MORA RADITI */}
+            {/* OVO SADA RADI */}
             <a
               href="/login"
               style={{
