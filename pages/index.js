@@ -10,7 +10,7 @@ export default function Home() {
         <title>Hrvatski U21 / NT Tracker</title>
       </Head>
 
-      {/* POZADINA – ZAKLJUČANA */}
+      {/* POZADINA */}
       <div
         style={{
           minHeight: "100vh",
@@ -29,7 +29,7 @@ export default function Home() {
             boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
           }}
         >
-          {/* NASLOV – SAMO JEDNOM */}
+          {/* NASLOV */}
           <h1 style={{ textAlign: "center", color: "#fff" }}>
             Moji igrači u Hrvatskom trackeru
           </h1>
@@ -45,16 +45,14 @@ export default function Home() {
             CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
           </p>
 
-          {/* GLAVNI WIDGET */}
+          {/* WIDGET – MOJI IGRAČI */}
           <div
-            onClick={() => router.push("/login")}
             style={{
               border: "2px solid #c8381a",
               borderRadius: "12px",
               padding: "20px",
               marginBottom: "28px",
               background: "rgba(40,40,40,0.8)",
-              cursor: "pointer",
             }}
           >
             <div
@@ -62,6 +60,7 @@ export default function Home() {
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
+                gap: "20px",
               }}
             >
               <div>
@@ -73,17 +72,21 @@ export default function Home() {
                 </div>
               </div>
 
-              <div
+              {/* JEDINI KLIKABILNI ELEMENT */}
+              <button
+                onClick={() => router.push("/login")}
                 style={{
                   background: "#1e6fe3",
                   color: "#fff",
+                  border: "none",
                   borderRadius: "18px",
-                  padding: "8px 16px",
+                  padding: "10px 18px",
                   fontSize: "13px",
+                  cursor: "pointer",
                 }}
               >
                 Prijava
-              </div>
+              </button>
             </div>
           </div>
 
@@ -117,7 +120,7 @@ export default function Home() {
             ))}
           </div>
 
-          {/* FOOTER – NE DIRATI JOŠ */}
+          {/* FOOTER – NE DIRAMO */}
           <div
             style={{
               marginTop: "26px",
