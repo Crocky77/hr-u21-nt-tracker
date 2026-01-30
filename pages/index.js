@@ -1,14 +1,16 @@
 import Head from "next/head";
-import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Home() {
+  const router = useRouter();
+
   return (
     <>
       <Head>
         <title>Hrvatski U21 / NT Tracker</title>
       </Head>
 
-      {/* POZADINA – NE DIRATI (TASK 1 ZAKLJUČAN) */}
+      {/* POZADINA – ZAKLJUČANA */}
       <div
         style={{
           minHeight: "100vh",
@@ -17,7 +19,6 @@ export default function Home() {
           paddingTop: "120px",
         }}
       >
-        {/* GLAVNI CONTAINER */}
         <div
           style={{
             maxWidth: "1100px",
@@ -28,14 +29,8 @@ export default function Home() {
             boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
           }}
         >
-          {/* NASLOV */}
-          <h1
-            style={{
-              textAlign: "center",
-              color: "#fff",
-              marginBottom: "8px",
-            }}
-          >
+          {/* NASLOV – SAMO JEDNOM */}
+          <h1 style={{ textAlign: "center", color: "#fff" }}>
             Moji igrači u Hrvatskom trackeru
           </h1>
 
@@ -50,65 +45,49 @@ export default function Home() {
             CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
           </p>
 
-          {/* ============================= */}
-          {/* GLAVNI WIDGET – MOJI IGRAČI */}
-          {/* ============================= */}
-          <Link href="/login" style={{ textDecoration: "none" }}>
+          {/* GLAVNI WIDGET */}
+          <div
+            onClick={() => router.push("/login")}
+            style={{
+              border: "2px solid #c8381a",
+              borderRadius: "12px",
+              padding: "20px",
+              marginBottom: "28px",
+              background: "rgba(40,40,40,0.8)",
+              cursor: "pointer",
+            }}
+          >
             <div
               style={{
-                border: "2px solid #c8381a",
-                borderRadius: "12px",
-                padding: "20px",
-                marginBottom: "28px",
-                background: "rgba(40,40,40,0.8)",
-                cursor: "pointer",
-                transition: "all 0.2s ease",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
               }}
             >
+              <div>
+                <strong style={{ color: "#fff", fontSize: "16px" }}>
+                  Upravljanje mojim igračima
+                </strong>
+                <div style={{ color: "#aaa", fontSize: "13px" }}>
+                  Prijava i povezivanje (CHPP kasnije)
+                </div>
+              </div>
+
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: "20px",
+                  background: "#1e6fe3",
+                  color: "#fff",
+                  borderRadius: "18px",
+                  padding: "8px 16px",
+                  fontSize: "13px",
                 }}
               >
-                <div>
-                  <strong style={{ color: "#fff", fontSize: "16px" }}>
-                    Moji igrači u Hrvatskom trackeru
-                  </strong>
-                  <div
-                    style={{
-                      color: "#aaa",
-                      fontSize: "13px",
-                      marginTop: "4px",
-                    }}
-                  >
-                    Otvori modul i prijavi se (CHPP kasnije)
-                  </div>
-                </div>
-
-                <button
-                  style={{
-                    background: "#1e6fe3",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: "18px",
-                    padding: "8px 16px",
-                    fontSize: "13px",
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  Prijava (CHPP kasnije)
-                </button>
+                Prijava
               </div>
             </div>
-          </Link>
+          </div>
 
-          {/* ============================= */}
-          {/* OSTALI WIDGETI – PLACEHOLDER */}
-          {/* ============================= */}
+          {/* OSTALI WIDGETI – PRIVREMENO */}
           <div
             style={{
               display: "grid",
@@ -138,7 +117,7 @@ export default function Home() {
             ))}
           </div>
 
-          {/* FOOTER (NE DIRATI SADA) */}
+          {/* FOOTER – NE DIRATI JOŠ */}
           <div
             style={{
               marginTop: "26px",
@@ -149,18 +128,13 @@ export default function Home() {
               color: "#ccc",
             }}
           >
-            O alatu &nbsp;&nbsp; Pomoć &nbsp;&nbsp; Donacije &nbsp;&nbsp;
-            Privacy &nbsp;&nbsp; Terms
+            O alatu · Pomoć · Donacije · Privacy · Terms
           </div>
         </div>
       </div>
     </>
   );
 }
-
-/* ============================= */
-/* STILOVI */
-/* ============================= */
 
 const smallWidget = {
   background: "rgba(255,255,255,0.08)",
