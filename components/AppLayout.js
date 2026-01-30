@@ -1,10 +1,13 @@
-import Header from "./Header";
+import TopBar from "./TopBar";
 
-export default function AppLayout({ children, user = null }) {
+export default function AppLayout({ children, fullWidth = false }) {
   return (
-    <>
-      <Header user={user} />
-      <main>{children}</main>
-    </>
+    <div className="hr-appBg">
+      <TopBar />
+
+      <main className="hr-main" style={{ padding: fullWidth ? 0 : "20px 18px" }}>
+        {fullWidth ? children : <div className="hr-container">{children}</div>}
+      </main>
+    </div>
   );
 }
