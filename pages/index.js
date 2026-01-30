@@ -1,35 +1,36 @@
 import Head from "next/head";
-import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Home() {
+  const router = useRouter();
+
   return (
     <>
       <Head>
         <title>Hrvatski U21 / NT Tracker</title>
       </Head>
 
-      {/* ================= HEADER ================= */}
+      {/* HEADER */}
       <header
         style={{
           background: "#0f0f0f",
           borderBottom: "2px solid #b11226",
           padding: "12px 20px",
           display: "flex",
-          alignItems: "center",
           justifyContent: "space-between",
+          alignItems: "center",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <img src="/logo.png" alt="Logo" style={{ height: "40px" }} />
-          <span style={{ color: "#fff", fontWeight: 700 }}>
+          <strong style={{ color: "#fff" }}>
             Hrvatski U21 / NT Tracker
-          </span>
+          </strong>
         </div>
-
-        <div style={{ color: "#ccc", fontSize: "14px" }}>Nisi prijavljen</div>
+        <span style={{ color: "#ccc" }}>Nisi prijavljen</span>
       </header>
 
-      {/* ================= CONTENT ================= */}
+      {/* CONTENT */}
       <main
         style={{
           minHeight: "calc(100vh - 70px)",
@@ -47,7 +48,7 @@ export default function Home() {
             padding: "40px",
           }}
         >
-          <h1 style={{ color: "#fff", marginBottom: "10px" }}>
+          <h1 style={{ color: "#fff" }}>
             Moji igrači u Hrvatskom trackeru
           </h1>
 
@@ -55,68 +56,66 @@ export default function Home() {
             Prijava i upravljanje igračima (CHPP kasnije).
           </p>
 
-          {/* ================= MOJI IGRAČI WIDGET ================= */}
-          <Link href="/login">
-            <a
+          {/* 🔥 MOJI IGRAČI – FULL CLICK WIDGET */}
+          <div
+            onClick={() => router.push("/login")}
+            style={{
+              cursor: "pointer",
+              border: "2px solid #b11226",
+              borderRadius: "18px",
+              padding: "24px",
+              marginBottom: "40px",
+              background: "rgba(0,0,0,0.4)",
+            }}
+          >
+            <div
               style={{
-                display: "block",
-                border: "2px solid #b11226",
-                borderRadius: "18px",
-                padding: "24px",
-                marginBottom: "40px",
-                textDecoration: "none",
-                background: "rgba(0,0,0,0.35)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "20px",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  gap: "20px",
-                }}
-              >
-                <div>
-                  <h3 style={{ color: "#fff", marginBottom: "6px" }}>
-                    Upravljanje mojim igračima
-                  </h3>
-                  <p style={{ color: "#ccc", margin: 0 }}>
-                    Admin prijava (email) + CHPP povezivanje (uskoro)
-                  </p>
+              <div>
+                <h3 style={{ color: "#fff", marginBottom: "6px" }}>
+                  Upravljanje mojim igračima
+                </h3>
+                <p style={{ color: "#ccc", margin: 0 }}>
+                  Admin login (email) + CHPP povezivanje (uskoro)
+                </p>
+              </div>
+
+              <div style={{ display: "flex", gap: "12px" }}>
+                <div
+                  style={{
+                    padding: "10px 18px",
+                    background: "#b11226",
+                    color: "#fff",
+                    borderRadius: "20px",
+                    fontWeight: 600,
+                  }}
+                >
+                  Admin login
                 </div>
 
-                <div style={{ display: "flex", gap: "12px" }}>
-                  <span
-                    style={{
-                      padding: "10px 18px",
-                      background: "#b11226",
-                      color: "#fff",
-                      borderRadius: "20px",
-                      fontWeight: 600,
-                    }}
-                  >
-                    Admin login
-                  </span>
-
-                  <span
-                    style={{
-                      padding: "10px 18px",
-                      background: "#555",
-                      color: "#ddd",
-                      borderRadius: "20px",
-                      fontWeight: 600,
-                      opacity: 0.6,
-                    }}
-                  >
-                    CHPP (uskoro)
-                  </span>
+                <div
+                  style={{
+                    padding: "10px 18px",
+                    background: "#555",
+                    color: "#ddd",
+                    borderRadius: "20px",
+                    fontWeight: 600,
+                    opacity: 0.6,
+                  }}
+                >
+                  CHPP (uskoro)
                 </div>
               </div>
-            </a>
-          </Link>
+            </div>
+          </div>
 
-          {/* ================= MAIN MODULES ================= */}
+          {/* MODULES */}
           <div
             style={{
               display: "grid",
@@ -125,20 +124,14 @@ export default function Home() {
               marginBottom: "30px",
             }}
           >
-            <Link href="/team/nt">
-              <a style={cardStyle}>NT Hrvatska</a>
-            </Link>
-
-            <Link href="/team/u21">
-              <a style={cardStyleActive}>U21 Hrvatska</a>
-            </Link>
-
-            <Link href="/transfers">
-              <a style={cardStyle}>Transfer lista</a>
-            </Link>
+            <div style={card}>NT Hrvatska</div>
+            <div style={{ ...card, background: "#b11226" }}>
+              U21 Hrvatska
+            </div>
+            <div style={card}>Transfer lista</div>
           </div>
 
-          {/* ================= PLACEHOLDERS ================= */}
+          {/* PLACEHOLDERS */}
           <div
             style={{
               display: "grid",
@@ -147,13 +140,13 @@ export default function Home() {
             }}
           >
             {Array.from({ length: 8 }).map((_, i) => (
-              <Link href="/uskoro" key={i}>
-                <a style={placeholderStyle}>U izradi</a>
-              </Link>
+              <div key={i} style={placeholder}>
+                U izradi
+              </div>
             ))}
           </div>
 
-          {/* ================= FOOTER ================= */}
+          {/* FOOTER */}
           <footer
             style={{
               marginTop: "50px",
@@ -161,15 +154,15 @@ export default function Home() {
               borderTop: "1px solid rgba(255,255,255,0.2)",
               display: "flex",
               gap: "20px",
-              flexWrap: "wrap",
               fontSize: "14px",
+              color: "#ccc",
             }}
           >
-            <Link href="/about">O alatu</Link>
-            <Link href="/help">Pomoć</Link>
-            <Link href="/donations">Donacije</Link>
-            <Link href="/privacy">Privacy</Link>
-            <Link href="/terms">Terms</Link>
+            <span>O alatu</span>
+            <span>Pomoć</span>
+            <span>Donacije</span>
+            <span>Privacy</span>
+            <span>Terms</span>
           </footer>
         </div>
       </main>
@@ -177,29 +170,20 @@ export default function Home() {
   );
 }
 
-/* ================= STYLES ================= */
-
-const cardStyle = {
+const card = {
   background: "rgba(255,255,255,0.08)",
   padding: "26px",
   borderRadius: "14px",
-  color: "#ffffff",
-  textDecoration: "none",
+  color: "#fff",
   fontWeight: "700",
   textAlign: "center",
 };
 
-const cardStyleActive = {
-  ...cardStyle,
-  background: "#b11226",
-};
-
-const placeholderStyle = {
+const placeholder = {
   background: "#e6e6e6",
   padding: "18px",
   borderRadius: "12px",
   color: "#333",
-  textDecoration: "none",
   fontWeight: "600",
   textAlign: "center",
 };
