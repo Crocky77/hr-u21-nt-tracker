@@ -13,59 +13,52 @@ export default function Home() {
         style={{
           background: "#0f0f0f",
           borderBottom: "2px solid #b11226",
+          padding: "12px 20px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
+        {/* LEFT: LOGO + TITLE */}
         <div
           style={{
-            maxWidth: "1200px",
-            margin: "0 auto",
-            padding: "12px 20px",
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
+            gap: "12px",
           }}
         >
-          {/* LEFT: LOGO + TITLE */}
-          <div
+          <img
+            src="/logo.png"
+            alt="Hrvatski U21 / NT Tracker"
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "12px",
+              height: "40px",
+              width: "auto",
+            }}
+          />
+          <span
+            style={{
+              color: "#ffffff",
+              fontSize: "18px",
+              fontWeight: "700",
+              whiteSpace: "nowrap",
             }}
           >
-            <img
-              src="/logo.png"
-              alt="Hrvatski U21 / NT Tracker"
-              style={{
-                height: "40px",
-                width: "auto",
-              }}
-            />
-            <span
-              style={{
-                color: "#ffffff",
-                fontSize: "18px",
-                fontWeight: "700",
-                whiteSpace: "nowrap",
-              }}
-            >
-              Hrvatski U21 / NT Tracker
-            </span>
-          </div>
+            Hrvatski U21 / NT Tracker
+          </span>
+        </div>
 
-          {/* RIGHT: AUTH STATUS */}
-          <div
-            style={{
-              color: "#cccccc",
-              fontSize: "14px",
-            }}
-          >
-            Nisi prijavljen
-          </div>
+        {/* RIGHT: AUTH STATUS */}
+        <div
+          style={{
+            color: "#cccccc",
+            fontSize: "14px",
+          }}
+        >
+          Nisi prijavljen
         </div>
       </header>
 
-      {/* ================= PAGE CONTENT (BASELINE) ================= */}
+      {/* ================= PAGE CONTENT ================= */}
       <main
         style={{
           minHeight: "calc(100vh - 70px)",
@@ -83,7 +76,6 @@ export default function Home() {
             padding: "32px",
           }}
         >
-          {/* MAIN WIDGET */}
           <h1 style={{ color: "#ffffff", marginBottom: "16px" }}>
             Moji igrači u Hrvatskom trackeru
           </h1>
@@ -109,7 +101,6 @@ export default function Home() {
             </a>
           </Link>
 
-          {/* NT / U21 / TRANSFER */}
           <div
             style={{
               display: "grid",
@@ -118,20 +109,11 @@ export default function Home() {
               marginBottom: "32px",
             }}
           >
-            <Link href="/team/nt">
-              <a style={cardStyle}>NT Hrvatska</a>
-            </Link>
-
-            <Link href="/team/u21">
-              <a style={cardStyle}>U21 Hrvatska</a>
-            </Link>
-
-            <Link href="/transfers">
-              <a style={cardStyle}>Transfer lista</a>
-            </Link>
+            <Link href="/team/nt"><a style={cardStyle}>NT Hrvatska</a></Link>
+            <Link href="/team/u21"><a style={cardStyle}>U21 Hrvatska</a></Link>
+            <Link href="/transfers"><a style={cardStyle}>Transfer lista</a></Link>
           </div>
 
-          {/* U IZRADI */}
           <div
             style={{
               display: "grid",
@@ -146,7 +128,6 @@ export default function Home() {
             ))}
           </div>
 
-          {/* FOOTER */}
           <footer
             style={{
               marginTop: "40px",
