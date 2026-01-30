@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -7,150 +8,174 @@ export default function Home() {
         <title>Hrvatski U21 / NT Tracker</title>
       </Head>
 
-      {/* ===== PAGE WRAPPER (POZADINA) ===== */}
-      <div className="page-root">
-        {/* ===== HEADER (privremeno, samo da ne puca layout) ===== */}
-        <header className="top-header">
-          <div className="header-inner">
-            <div className="logo-title">
-              <img src="/logo.png" alt="HT Logo" />
-              <span>Hrvatski U21 / NT Tracker</span>
+      {/* POZADINA – NE DIRATI (TASK 1 ZAKLJUČAN) */}
+      <div
+        style={{
+          minHeight: "100vh",
+          background:
+            "radial-gradient(circle at center, #c8381a 0%, #4a0d0d 55%, #120606 100%)",
+          paddingTop: "120px",
+        }}
+      >
+        {/* GLAVNI CONTAINER */}
+        <div
+          style={{
+            maxWidth: "1100px",
+            margin: "0 auto",
+            padding: "40px",
+            background: "rgba(20,20,20,0.65)",
+            borderRadius: "14px",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+          }}
+        >
+          {/* NASLOV */}
+          <h1
+            style={{
+              textAlign: "center",
+              color: "#fff",
+              marginBottom: "8px",
+            }}
+          >
+            Moji igrači u Hrvatskom trackeru
+          </h1>
+
+          <p
+            style={{
+              textAlign: "center",
+              color: "#ccc",
+              marginBottom: "28px",
+              fontSize: "14px",
+            }}
+          >
+            CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
+          </p>
+
+          {/* ============================= */}
+          {/* GLAVNI WIDGET – MOJI IGRAČI */}
+          {/* ============================= */}
+          <Link href="/login" style={{ textDecoration: "none" }}>
+            <div
+              style={{
+                border: "2px solid #c8381a",
+                borderRadius: "12px",
+                padding: "20px",
+                marginBottom: "28px",
+                background: "rgba(40,40,40,0.8)",
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: "20px",
+                }}
+              >
+                <div>
+                  <strong style={{ color: "#fff", fontSize: "16px" }}>
+                    Moji igrači u Hrvatskom trackeru
+                  </strong>
+                  <div
+                    style={{
+                      color: "#aaa",
+                      fontSize: "13px",
+                      marginTop: "4px",
+                    }}
+                  >
+                    Otvori modul i prijavi se (CHPP kasnije)
+                  </div>
+                </div>
+
+                <button
+                  style={{
+                    background: "#1e6fe3",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "18px",
+                    padding: "8px 16px",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Prijava (CHPP kasnije)
+                </button>
+              </div>
             </div>
-            <div className="auth-status">Nisi prijavljen</div>
-          </div>
-        </header>
+          </Link>
 
-        {/* ===== CENTRALNI CONTENT (widgeti dolaze kasnije) ===== */}
-        <main className="content">
-          <div className="placeholder-box">
-            <h1>Moji igrači u Hrvatskom trackeru</h1>
-            <p>
-              CHPP dozvola je kasnije. Za sada pripremamo UI + DB za
-              "moji igrači".
-            </p>
+          {/* ============================= */}
+          {/* OSTALI WIDGETI – PLACEHOLDER */}
+          {/* ============================= */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: "16px",
+              marginBottom: "24px",
+            }}
+          >
+            <div style={smallWidget}>NT Hrvatska</div>
+            <div style={{ ...smallWidget, background: "#c8381a" }}>
+              U21 Hrvatska
+            </div>
+            <div style={smallWidget}>Transfer lista</div>
           </div>
-        </main>
 
-        {/* ===== FOOTER (JEDAN, DONJI) ===== */}
-        <footer className="footer">
-          <span>O alatu</span>
-          <span>Pomoć</span>
-          <span>Donacije</span>
-          <span>Privacy</span>
-          <span>Terms</span>
-        </footer>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "12px",
+            }}
+          >
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} style={comingSoon}>
+                U izradi
+              </div>
+            ))}
+          </div>
+
+          {/* FOOTER (NE DIRATI SADA) */}
+          <div
+            style={{
+              marginTop: "26px",
+              paddingTop: "12px",
+              borderTop: "1px solid rgba(255,255,255,0.15)",
+              textAlign: "center",
+              fontSize: "13px",
+              color: "#ccc",
+            }}
+          >
+            O alatu &nbsp;&nbsp; Pomoć &nbsp;&nbsp; Donacije &nbsp;&nbsp;
+            Privacy &nbsp;&nbsp; Terms
+          </div>
+        </div>
       </div>
-
-      {/* ===== STYLES ===== */}
-      <style jsx>{`
-        /* RESET */
-        * {
-          box-sizing: border-box;
-        }
-
-        html,
-        body {
-          margin: 0;
-          padding: 0;
-          height: 100%;
-        }
-
-        /* PAGE ROOT – OVO JE KLJUČ */
-        .page-root {
-          min-height: 100vh;
-          display: flex;
-          flex-direction: column;
-          background: radial-gradient(
-            ellipse at center,
-            #8b0000 0%,
-            #4b0000 45%,
-            #120000 100%
-          );
-        }
-
-        /* HEADER */
-        .top-header {
-          border-bottom: 2px solid #b00000;
-          background: linear-gradient(
-            to right,
-            #0f0f0f,
-            #2a0000,
-            #0f0f0f
-          );
-        }
-
-        .header-inner {
-          max-width: 1400px;
-          margin: 0 auto;
-          padding: 14px 24px;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          color: #fff;
-        }
-
-        .logo-title {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          font-weight: 700;
-          font-size: 18px;
-        }
-
-        .logo-title img {
-          height: 36px;
-        }
-
-        .auth-status {
-          opacity: 0.8;
-          font-size: 14px;
-        }
-
-        /* CONTENT */
-        .content {
-          flex: 1;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 60px 20px;
-        }
-
-        .placeholder-box {
-          background: rgba(30, 30, 30, 0.85);
-          border-radius: 14px;
-          padding: 40px 50px;
-          color: #fff;
-          text-align: center;
-          max-width: 720px;
-          width: 100%;
-        }
-
-        .placeholder-box h1 {
-          margin-top: 0;
-        }
-
-        /* FOOTER */
-        .footer {
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
-          padding: 18px;
-          display: flex;
-          justify-content: center;
-          gap: 28px;
-          color: #ddd;
-          font-size: 14px;
-          background: rgba(0, 0, 0, 0.25);
-        }
-
-        .footer span {
-          cursor: pointer;
-          opacity: 0.85;
-        }
-
-        .footer span:hover {
-          opacity: 1;
-          text-decoration: underline;
-        }
-      `}</style>
     </>
   );
 }
+
+/* ============================= */
+/* STILOVI */
+/* ============================= */
+
+const smallWidget = {
+  background: "rgba(255,255,255,0.08)",
+  borderRadius: "10px",
+  padding: "14px",
+  textAlign: "center",
+  color: "#fff",
+  fontWeight: "bold",
+};
+
+const comingSoon = {
+  background: "#e9e9e9",
+  borderRadius: "10px",
+  padding: "14px",
+  textAlign: "center",
+  color: "#333",
+  fontWeight: "bold",
+};
