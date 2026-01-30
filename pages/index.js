@@ -7,16 +7,17 @@ export default function Home() {
         <title>Hrvatski U21 / NT Tracker</title>
       </Head>
 
-      {/* POZADINA */}
+      {/* CIJELA POZADINA – NE PRIMA KLIK */}
       <div
         style={{
           minHeight: "100vh",
           background:
             "radial-gradient(circle at center, #c8381a 0%, #4a0d0d 55%, #120606 100%)",
           paddingTop: "120px",
+          pointerEvents: "none",
         }}
       >
-        {/* CENTRALNI WIDGET */}
+        {/* CENTRALNI WIDGET – PRIMA KLIK */}
         <div
           style={{
             maxWidth: "1100px",
@@ -25,6 +26,7 @@ export default function Home() {
             background: "rgba(20,20,20,0.75)",
             borderRadius: "16px",
             boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
+            pointerEvents: "auto",
           }}
         >
           <h1 style={{ textAlign: "center", color: "#fff" }}>
@@ -42,7 +44,7 @@ export default function Home() {
             CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
           </p>
 
-          {/* MOJI IGRAČI – JEDINI KLIKABILNI DIO */}
+          {/* MOJI IGRAČI */}
           <div
             style={{
               border: "2px solid #c8381a",
@@ -56,13 +58,7 @@ export default function Home() {
             }}
           >
             <div>
-              <div
-                style={{
-                  color: "#fff",
-                  fontSize: "16px",
-                  fontWeight: "bold",
-                }}
-              >
+              <div style={{ color: "#fff", fontWeight: "bold" }}>
                 Upravljanje mojim igračima
               </div>
               <div style={{ color: "#aaa", fontSize: "13px" }}>
@@ -70,7 +66,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* ⬇⬇⬇ OVO RADI UVIJEK ⬇⬇⬇ */}
+            {/* LINK KOJI SADA MORA RADITI */}
             <a
               href="/login"
               style={{
@@ -78,56 +74,13 @@ export default function Home() {
                 color: "#fff",
                 borderRadius: "18px",
                 padding: "10px 22px",
-                fontSize: "14px",
                 fontWeight: "bold",
                 textDecoration: "none",
+                cursor: "pointer",
               }}
             >
               Prijava
             </a>
-          </div>
-
-          {/* NT / U21 / TRANSFER */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr 1fr",
-              gap: "16px",
-              marginBottom: "24px",
-            }}
-          >
-            <div style={widgetBox}>NT Hrvatska</div>
-            <div style={{ ...widgetBox, background: "#c8381a" }}>
-              U21 Hrvatska
-            </div>
-            <div style={widgetBox}>Transfer lista</div>
-          </div>
-
-          {/* U IZRADI */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "14px",
-            }}
-          >
-            {Array.from({ length: 8 }).map((_, i) => (
-              <a
-                key={i}
-                href="/uskoro"
-                style={{
-                  background: "rgba(255,255,255,0.9)",
-                  borderRadius: "10px",
-                  padding: "12px",
-                  textAlign: "center",
-                  color: "#333",
-                  fontWeight: "bold",
-                  textDecoration: "none",
-                }}
-              >
-                U izradi
-              </a>
-            ))}
           </div>
 
           {/* FOOTER */}
@@ -152,12 +105,3 @@ export default function Home() {
     </>
   );
 }
-
-const widgetBox = {
-  background: "rgba(255,255,255,0.08)",
-  borderRadius: "12px",
-  padding: "14px",
-  textAlign: "center",
-  color: "#fff",
-  fontWeight: "bold",
-};
