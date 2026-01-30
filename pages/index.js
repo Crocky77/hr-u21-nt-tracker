@@ -10,15 +10,17 @@ export default function Home() {
         <title>Hrvatski U21 / NT Tracker</title>
       </Head>
 
-      {/* POZADINA */}
+      {/* POZADINA – NE SMIJE PRIMATI KLIK */}
       <div
         style={{
           minHeight: "100vh",
           background:
             "radial-gradient(circle at center, #c8381a 0%, #4a0d0d 55%, #120606 100%)",
           paddingTop: "120px",
+          pointerEvents: "none", // 🔥 KLJUČNO
         }}
       >
+        {/* GLAVNI CONTAINER */}
         <div
           style={{
             maxWidth: "1100px",
@@ -27,9 +29,9 @@ export default function Home() {
             background: "rgba(20,20,20,0.65)",
             borderRadius: "14px",
             boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+            pointerEvents: "none", // 🔥 KLJUČNO
           }}
         >
-          {/* NASLOV */}
           <h1 style={{ textAlign: "center", color: "#fff" }}>
             Moji igrači u Hrvatskom trackeru
           </h1>
@@ -53,6 +55,7 @@ export default function Home() {
               padding: "20px",
               marginBottom: "28px",
               background: "rgba(40,40,40,0.8)",
+              pointerEvents: "auto", // ✅ OVDJE SE KLIK VRAĆA
             }}
           >
             <div
@@ -72,9 +75,12 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* JEDINI KLIKABILNI ELEMENT */}
+              {/* PRAVI KLIK */}
               <button
-                onClick={() => router.push("/login")}
+                onClick={() => {
+                  console.log("CLICK RADI");
+                  router.push("/login");
+                }}
                 style={{
                   background: "#1e6fe3",
                   color: "#fff",
@@ -83,6 +89,7 @@ export default function Home() {
                   padding: "10px 18px",
                   fontSize: "13px",
                   cursor: "pointer",
+                  pointerEvents: "auto", // ✅ NAJBITNIJE
                 }}
               >
                 Prijava
@@ -90,13 +97,14 @@ export default function Home() {
             </div>
           </div>
 
-          {/* OSTALI WIDGETI – PRIVREMENO */}
+          {/* OSTALI WIDGETI (ZA SADA NEKLIKABILNI) */}
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "1fr 1fr 1fr",
               gap: "16px",
               marginBottom: "24px",
+              pointerEvents: "none",
             }}
           >
             <div style={smallWidget}>NT Hrvatska</div>
@@ -106,21 +114,7 @@ export default function Home() {
             <div style={smallWidget}>Transfer lista</div>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "12px",
-            }}
-          >
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} style={comingSoon}>
-                U izradi
-              </div>
-            ))}
-          </div>
-
-          {/* FOOTER – NE DIRAMO */}
+          {/* FOOTER */}
           <div
             style={{
               marginTop: "26px",
@@ -145,14 +139,5 @@ const smallWidget = {
   padding: "14px",
   textAlign: "center",
   color: "#fff",
-  fontWeight: "bold",
-};
-
-const comingSoon = {
-  background: "#e9e9e9",
-  borderRadius: "10px",
-  padding: "14px",
-  textAlign: "center",
-  color: "#333",
   fontWeight: "bold",
 };
