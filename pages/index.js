@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Link from "next/link";
 
 export default function Home() {
   return (
@@ -7,99 +8,185 @@ export default function Home() {
         <title>Hrvatski U21 / NT Tracker</title>
       </Head>
 
-      {/* POZADINA – SMIJE PRIMATI KLIK */}
-      <div
+      {/* ================= HEADER ================= */}
+      <header
         style={{
-          minHeight: "100vh",
-          background:
-            "radial-gradient(circle at center, #c8381a 0%, #4a0d0d 55%, #120606 100%)",
-          paddingTop: "120px",
+          background: "#0f0f0f",
+          borderBottom: "2px solid #b11226",
         }}
       >
-        {/* CENTRALNI CONTAINER */}
         <div
           style={{
-            maxWidth: "1100px",
+            maxWidth: "1200px",
             margin: "0 auto",
-            padding: "40px",
-            background: "rgba(20,20,20,0.75)",
-            borderRadius: "16px",
-            boxShadow: "0 20px 60px rgba(0,0,0,0.7)",
+            padding: "12px 20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
           }}
         >
-          <h1 style={{ textAlign: "center", color: "#fff" }}>
-            Moji igrači u Hrvatskom trackeru
-          </h1>
-
-          <p
+          {/* LEFT: LOGO + TITLE */}
+          <div
             style={{
-              textAlign: "center",
-              color: "#ccc",
-              marginBottom: "28px",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+            }}
+          >
+            <img
+              src="/logo.png"
+              alt="Hrvatski U21 / NT Tracker"
+              style={{
+                height: "40px",
+                width: "auto",
+              }}
+            />
+            <span
+              style={{
+                color: "#ffffff",
+                fontSize: "18px",
+                fontWeight: "700",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Hrvatski U21 / NT Tracker
+            </span>
+          </div>
+
+          {/* RIGHT: AUTH STATUS */}
+          <div
+            style={{
+              color: "#cccccc",
               fontSize: "14px",
             }}
           >
-            CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
+            Nisi prijavljen
+          </div>
+        </div>
+      </header>
+
+      {/* ================= PAGE CONTENT (BASELINE) ================= */}
+      <main
+        style={{
+          minHeight: "calc(100vh - 70px)",
+          background:
+            "radial-gradient(circle at center, #7a1414 0%, #2b0a0a 60%, #0b0505 100%)",
+          padding: "40px 20px",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: "1200px",
+            margin: "0 auto",
+            background: "rgba(20,20,20,0.75)",
+            borderRadius: "16px",
+            padding: "32px",
+          }}
+        >
+          {/* MAIN WIDGET */}
+          <h1 style={{ color: "#ffffff", marginBottom: "16px" }}>
+            Moji igrači u Hrvatskom trackeru
+          </h1>
+
+          <p style={{ color: "#cccccc", marginBottom: "24px" }}>
+            Prijava i upravljanje igračima (CHPP kasnije).
           </p>
 
-          {/* === MOJI IGRAČI – GLAVNI WIDGET === */}
-          <div
-            style={{
-              border: "2px solid #c8381a",
-              borderRadius: "14px",
-              padding: "20px",
-              marginBottom: "32px",
-              background: "rgba(35,35,35,0.85)",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-            }}
-          >
-            <div>
-              <div style={{ color: "#fff", fontWeight: "bold" }}>
-                Upravljanje mojim igračima
-              </div>
-              <div style={{ color: "#aaa", fontSize: "13px" }}>
-                Prijava i povezivanje (CHPP kasnije)
-              </div>
-            </div>
-
-            {/* OVO SADA RADI */}
+          <Link href="/my-players">
             <a
-              href="/login"
               style={{
-                background: "#1e6fe3",
-                color: "#fff",
-                borderRadius: "18px",
-                padding: "10px 22px",
-                fontWeight: "bold",
+                display: "inline-block",
+                padding: "12px 24px",
+                background: "#b11226",
+                color: "#ffffff",
+                borderRadius: "20px",
                 textDecoration: "none",
-                cursor: "pointer",
+                fontWeight: "600",
+                marginBottom: "32px",
               }}
             >
-              Prijava
+              Prijava (CHPP kasnije)
             </a>
+          </Link>
+
+          {/* NT / U21 / TRANSFER */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(3, 1fr)",
+              gap: "20px",
+              marginBottom: "32px",
+            }}
+          >
+            <Link href="/team/nt">
+              <a style={cardStyle}>NT Hrvatska</a>
+            </Link>
+
+            <Link href="/team/u21">
+              <a style={cardStyle}>U21 Hrvatska</a>
+            </Link>
+
+            <Link href="/transfers">
+              <a style={cardStyle}>Transfer lista</a>
+            </Link>
+          </div>
+
+          {/* U IZRADI */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "16px",
+            }}
+          >
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Link href="/uskoro" key={i}>
+                <a style={placeholderStyle}>U izradi</a>
+              </Link>
+            ))}
           </div>
 
           {/* FOOTER */}
-          <div
+          <footer
             style={{
-              marginTop: "32px",
-              paddingTop: "14px",
-              borderTop: "1px solid rgba(255,255,255,0.15)",
-              textAlign: "center",
-              fontSize: "13px",
-              color: "#ccc",
+              marginTop: "40px",
+              paddingTop: "20px",
+              borderTop: "1px solid rgba(255,255,255,0.2)",
+              display: "flex",
+              gap: "20px",
+              flexWrap: "wrap",
+              color: "#cccccc",
+              fontSize: "14px",
             }}
           >
-            <a href="/about">O alatu</a> ·{" "}
-            <a href="/help">Pomoć</a> ·{" "}
-            <a href="/donations">Donacije</a> ·{" "}
-            <a href="/privacy">Privacy</a> ·{" "}
-            <a href="/terms">Terms</a>
-          </div>
+            <Link href="/about">O alatu</Link>
+            <Link href="/help">Pomoć</Link>
+            <Link href="/donations">Donacije</Link>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/terms">Terms</Link>
+          </footer>
         </div>
-      </div>
+      </main>
     </>
   );
 }
+
+const cardStyle = {
+  background: "rgba(255,255,255,0.08)",
+  padding: "24px",
+  borderRadius: "14px",
+  color: "#ffffff",
+  textDecoration: "none",
+  fontWeight: "700",
+  textAlign: "center",
+};
+
+const placeholderStyle = {
+  background: "#e6e6e6",
+  padding: "18px",
+  borderRadius: "12px",
+  color: "#333333",
+  textDecoration: "none",
+  fontWeight: "600",
+  textAlign: "center",
+};
