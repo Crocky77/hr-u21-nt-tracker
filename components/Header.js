@@ -1,55 +1,70 @@
-import Link from "next/link";
-import { useUser } from "../lib/useUser";
+import Image from "next/image";
 
-export default function Header() {
-  const { user } = useUser?.() || { user: null };
-
-  const email = user?.email || "";
-  const role =
-    user?.user_metadata?.role ||
-    user?.user_metadata?.app_role ||
-    user?.role ||
-    "admin";
-
+export default function Header({ user }) {
   return (
-    <>
-      <header className="hr-header">
-        <div className="hr-headerInner">
-          <div className="hr-headerLeft">
-            <Link href="/" className="hr-logoLink" aria-label="Naslovnica">
-              {/* logo.png je u /public/logo.png */}
-              <img className="hr-logoImg" src="/logo.png" alt="HR Tracker logo" />
-              <div className="hr-titleWrap">
-                <div className="hr-title">Hrvatski U21/NT Tracker</div>
-              </div>
-            </Link>
-          </div>
-
-          <div className="hr-headerRight">
-            {user ? (
-              <div className="hr-userBox">
-                <div className="hr-userLine">
-                  <span className="hr-userLabel">Dobrodošao:</span>{" "}
-                  <span className="hr-userValue">{email}</span>
-                </div>
-                <div className="hr-userLine">
-                  <span className="hr-userLabel">Prijavljen kao:</span>{" "}
-                  <span className="hr-userValue">{role}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="hr-userBox">
-                <div className="hr-userLine">
-                  <span className="hr-userLabel">Nisi prijavljen</span>
-                </div>
-              </div>
-            )}
-          </div>
+    <header style={styles.wrapper}>
+      <div style={styles.inner}>
+        <div style={styles.left}>
+          <Image
+            src="/logo.png"
+            alt="Hrvatski U21/NT Tracker"
+            width={48}
+            height={48}
+          />
+          <span style={styles.title}>
+            Hrvatski U21/NT Tracker
+          </span>
         </div>
-      </header>
 
-      {/* crvena linija kao na tvojoj slici */}
-      <div className="hr-headerDivider" />
-    </>
+        <div style={styles.right}>
+          {user ? (
+            <span style={styles.user}>
+              Dobrodošao: {user.email} <strong>(admin)</strong>
+            </span>
+          ) : (
+            <span style={styles.user}>Nisi prijavljen</span>
+          )}
+        </div>
+      </div>
+
+      {/* crvena linija */}
+      <div style={styles.divider} />
+    </header>
   );
 }
+
+const styles = {
+  wrapper: {
+    background: "linear-gradient(90deg, #120000, #3a0000)",
+  },
+  inner: {
+    maxWidth: "1400px",
+    margin: "0 auto",
+    padding: "12px 20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  left: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  title: {
+    color: "#ffffff",
+    fontSize: "20px",
+    fontWeight: "700",
+    letterSpacing: "0.5px",
+  },
+  right: {
+    color: "#ddd",
+    fontSize: "14px",
+  },
+  user: {
+    opacity: 0.9,
+  },
+  divider: {
+    height: "2px",
+    background: "#c40000",
+  },
+};
