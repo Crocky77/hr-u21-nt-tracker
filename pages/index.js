@@ -1,7 +1,7 @@
 import Header from "../components/Header";
-import TileNT from "../components/home/TileNT";
-import TileU21 from "../components/home/TileU21";
-import TileTransfer from "../components/home/TileTransfer";
+import TileNT from "../components/TileNT";
+import TileU21 from "../components/TileU21";
+import TileTransfer from "../components/TileTransfer";
 
 export default function HomePage() {
   return (
@@ -11,7 +11,6 @@ export default function HomePage() {
       <main className="hr-main">
         <div className="hr-container">
 
-          {/* GLAVNI PANEL */}
           <div className="home-mainPanel">
 
             <h1 className="home-panelTitle">
@@ -22,7 +21,6 @@ export default function HomePage() {
               CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji igrači”.
             </p>
 
-            {/* LOGIN GUMBI – NENAMETLJIVI */}
             <div className="home-loginRow">
               <button className="home-loginBtn ghost">
                 Admin / Tester login
@@ -32,7 +30,6 @@ export default function HomePage() {
               </button>
             </div>
 
-            {/* PRVI RED – 3 DOMINANTNA TILE-A */}
             <div className="home-tilesRow">
               <TileNT />
               <TileU21 />
