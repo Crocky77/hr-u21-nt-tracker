@@ -140,3 +140,143 @@ a { color: inherit; text-decoration: none; }
   width: 100%;
   max-width: 1100px;
 }
+
+/* ===================================================== */
+/* HOME – KORAK 2.1 */
+/* ===================================================== */
+
+.home-mainPanel {
+  background: rgba(0,0,0,0.55);
+  border-radius: 20px;
+  padding: 36px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+  backdrop-filter: blur(14px);
+}
+
+.home-panelTitle {
+  text-align: center;
+  font-size: 26px;
+  font-weight: 900;
+  color: #ffffff;
+  margin: 0;
+}
+
+.home-panelSubtitle {
+  text-align: center;
+  margin-top: 8px;
+  font-size: 14px;
+  color: rgba(255,255,255,0.85);
+}
+
+.home-loginRow {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin: 18px 0 30px;
+}
+
+.home-loginBtn {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid rgba(255,255,255,0.25);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.home-loginBtn.ghost {
+  background: rgba(255,255,255,0.12);
+}
+
+.home-loginBtn.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* TILE ROW */
+.home-tilesRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 18px;
+}
+
+/* SHARED TILE */
+.home-tile {
+  height: 140px;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* IMAGE TILES */
+.home-tile.image {
+  background-size: cover;
+  background-position: center;
+}
+
+.home-tile.image.nt {
+  background-image: url("/home/tile-nt.png");
+}
+
+.home-tile.image.u21 {
+  background-image: url("/home/tile-u21.png");
+}
+
+.home-tileOverlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to right,
+    rgba(0,0,0,0.55),
+    rgba(0,0,0,0.15)
+  );
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
+}
+
+.home-tileTitle {
+  font-size: 20px;
+  font-weight: 900;
+  color: #fff;
+}
+
+/* TRANSFER TILE */
+.home-tile.transfer {
+  background: linear-gradient(
+    to bottom,
+    #2a0f14,
+    #13080b
+  );
+  flex-direction: column;
+  text-align: center;
+}
+
+.home-transferIcon {
+  font-size: 40px;
+  color: #c3002f;
+}
+
+.home-transferTitle {
+  font-size: 18px;
+  font-weight: 900;
+  color: #fff;
+}
+
+.home-transferSub {
+  margin-top: 6px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+}
+
+/* RESPONSIVE */
+@media (max-width: 900px) {
+  .home-tilesRow {
+    grid-template-columns: 1fr;
+  }
+}
