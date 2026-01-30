@@ -1,9 +1,7 @@
 import Head from "next/head";
-import { useRouter } from "next/router";
+import Link from "next/link";
 
 export default function Home() {
-  const router = useRouter();
-
   return (
     <>
       <Head>
@@ -13,7 +11,7 @@ export default function Home() {
       {/* HEADER */}
       <header
         style={{
-          background: "#0f0f0f",
+          background: "#111",
           borderBottom: "2px solid #b11226",
           padding: "12px 20px",
           display: "flex",
@@ -21,13 +19,13 @@ export default function Home() {
           alignItems: "center",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <img src="/logo.png" alt="Logo" style={{ height: "40px" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <img src="/logo.png" alt="Logo" style={{ height: 40 }} />
           <strong style={{ color: "#fff" }}>
             Hrvatski U21 / NT Tracker
           </strong>
         </div>
-        <span style={{ color: "#ccc" }}>Nisi prijavljen</span>
+        <span style={{ color: "#bbb" }}>Nisi prijavljen</span>
       </header>
 
       {/* CONTENT */}
@@ -36,82 +34,71 @@ export default function Home() {
           minHeight: "calc(100vh - 70px)",
           background:
             "radial-gradient(circle at center, #7a1414 0%, #2b0a0a 60%, #0b0505 100%)",
-          padding: "50px 20px",
+          padding: "60px 20px",
         }}
       >
         <div
           style={{
-            maxWidth: "1100px",
+            maxWidth: 1100,
             margin: "0 auto",
             background: "rgba(20,20,20,0.75)",
-            borderRadius: "18px",
+            borderRadius: 18,
             padding: "40px",
           }}
         >
-          <h1 style={{ color: "#fff" }}>
+          <h1 style={{ color: "#fff", marginBottom: 6 }}>
             Moji igrači u Hrvatskom trackeru
           </h1>
 
-          <p style={{ color: "#ccc", marginBottom: "30px" }}>
+          <p style={{ color: "#ccc", marginBottom: 24 }}>
             Prijava i upravljanje igračima (CHPP kasnije).
           </p>
 
-          {/* 🔥 MOJI IGRAČI – FULL CLICK WIDGET */}
+          {/* MOJI IGRAČI – MANJI, MIRNI WIDGET */}
           <div
-            onClick={() => router.push("/login")}
             style={{
-              cursor: "pointer",
-              border: "2px solid #b11226",
-              borderRadius: "18px",
-              padding: "24px",
-              marginBottom: "40px",
-              background: "rgba(0,0,0,0.4)",
+              border: "1px solid rgba(255,255,255,0.2)",
+              borderRadius: 14,
+              padding: "20px",
+              marginBottom: 36,
+              background: "rgba(0,0,0,0.35)",
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "20px",
-              }}
-            >
-              <div>
-                <h3 style={{ color: "#fff", marginBottom: "6px" }}>
-                  Upravljanje mojim igračima
-                </h3>
-                <p style={{ color: "#ccc", margin: 0 }}>
-                  Admin login (email) + CHPP povezivanje (uskoro)
-                </p>
-              </div>
+            <strong style={{ color: "#fff" }}>
+              Upravljanje mojim igračima
+            </strong>
+            <p style={{ color: "#aaa", margin: "6px 0 16px" }}>
+              Admin login (email) + CHPP povezivanje (uskoro)
+            </p>
 
-              <div style={{ display: "flex", gap: "12px" }}>
-                <div
+            <div style={{ display: "flex", gap: 12 }}>
+              <Link href="/login">
+                <a
                   style={{
-                    padding: "10px 18px",
+                    padding: "8px 16px",
                     background: "#b11226",
                     color: "#fff",
-                    borderRadius: "20px",
+                    borderRadius: 20,
                     fontWeight: 600,
+                    textDecoration: "none",
                   }}
                 >
                   Admin login
-                </div>
+                </a>
+              </Link>
 
-                <div
-                  style={{
-                    padding: "10px 18px",
-                    background: "#555",
-                    color: "#ddd",
-                    borderRadius: "20px",
-                    fontWeight: 600,
-                    opacity: 0.6,
-                  }}
-                >
-                  CHPP (uskoro)
-                </div>
-              </div>
+              <span
+                style={{
+                  padding: "8px 16px",
+                  background: "#555",
+                  color: "#ddd",
+                  borderRadius: 20,
+                  fontWeight: 600,
+                  opacity: 0.6,
+                }}
+              >
+                CHPP (uskoro)
+              </span>
             </div>
           </div>
 
@@ -120,8 +107,8 @@ export default function Home() {
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "20px",
-              marginBottom: "30px",
+              gap: 20,
+              marginBottom: 28,
             }}
           >
             <div style={card}>NT Hrvatska</div>
@@ -136,7 +123,7 @@ export default function Home() {
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, 1fr)",
-              gap: "16px",
+              gap: 16,
             }}
           >
             {Array.from({ length: 8 }).map((_, i) => (
@@ -149,12 +136,12 @@ export default function Home() {
           {/* FOOTER */}
           <footer
             style={{
-              marginTop: "50px",
-              paddingTop: "20px",
+              marginTop: 40,
+              paddingTop: 16,
               borderTop: "1px solid rgba(255,255,255,0.2)",
               display: "flex",
-              gap: "20px",
-              fontSize: "14px",
+              gap: 20,
+              fontSize: 14,
               color: "#ccc",
             }}
           >
@@ -172,18 +159,18 @@ export default function Home() {
 
 const card = {
   background: "rgba(255,255,255,0.08)",
-  padding: "26px",
-  borderRadius: "14px",
+  padding: "24px",
+  borderRadius: 14,
   color: "#fff",
-  fontWeight: "700",
+  fontWeight: 700,
   textAlign: "center",
 };
 
 const placeholder = {
   background: "#e6e6e6",
-  padding: "18px",
-  borderRadius: "12px",
+  padding: "16px",
+  borderRadius: 12,
   color: "#333",
-  fontWeight: "600",
+  fontWeight: 600,
   textAlign: "center",
 };
