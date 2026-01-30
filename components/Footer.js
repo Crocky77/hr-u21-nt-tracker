@@ -1,43 +1,37 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer className="footer">
-      <nav>
-        <Link href="/about">O alatu</Link>
-        <Link href="/help">Pomoć</Link>
-        <Link href="/donations">Donacije</Link>
-        <Link href="/privacy">Privacy</Link>
-        <Link href="/terms">Terms</Link>
-      </nav>
-
-      <style jsx>{`
-        .footer {
-          margin-top: 60px;
-          padding: 20px 0;
-          text-align: center;
-          background: rgba(0,0,0,0.65);
-          border-top: 1px solid rgba(255,255,255,0.15);
-        }
-
-        nav {
-          display: flex;
-          justify-content: center;
-          gap: 24px;
-          flex-wrap: wrap;
-        }
-
-        nav :global(a) {
-          color: #ccc;
-          text-decoration: none;
-          font-size: 14px;
-        }
-
-        nav :global(a:hover) {
-          color: #fff;
-          text-decoration: underline;
-        }
-      `}</style>
+    <footer style={styles.wrapper}>
+      <div style={styles.inner}>
+        <Link href="/about" style={styles.link}>O alatu</Link>
+        <Link href="/help" style={styles.link}>Pomoć</Link>
+        <Link href="/donations" style={styles.link}>Donacije</Link>
+        <Link href="/privacy" style={styles.link}>Privacy</Link>
+        <Link href="/terms" style={styles.link}>Terms</Link>
+      </div>
     </footer>
-  )
+  );
 }
+
+const styles = {
+  wrapper: {
+    marginTop: "40px",
+    padding: "18px 0",
+    background: "rgba(30,30,30,0.85)",
+    borderTop: "1px solid rgba(255,255,255,0.08)",
+  },
+  inner: {
+    maxWidth: "1400px",
+    margin: "0 auto",
+    display: "flex",
+    justifyContent: "center",
+    gap: "28px",
+  },
+  link: {
+    color: "#cccccc",
+    fontSize: "14px",
+    textDecoration: "none",
+    opacity: 0.85,
+  },
+};
