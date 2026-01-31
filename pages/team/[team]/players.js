@@ -38,56 +38,6 @@ const SKILL_LEVEL_LABELS = [
   "božanski",
 ];
 
-const DEFAULT_COLUMNS = {
-  playingIn: true,
-  owningTeam: true,
-  manager: true,
-  name: true,
-  pos: true,
-  age: true,
-  htid: true,
-  salary: true,
-  tsi: true,
-  spec: true,
-  agree: true,
-  agg: true,
-  hon: true,
-  fo: true,
-  st: true,
-  gk: true,
-  de: true,
-  pm: true,
-  wg: true,
-  ps: true,
-  sc: true,
-  sp: true,
-  exp: true,
-  lead: true,
-  abilityHtms: true,
-  potentialHtms: true,
-  talent: true,
-  lastMatch: true,
-  position: true,
-  time: true,
-  rating: true,
-  tr: true,
-  lastTraining: true,
-  staminaPart: true,
-  lastStaminaPart: true,
-  trainerSkill: true,
-  trainerLeadership: true,
-  assistantCoach: true,
-  formCoach: true,
-  medic: true,
-  lastMatchWcCc: true,
-  updated: true,
-  updatedSkills: true,
-  updatedSubskills: true,
-  lastScoutNote: true,
-  htms: true,
-  htms28: true,
-};
-
 const COLUMN_LABELS = {
   playingIn: "Igra u",
   owningTeam: "Klub",
@@ -138,6 +88,38 @@ const COLUMN_LABELS = {
   htms28: "HTMS28",
 };
 
+const DEFAULT_COLUMNS = Object.keys(COLUMN_LABELS).reduce((acc, key) => {
+  acc[key] = false;
+  return acc;
+}, {});
+
+const TRAIT_LABELS = {
+  agree: [
+    "Opak tip",
+    "Svadljiv čovjek",
+    "Drag momak",
+    "Simpatičan momak",
+    "Popularan tip",
+    "Obožavani član momčadi",
+  ],
+  hon: [
+    "Na zlu glasu",
+    "Nepošten",
+    "Pošten",
+    "Čestit",
+    "Pravedan",
+    "Kao svetac",
+  ],
+  agg: [
+    "Miran",
+    "Priseban",
+    "Uravnotežen",
+    "Nagao",
+    "Vatren",
+    "Nestabilan",
+  ],
+};
+
 function formatSkillValue(value) {
   if (value === null || typeof value === "undefined") return "—";
   const numeric = Number(value);
@@ -157,8 +139,46 @@ function getField(player, keys) {
 }
 
 function normalizeTrait(value) {
-  if (!value) return "";
-  return String(value).toLowerCase();
+  if (value === null || typeof value === "undefined") return "";
+  return String(value)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+const TRAIT_KEYWORDS = {
+  agree: ["opak", "svadljiv", "drag", "simpatican", "popularan", "obozavani"],
+  hon: ["na zlu glasu", "neposten", "posten", "cestit", "pravedan", "kao svetac"],
+  agg: ["miran", "priseban", "uravnotezen", "nagao", "vatren", "nestabilan"],
+};
+
+function resolveTraitValue(raw, type) {
+  if (raw === null || typeof raw === "undefined") return null;
+  const numeric = Number(raw);
+  if (Number.isFinite(numeric)) return numeric;
+  const normalized = normalizeTrait(raw);
+  if (!normalized) return null;
+  const labels = TRAIT_LABELS[type] || [];
+  const normalizedLabels = labels.map((label) => normalizeTrait(label));
+  let idx = normalizedLabels.findIndex((label) => label === normalized);
+  if (idx >= 0) return idx;
+  idx = normalizedLabels.findIndex(
+    (label) => label && (normalized.includes(label) || label.includes(normalized))
+  );
+  if (idx >= 0) return idx;
+  const keywords = TRAIT_KEYWORDS[type] || [];
+  idx = keywords.findIndex((keyword) =>
+    normalized.includes(normalizeTrait(keyword))
+  );
+  return idx >= 0 ? idx : null;
+}
+
+function formatTraitLabel(raw, type) {
+  if (raw === null || typeof raw === "undefined" || raw === "") return "—";
+  const idx = resolveTraitValue(raw, type);
+  if (idx === null) return raw;
+  return TRAIT_LABELS[type]?.[idx] || raw;
 }
 
 function dedupePlayers(rows) {
@@ -492,18 +512,27 @@ export default function PlayersPage() {
       }
 
       if (traits.agree !== "any") {
-        const agree = normalizeTrait(getField(player, ["agreeability", "agree"]));
-        if (!agree || !agree.includes(traits.agree)) return false;
+        const agreeValue = resolveTraitValue(
+          getField(player, ["agreeability", "agree"]),
+          "agree"
+        );
+        if (agreeValue === null || agreeValue !== Number(traits.agree)) return false;
       }
 
       if (traits.agg !== "any") {
-        const agg = normalizeTrait(getField(player, ["aggressiveness", "agg"]));
-        if (!agg || !agg.includes(traits.agg)) return false;
+        const aggValue = resolveTraitValue(
+          getField(player, ["aggressiveness", "agg"]),
+          "agg"
+        );
+        if (aggValue === null || aggValue !== Number(traits.agg)) return false;
       }
 
       if (traits.hon !== "any") {
-        const hon = normalizeTrait(getField(player, ["honesty", "hon"]));
-        if (!hon || !hon.includes(traits.hon)) return false;
+        const honValue = resolveTraitValue(
+          getField(player, ["honesty", "hon"]),
+          "hon"
+        );
+        if (honValue === null || honValue !== Number(traits.hon)) return false;
       }
 
       return true;
@@ -827,27 +856,36 @@ export default function PlayersPage() {
                     value={traits.agree}
                     onChange={(e) => setTraits({ ...traits, agree: e.target.value })}
                   >
-                    <option value="any">Suglasnost</option>
-                    <option value="low">Low</option>
-                    <option value="high">High</option>
+                    <option value="any">Suglasnost (sve)</option>
+                    {TRAIT_LABELS.agree.map((label, idx) => (
+                      <option key={label} value={idx}>
+                        {label}
+                      </option>
+                    ))}
                   </select>
 
                   <select
                     value={traits.agg}
                     onChange={(e) => setTraits({ ...traits, agg: e.target.value })}
                   >
-                    <option value="any">Agresivnost</option>
-                    <option value="low">Low</option>
-                    <option value="high">High</option>
+                    <option value="any">Agresivnost (sve)</option>
+                    {TRAIT_LABELS.agg.map((label, idx) => (
+                      <option key={label} value={idx}>
+                        {label}
+                      </option>
+                    ))}
                   </select>
 
                   <select
                     value={traits.hon}
                     onChange={(e) => setTraits({ ...traits, hon: e.target.value })}
                   >
-                    <option value="any">Poštenje</option>
-                    <option value="low">Low</option>
-                    <option value="high">High</option>
+                    <option value="any">Poštenje (sve)</option>
+                    {TRAIT_LABELS.hon.map((label, idx) => (
+                      <option key={label} value={idx}>
+                        {label}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </>
@@ -1013,13 +1051,13 @@ export default function PlayersPage() {
                             <td>{getField(player, ["speciality", "specialty", "spec"]) || "—"}</td>
                           )}
                           {columns.agree && (
-                            <td>{getField(player, ["agreeability", "agree"]) || "—"}</td>
+                            <td>{formatTraitLabel(getField(player, ["agreeability", "agree"]), "agree")}</td>
                           )}
                           {columns.agg && (
-                            <td>{getField(player, ["aggressiveness", "agg"]) || "—"}</td>
+                            <td>{formatTraitLabel(getField(player, ["aggressiveness", "agg"]), "agg")}</td>
                           )}
                           {columns.hon && (
-                            <td>{getField(player, ["honesty", "hon"]) || "—"}</td>
+                            <td>{formatTraitLabel(getField(player, ["honesty", "hon"]), "hon")}</td>
                           )}
                           {columns.tsi && <td>{getField(player, ["tsi"]) || "—"}</td>}
                           {columns.fo && <td>{getField(player, ["form"]) || "—"}</td>}
