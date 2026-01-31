@@ -1,4 +1,5 @@
 // pages/help.js
+import Link from "next/link";
 import AppLayout from "../components/AppLayout";
 
 export default function Help() {
@@ -8,6 +9,9 @@ export default function Help() {
       title="Hrvatski U21/NT Tracker"
       subtitle="Pomoć"
     >
+      <Link href="/" className="hr-backLink">
+        ← Natrag na naslovnicu
+      </Link>
       <div className="hr-header hr-headerAccentGlobal">
         <div className="hr-headerRow">
           <div>
