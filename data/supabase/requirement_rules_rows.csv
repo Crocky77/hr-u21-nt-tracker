@@ -1,0 +1,2 @@
+id,requirement_id,rule_order,rule_type,field,op,int_min,int_max,text_value,json_value,created_at,updated_at
+438c5abd-23cc-4b76-ba92-d7c1d20d7694,3ef3383c-5a4f-4d73-9f0b-1a8f72ae22c9,1,age,age,between,22,25,,,2026-01-22 13:33:32.248217+00,2026-01-22 13:33:32.248217+00

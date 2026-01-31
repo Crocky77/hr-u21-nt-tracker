@@ -1,0 +1,5 @@
+id,team_type,profile_name,position,min_ht_years,min_ht_days,max_ht_years,max_ht_days,target_primary_skill,target_primary_level,target_secondary_skill,target_secondary_level,note,created_at
+1,U21,DEFAULT U21 IM 17-19,IM,17,0,19,111,playmaking,12,passing,9,Primjer profila (MVP),2026-01-12 23:28:25.707556+00
+2,U21,DEFAULT U21 IM 20-21,IM,20,0,21,111,playmaking,14,passing,10,Primjer profila (MVP),2026-01-12 23:28:25.707556+00
+3,U21,DEFAULT U21 DEF 17-19,DEF,17,0,19,111,defending,12,passing,7,Primjer profila (MVP),2026-01-12 23:28:25.707556+00
+4,U21,DEFAULT U21 DEF 20-21,DEF,20,0,21,111,defending,14,passing,8,Primjer profila (MVP),2026-01-12 23:28:25.707556+00

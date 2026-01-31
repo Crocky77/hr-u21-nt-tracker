@@ -1,0 +1,3 @@
+id,team_type,ht_player_id,full_name,nationality,specialty,injury,transfer_listed,ht_age_years,ht_age_days,tsi,experience,leadership,form,stamina,gk,defending,playmaking,winger,passing,scoring,set_pieces,caps_nt,caps_u21,rep_flag,category,source,snapshot_date,raw_row,inserted_at
+1,NT,466208013,Igor Ivanov,Hrvatska,,,,,,256320,8,5,7,6,1,4,3,12,12,17,2,0,0,NT,Napadač,portal_tracker_csv,2026-01-13,,2026-01-13 23:50:05.616051+00
+2,NT,462660957,Hrvoje Svjetlanović,Hrvatska,,,false,31,15,145450,10,3,8,7,20,15,1,2,2,1,20,7,0,1,Vratar,manual,2026-01-14,{},2026-01-14 08:25:21.381706+00
