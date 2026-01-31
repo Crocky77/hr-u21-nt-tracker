@@ -12,43 +12,128 @@ const supabase =
   supabaseModule?.supabaseClient;
 
 const SKILL_LEVELS = Array.from({ length: 21 }, (_, i) => i);
+const DAYS_IN_YEAR = 112;
+
+const SKILL_LEVEL_LABELS = [
+  "nikakav",
+  "katastrofalan",
+  "očajan",
+  "loš",
+  "slab",
+  "nedovoljan",
+  "prolazan",
+  "dobar",
+  "odličan",
+  "impresivan",
+  "izvanredan",
+  "sjajan",
+  "veličanstven",
+  "svjetski",
+  "natprirodan",
+  "titanski",
+  "izvanzemaljski",
+  "mitski",
+  "čaroban",
+  "utopijski",
+  "božanski",
+];
 
 const DEFAULT_COLUMNS = {
+  playingIn: true,
+  owningTeam: true,
+  manager: true,
   name: true,
   pos: true,
   age: true,
   htid: true,
-  spec: true,
+  salary: true,
   tsi: true,
+  spec: true,
+  agree: true,
+  agg: true,
+  hon: true,
   fo: true,
   st: true,
-  tr: true,
+  gk: true,
   de: true,
   pm: true,
   wg: true,
   ps: true,
   sc: true,
   sp: true,
+  exp: true,
+  lead: true,
+  abilityHtms: true,
+  potentialHtms: true,
+  talent: true,
+  lastMatch: true,
+  position: true,
+  time: true,
+  rating: true,
+  tr: true,
+  lastTraining: true,
+  staminaPart: true,
+  lastStaminaPart: true,
+  trainerSkill: true,
+  trainerLeadership: true,
+  assistantCoach: true,
+  formCoach: true,
+  medic: true,
+  lastMatchWcCc: true,
+  updated: true,
+  updatedSkills: true,
+  updatedSubskills: true,
+  lastScoutNote: true,
   htms: true,
   htms28: true,
 };
 
 const COLUMN_LABELS = {
+  playingIn: "Igra u",
+  owningTeam: "Klub",
+  manager: "Manager",
   name: "Ime",
   pos: "Poz",
   age: "Dob",
   htid: "HTID",
-  spec: "Spec",
+  salary: "Plaća",
   tsi: "TSI",
+  spec: "Specijalnost",
+  agree: "Suglasnost",
+  agg: "Agresivnost",
+  hon: "Poštenje",
   fo: "Forma",
   st: "Stamina",
+  gk: "GK",
+  de: "Obrana",
+  pm: "Kreiranje",
+  wg: "Krilo",
+  ps: "Dodavanje",
+  sc: "Napad",
+  sp: "Prekidi",
+  exp: "Iskustvo",
+  lead: "Vodstvo",
+  abilityHtms: "Ability HTMS",
+  potentialHtms: "Potential HTMS",
+  talent: "Talent",
+  lastMatch: "Zadnja utakmica",
+  position: "Pozicija",
+  time: "Vrijeme",
+  rating: "Ocjena",
   tr: "Trening",
-  de: "DEF",
-  pm: "PM",
-  wg: "WING",
-  ps: "PASS",
-  sc: "SCOR",
-  sp: "SP",
+  lastTraining: "Zadnji trening",
+  staminaPart: "Stamina part",
+  lastStaminaPart: "Zadnja stamina part",
+  trainerSkill: "Trenerska vještina",
+  trainerLeadership: "Trenersko vodstvo",
+  assistantCoach: "Pomoćni trener lvl",
+  formCoach: "Forma coach lvl",
+  medic: "Medic lvl",
+  lastMatchWcCc: "Zadnja utakmica WC/CC",
+  updated: "Ažurirano",
+  updatedSkills: "Ažurirani skillovi",
+  updatedSubskills: "Ažurirani subskillovi",
+  lastScoutNote: "Zadnja bilješka skauta",
   htms: "HTMS",
   htms28: "HTMS28",
 };
@@ -110,8 +195,10 @@ export default function PlayersPage() {
 
   const [search, setSearch] = useState("");
   const [position, setPosition] = useState("");
-  const [ageMin, setAgeMin] = useState("");
-  const [ageMax, setAgeMax] = useState("");
+  const [ageMinYears, setAgeMinYears] = useState("17");
+  const [ageMinDays, setAgeMinDays] = useState("0");
+  const [ageMaxYears, setAgeMaxYears] = useState("99");
+  const [ageMaxDays, setAgeMaxDays] = useState("111");
 
   const [minSkills, setMinSkills] = useState({
     gk: "",
@@ -124,9 +211,16 @@ export default function PlayersPage() {
     stam: "",
     lead: "",
     exp: "",
+    coach: "",
     tsi: "",
     htms: "",
     htms28: "",
+  });
+
+  const [htmsInputs, setHtmsInputs] = useState({
+    tsi: "",
+    abilityHtms: "",
+    potentialHtms: "",
   });
 
   const [traits, setTraits] = useState({
@@ -136,8 +230,8 @@ export default function PlayersPage() {
     hon: "any",
   });
 
-  const [dataFiltersOpen, setDataFiltersOpen] = useState(true);
-  const [columnFiltersOpen, setColumnFiltersOpen] = useState(true);
+  const [dataFiltersOpen, setDataFiltersOpen] = useState(false);
+  const [columnFiltersOpen, setColumnFiltersOpen] = useState(false);
 
   const [columns, setColumns] = useState(DEFAULT_COLUMNS);
 
@@ -343,8 +437,14 @@ export default function PlayersPage() {
       }
 
       const ageYears = Number(getField(player, ["age_years", "age", "years"]) || 0);
-      if (ageMin && ageYears < Number(ageMin)) return false;
-      if (ageMax && ageYears > Number(ageMax)) return false;
+      const ageDays = Number(getField(player, ["age_days", "days"]) || 0);
+      const playerAge = ageYears * DAYS_IN_YEAR + ageDays;
+      const minAge =
+        Number(ageMinYears || 0) * DAYS_IN_YEAR + Number(ageMinDays || 0);
+      const maxAge =
+        Number(ageMaxYears || 99) * DAYS_IN_YEAR + Number(ageMaxDays || 111);
+      if (playerAge < minAge) return false;
+      if (playerAge > maxAge) return false;
 
       const minChecks = [
         ["gk", ["skill_gk", "gk", "goalkeeping"]],
@@ -357,18 +457,33 @@ export default function PlayersPage() {
         ["stam", ["stamina", "skill_stamina"]],
         ["lead", ["leadership", "leader"]],
         ["exp", ["experience", "exp"]],
-        ["tsi", ["tsi"]],
-        ["htms", ["htms"]],
-        ["htms28", ["htms28"]],
+        ["coach", ["coach_skill", "trainer_skill", "trainerSkill"]],
       ];
 
       for (const [key, fields] of minChecks) {
-        if (!minSkills[key] && minSkills[key] !== 0) continue;
+        if (minSkills[key] === "") continue;
         const minVal = Number(minSkills[key]);
         if (!Number.isFinite(minVal)) continue;
 
         const currentVal = Number(getField(player, fields) || 0);
         if (currentVal < minVal) return false;
+      }
+
+      if (htmsInputs.tsi) {
+        const tsi = Number(getField(player, ["tsi"]) || 0);
+        if (tsi < Number(htmsInputs.tsi)) return false;
+      }
+
+      if (htmsInputs.abilityHtms) {
+        const ability = Number(getField(player, ["ability_htms", "abilityHtms", "htms"]) || 0);
+        if (ability < Number(htmsInputs.abilityHtms)) return false;
+      }
+
+      if (htmsInputs.potentialHtms) {
+        const potential = Number(
+          getField(player, ["potential_htms", "potentialHtms", "htms28"]) || 0
+        );
+        if (potential < Number(htmsInputs.potentialHtms)) return false;
       }
 
       if (traits.specialty !== "any") {
@@ -397,9 +512,12 @@ export default function PlayersPage() {
     players,
     search,
     position,
-    ageMin,
-    ageMax,
+    ageMinYears,
+    ageMinDays,
+    ageMaxYears,
+    ageMaxDays,
     minSkills,
+    htmsInputs,
     traits,
   ]);
 
@@ -466,7 +584,7 @@ export default function PlayersPage() {
           <div className="card">
             <div className="cardHeader">
               <div>
-                <div className="cardTitle">Display data filter</div>
+                <div className="cardTitle">Filter podataka</div>
                 <div className="cardSub">
                   Dodatni filteri rade nad već izlistanim igračima.
                 </div>
@@ -484,7 +602,7 @@ export default function PlayersPage() {
               <>
                 <div className="row">
                   <input
-                    placeholder="Search: ime, HT ID…"
+                    placeholder="Pretraga: ime, HT ID…"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
@@ -499,33 +617,67 @@ export default function PlayersPage() {
                       </option>
                     ))}
                   </select>
-                  <input
-                    placeholder="Age min"
-                    value={ageMin}
-                    onChange={(e) => setAgeMin(e.target.value)}
-                  />
-                  <input
-                    placeholder="Age max"
-                    value={ageMax}
-                    onChange={(e) => setAgeMax(e.target.value)}
-                  />
+                </div>
+
+                <div className="row">
+                  <div className="ageGroup">
+                    <span>Najmanje</span>
+                    <select
+                      value={ageMinYears}
+                      onChange={(e) => setAgeMinYears(e.target.value)}
+                    >
+                      {Array.from({ length: 83 }, (_, i) => i + 17).map((year) => (
+                        <option key={year} value={year}>
+                          {year} god
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={ageMinDays}
+                      onChange={(e) => setAgeMinDays(e.target.value)}
+                    >
+                      {Array.from({ length: 112 }, (_, i) => i).map((day) => (
+                        <option key={day} value={day}>
+                          {day} dana
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="ageGroup">
+                    <span>Najviše</span>
+                    <select
+                      value={ageMaxYears}
+                      onChange={(e) => setAgeMaxYears(e.target.value)}
+                    >
+                      {Array.from({ length: 83 }, (_, i) => i + 17).map((year) => (
+                        <option key={year} value={year}>
+                          {year} god
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={ageMaxDays}
+                      onChange={(e) => setAgeMaxDays(e.target.value)}
+                    >
+                      {Array.from({ length: 112 }, (_, i) => i).map((day) => (
+                        <option key={day} value={day}>
+                          {day} dana
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
 
                 <div className="gridRow">
                   {[
-                    ["GK", "gk"],
-                    ["DEF", "de"],
-                    ["PM", "pm"],
-                    ["WING", "wg"],
-                    ["PASS", "ps"],
-                    ["SCOR", "sc"],
-                    ["SP", "sp"],
-                    ["STAM", "stam"],
-                    ["LEAD", "lead"],
-                    ["EXP", "exp"],
-                    ["TSI", "tsi"],
-                    ["HTMS", "htms"],
-                    ["HTMS28", "htms28"],
+                    ["Na golu", "gk"],
+                    ["Obrana", "de"],
+                    ["Kreiranje", "pm"],
+                    ["Na krilu", "wg"],
+                    ["Dodavanje", "ps"],
+                    ["U napadu", "sc"],
+                    ["Prekidi", "sp"],
                   ].map(([label, key]) => (
                     <label key={key} className="stacked">
                       <span>{label} ≥</span>
@@ -538,12 +690,121 @@ export default function PlayersPage() {
                         <option value="">—</option>
                         {SKILL_LEVELS.map((level) => (
                           <option key={level} value={level}>
-                            {level === 0 ? "non-existent" : level}
+                            {SKILL_LEVEL_LABELS[level]}
                           </option>
                         ))}
                       </select>
                     </label>
                   ))}
+                </div>
+
+                <div className="gridRow">
+                  <label className="stacked">
+                    <span>Izdržljivost ≥</span>
+                    <select
+                      value={minSkills.stam}
+                      onChange={(e) =>
+                        setMinSkills({ ...minSkills, stam: e.target.value })
+                      }
+                    >
+                      <option value="">—</option>
+                      {Array.from({ length: 10 }, (_, i) => i).map((level) => (
+                        <option key={level} value={level}>
+                          {level}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="stacked">
+                    <span>Iskustvo ≥</span>
+                    <select
+                      value={minSkills.exp}
+                      onChange={(e) =>
+                        setMinSkills({ ...minSkills, exp: e.target.value })
+                      }
+                    >
+                      <option value="">—</option>
+                      {SKILL_LEVELS.map((level) => (
+                        <option key={level} value={level}>
+                          {SKILL_LEVEL_LABELS[level]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="stacked">
+                    <span>Vodstvo ≥</span>
+                    <select
+                      value={minSkills.lead}
+                      onChange={(e) =>
+                        setMinSkills({ ...minSkills, lead: e.target.value })
+                      }
+                    >
+                      <option value="">—</option>
+                      {Array.from({ length: 8 }, (_, i) => i).map((level) => (
+                        <option key={level} value={level}>
+                          {level}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="stacked">
+                    <span>Trenerska vještina ≥</span>
+                    <select
+                      value={minSkills.coach}
+                      onChange={(e) =>
+                        setMinSkills({ ...minSkills, coach: e.target.value })
+                      }
+                    >
+                      <option value="">—</option>
+                      {Array.from({ length: 9 }, (_, i) => i).map((level) => (
+                        <option key={level} value={level}>
+                          {level}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="gridRow">
+                  <label className="stacked">
+                    <span>TSI ≥</span>
+                    <input
+                      value={htmsInputs.tsi}
+                      onChange={(e) =>
+                        setHtmsInputs({ ...htmsInputs, tsi: e.target.value })
+                      }
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="stacked">
+                    <span>Ability HTMS ≥</span>
+                    <input
+                      value={htmsInputs.abilityHtms}
+                      onChange={(e) =>
+                        setHtmsInputs({
+                          ...htmsInputs,
+                          abilityHtms: e.target.value,
+                        })
+                      }
+                      placeholder="0"
+                    />
+                  </label>
+                  <label className="stacked">
+                    <span>Potential HTMS ≥</span>
+                    <input
+                      value={htmsInputs.potentialHtms}
+                      onChange={(e) =>
+                        setHtmsInputs({
+                          ...htmsInputs,
+                          potentialHtms: e.target.value,
+                        })
+                      }
+                      placeholder="2000"
+                    />
+                  </label>
                 </div>
 
                 <div className="row">
@@ -553,7 +814,7 @@ export default function PlayersPage() {
                       setTraits({ ...traits, specialty: e.target.value })
                     }
                   >
-                    <option value="any">Speciality (any)</option>
+                    <option value="any">Specijalnost (sve)</option>
                     <option value="quick">Quick</option>
                     <option value="head">Head</option>
                     <option value="technical">Technical</option>
@@ -566,7 +827,7 @@ export default function PlayersPage() {
                     value={traits.agree}
                     onChange={(e) => setTraits({ ...traits, agree: e.target.value })}
                   >
-                    <option value="any">Agreeability</option>
+                    <option value="any">Suglasnost</option>
                     <option value="low">Low</option>
                     <option value="high">High</option>
                   </select>
@@ -575,7 +836,7 @@ export default function PlayersPage() {
                     value={traits.agg}
                     onChange={(e) => setTraits({ ...traits, agg: e.target.value })}
                   >
-                    <option value="any">Aggressiveness</option>
+                    <option value="any">Agresivnost</option>
                     <option value="low">Low</option>
                     <option value="high">High</option>
                   </select>
@@ -584,7 +845,7 @@ export default function PlayersPage() {
                     value={traits.hon}
                     onChange={(e) => setTraits({ ...traits, hon: e.target.value })}
                   >
-                    <option value="any">Honesty</option>
+                    <option value="any">Poštenje</option>
                     <option value="low">Low</option>
                     <option value="high">High</option>
                   </select>
@@ -596,7 +857,7 @@ export default function PlayersPage() {
           <div className="card">
             <div className="cardHeader">
               <div>
-                <div className="cardTitle">Display column filter</div>
+                <div className="cardTitle">Filter kolona</div>
                 <div className="cardSub">
                   Odaberi koje kolone želiš vidjeti u tablici.
                 </div>
@@ -653,21 +914,51 @@ export default function PlayersPage() {
                 <table>
                   <thead>
                     <tr>
+                      {columns.playingIn && <th>Igra u</th>}
+                      {columns.owningTeam && <th>Klub</th>}
+                      {columns.manager && <th>Manager</th>}
                       {columns.name && <th>Ime</th>}
                       {columns.pos && <th>Poz</th>}
                       {columns.age && <th>Dob</th>}
                       {columns.htid && <th>HTID</th>}
-                      {columns.spec && <th>Spec</th>}
+                      {columns.salary && <th>Plaća</th>}
                       {columns.tsi && <th>TSI</th>}
-                      {columns.fo && <th>Fo</th>}
-                      {columns.st && <th>St</th>}
-                      {columns.tr && <th>TR</th>}
-                      {columns.de && <th>DE</th>}
-                      {columns.pm && <th>PM</th>}
-                      {columns.wg && <th>WG</th>}
-                      {columns.ps && <th>PS</th>}
-                      {columns.sc && <th>SC</th>}
-                      {columns.sp && <th>SP</th>}
+                      {columns.spec && <th>Spec</th>}
+                      {columns.agree && <th>Suglasnost</th>}
+                      {columns.agg && <th>Agresivnost</th>}
+                      {columns.hon && <th>Poštenje</th>}
+                      {columns.fo && <th>Forma</th>}
+                      {columns.st && <th>Stamina</th>}
+                      {columns.gk && <th>GK</th>}
+                      {columns.de && <th>Obrana</th>}
+                      {columns.pm && <th>Kreiranje</th>}
+                      {columns.wg && <th>Krilo</th>}
+                      {columns.ps && <th>Dodavanje</th>}
+                      {columns.sc && <th>Napad</th>}
+                      {columns.sp && <th>Prekidi</th>}
+                      {columns.exp && <th>Iskustvo</th>}
+                      {columns.lead && <th>Vodstvo</th>}
+                      {columns.abilityHtms && <th>Ability HTMS</th>}
+                      {columns.potentialHtms && <th>Potential HTMS</th>}
+                      {columns.talent && <th>Talent</th>}
+                      {columns.lastMatch && <th>Zadnja utakmica</th>}
+                      {columns.position && <th>Pozicija</th>}
+                      {columns.time && <th>Vrijeme</th>}
+                      {columns.rating && <th>Ocjena</th>}
+                      {columns.tr && <th>Trening</th>}
+                      {columns.lastTraining && <th>Zadnji trening</th>}
+                      {columns.staminaPart && <th>Stamina part</th>}
+                      {columns.lastStaminaPart && <th>Zadnja stamina part</th>}
+                      {columns.trainerSkill && <th>Trenerska vještina</th>}
+                      {columns.trainerLeadership && <th>Trenersko vodstvo</th>}
+                      {columns.assistantCoach && <th>Pomoćni trener lvl</th>}
+                      {columns.formCoach && <th>Forma coach lvl</th>}
+                      {columns.medic && <th>Medic lvl</th>}
+                      {columns.lastMatchWcCc && <th>Zadnja utakmica WC/CC</th>}
+                      {columns.updated && <th>Ažurirano</th>}
+                      {columns.updatedSkills && <th>Ažurirani skillovi</th>}
+                      {columns.updatedSubskills && <th>Ažurirani subskillovi</th>}
+                      {columns.lastScoutNote && <th>Zadnja bilješka skauta</th>}
                       {columns.htms && <th>HTMS</th>}
                       {columns.htms28 && <th>HTMS28</th>}
                     </tr>
@@ -685,6 +976,15 @@ export default function PlayersPage() {
 
                       return (
                         <tr key={playerId || name}>
+                          {columns.playingIn && (
+                            <td>{getField(player, ["playing_in", "playingIn"]) || "—"}</td>
+                          )}
+                          {columns.owningTeam && (
+                            <td>{getField(player, ["owning_team", "owningTeam", "club_name"]) || "—"}</td>
+                          )}
+                          {columns.manager && (
+                            <td>{getField(player, ["manager", "manager_name"]) || "—"}</td>
+                          )}
                           {columns.name && (
                             <td>
                               {playerId ? (
@@ -706,13 +1006,32 @@ export default function PlayersPage() {
                           {columns.htid && (
                             <td>{getField(player, ["ht_player_id", "htid"]) || "—"}</td>
                           )}
+                          {columns.salary && (
+                            <td>{getField(player, ["salary", "wage"]) || "—"}</td>
+                          )}
                           {columns.spec && (
                             <td>{getField(player, ["speciality", "specialty", "spec"]) || "—"}</td>
+                          )}
+                          {columns.agree && (
+                            <td>{getField(player, ["agreeability", "agree"]) || "—"}</td>
+                          )}
+                          {columns.agg && (
+                            <td>{getField(player, ["aggressiveness", "agg"]) || "—"}</td>
+                          )}
+                          {columns.hon && (
+                            <td>{getField(player, ["honesty", "hon"]) || "—"}</td>
                           )}
                           {columns.tsi && <td>{getField(player, ["tsi"]) || "—"}</td>}
                           {columns.fo && <td>{getField(player, ["form"]) || "—"}</td>}
                           {columns.st && (
                             <td>{formatSkillValue(getField(player, ["stamina"]))}</td>
+                          )}
+                          {columns.gk && (
+                            <td>
+                              {formatSkillValue(
+                                getField(player, ["skill_gk", "gk", "goalkeeping"])
+                              )}
+                            </td>
                           )}
                           {columns.tr && (
                             <td>{getField(player, ["current_training", "training"]) || "—"}</td>
@@ -759,6 +1078,72 @@ export default function PlayersPage() {
                               )}
                             </td>
                           )}
+                          {columns.exp && (
+                            <td>{formatSkillValue(getField(player, ["experience", "exp"]))}</td>
+                          )}
+                          {columns.lead && (
+                            <td>{formatSkillValue(getField(player, ["leadership", "leader"]))}</td>
+                          )}
+                          {columns.abilityHtms && (
+                            <td>{getField(player, ["ability_htms", "abilityHtms"]) || "—"}</td>
+                          )}
+                          {columns.potentialHtms && (
+                            <td>{getField(player, ["potential_htms", "potentialHtms"]) || "—"}</td>
+                          )}
+                          {columns.talent && (
+                            <td>{getField(player, ["talent"]) || "—"}</td>
+                          )}
+                          {columns.lastMatch && (
+                            <td>{getField(player, ["last_match", "lastMatch"]) || "—"}</td>
+                          )}
+                          {columns.position && (
+                            <td>{getField(player, ["position", "pos", "role"]) || "—"}</td>
+                          )}
+                          {columns.time && (
+                            <td>{getField(player, ["time", "played_time"]) || "—"}</td>
+                          )}
+                          {columns.rating && (
+                            <td>{getField(player, ["rating", "match_rating"]) || "—"}</td>
+                          )}
+                          {columns.lastTraining && (
+                            <td>{getField(player, ["last_training", "lastTraining"]) || "—"}</td>
+                          )}
+                          {columns.staminaPart && (
+                            <td>{getField(player, ["stamina_part", "staminaPart"]) || "—"}</td>
+                          )}
+                          {columns.lastStaminaPart && (
+                            <td>{getField(player, ["last_stamina_part", "lastStaminaPart"]) || "—"}</td>
+                          )}
+                          {columns.trainerSkill && (
+                            <td>{getField(player, ["trainer_skill", "trainerSkill"]) || "—"}</td>
+                          )}
+                          {columns.trainerLeadership && (
+                            <td>{getField(player, ["trainer_leadership", "trainerLeadership"]) || "—"}</td>
+                          )}
+                          {columns.assistantCoach && (
+                            <td>{getField(player, ["assistant_coach_level", "assistantCoachLevel"]) || "—"}</td>
+                          )}
+                          {columns.formCoach && (
+                            <td>{getField(player, ["form_coach_level", "formCoachLevel"]) || "—"}</td>
+                          )}
+                          {columns.medic && (
+                            <td>{getField(player, ["medic_level", "medicLevel"]) || "—"}</td>
+                          )}
+                          {columns.lastMatchWcCc && (
+                            <td>{getField(player, ["last_match_wc_cc", "lastMatchWcCc"]) || "—"}</td>
+                          )}
+                          {columns.updated && (
+                            <td>{getField(player, ["updated", "updated_at"]) || "—"}</td>
+                          )}
+                          {columns.updatedSkills && (
+                            <td>{getField(player, ["updated_skills", "updatedSkills"]) || "—"}</td>
+                          )}
+                          {columns.updatedSubskills && (
+                            <td>{getField(player, ["updated_subskills", "updatedSubskills"]) || "—"}</td>
+                          )}
+                          {columns.lastScoutNote && (
+                            <td>{getField(player, ["last_scout_note", "lastScoutNote"]) || "—"}</td>
+                          )}
                           {columns.htms && <td>{getField(player, ["htms"]) || "—"}</td>}
                           {columns.htms28 && (
                             <td>{getField(player, ["htms28"]) || "—"}</td>
@@ -778,6 +1163,7 @@ export default function PlayersPage() {
         .shell {
           display: flex;
           min-height: calc(100vh - 60px);
+          width: 100%;
         }
         .sidebar {
           padding: 12px 0;
@@ -850,6 +1236,13 @@ export default function PlayersPage() {
           gap: 4px;
           font-size: 12px;
         }
+        .ageGroup {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          flex-wrap: wrap;
+          font-size: 12px;
+        }
         .checkbox {
           display: flex;
           align-items: center;
@@ -891,7 +1284,7 @@ export default function PlayersPage() {
           width: 100%;
           border-collapse: collapse;
           font-size: 13px;
-          min-width: 900px;
+          min-width: 1400px;
         }
         th,
         td {
