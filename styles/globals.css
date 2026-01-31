@@ -19,7 +19,7 @@ a { color: inherit; text-decoration: none; }
       rgba(180, 0, 40, 0.35),
       rgba(90, 0, 20, 0.85)
     ),
-    url("/backgrounds/home-red.jpg") center center / cover no-repeat;
+    url("/backgrounds/home-red.jpg") center top / cover no-repeat;
 }
 
 /* UNUTARNJE STRANICE */
@@ -92,6 +92,16 @@ a { color: inherit; text-decoration: none; }
   gap: 10px;
 }
 
+.hr-headerLogout {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  background: rgba(0,0,0,0.3);
+}
+
 .hr-siteHeaderStatus {
   font-size: 13px;
   font-weight: 800;
@@ -122,7 +132,7 @@ a { color: inherit; text-decoration: none; }
 }
 
 .hr-homeBg .hr-main {
-  padding-top: clamp(180px, 24vh, 260px);
+  padding-top: clamp(120px, 18vh, 200px);
   padding-bottom: clamp(90px, 16vh, 170px);
   display: flex;
   justify-content: center;
@@ -246,23 +256,14 @@ a { color: inherit; text-decoration: none; }
 
 /* IMAGE TILES */
 .home-tile.image {
-  padding: 0;
-  background-size: cover;
-  background-position: center;
-}
-
-.home-tile.image.nt {
-  background-image: url("/home/tile-nt.png");
-}
-
-.home-tile.image.u21 {
-  background-image: url("/home/tile-u21.png");
+  padding: 8px;
+  background: rgba(0,0,0,0.25);
 }
 
 .home-tileImage {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 
