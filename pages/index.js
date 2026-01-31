@@ -5,14 +5,14 @@ import Header from '../components/Header'
 
 export default function Home() {
   const comingSoonLinks = [
-    '/requests',
-    '/lists',
-    '/players',
-    '/alerts',
-    '/training-settings',
-    '/snapshots',
-    '/u21-status',
-    '/u21-kalkulator',
+    '/coming-soon?slot=1',
+    '/coming-soon?slot=2',
+    '/coming-soon?slot=3',
+    '/coming-soon?slot=4',
+    '/coming-soon?slot=5',
+    '/coming-soon?slot=6',
+    '/coming-soon?slot=7',
+    '/coming-soon?slot=8',
   ]
 
   return (
@@ -42,10 +42,6 @@ export default function Home() {
                   CHPP login
                 </Link>
               </div>
-
-              <Link href="/my-players" className="home-panelLink">
-                Otvori “Moji igrači”
-              </Link>
 
               <div className="home-tilesRow">
                 <Link href="/team/nt" className="home-tile image">
