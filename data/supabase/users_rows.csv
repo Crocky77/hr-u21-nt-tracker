@@ -1,0 +1,6 @@
+id,email,role,created_at,team_type
+0c42f005-5621-4bde-8e2c-1fbd960d6de2,test@example.com,scout,2026-01-12 23:55:47.76625,U21
+21f506ae-94c3-4e68-be96-51bdd4260d38,thepastir@gmail.com,admin,2026-01-10 22:52:54.650664,
+b308d87f-319f-495c-a9e6-28aa89022611,gorup.karlo@hotmail.com,admin,2026-01-11 11:01:29.257298,
+c6dd2548-06c9-4433-aa6d-010dbff42ed4,bruno.novosel992@gmail.com,admin,2026-01-11 11:02:01.779013,
+e110bbf7-539d-4e40-bdac-b1fcdb906539,probe-sync@example.com,scout,2026-01-12 23:59:08.386277,U21
