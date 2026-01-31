@@ -27,8 +27,8 @@ export default function Header() {
           <Image
             src="/logo.png"
             alt="Hrvatski U21/NT Tracker"
-            width={48}
-            height={48}
+            width={64}
+            height={64}
             priority
           />
           <div className="hr-siteHeaderTitle">
