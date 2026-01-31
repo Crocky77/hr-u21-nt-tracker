@@ -37,7 +37,9 @@ export default function Home() {
               </p>
 
               <div className="home-loginRow">
-                <button className="home-loginBtn">Admin login</button>
+                <Link href="/login" className="home-loginBtn">
+                  Admin/Tester login
+                </Link>
                 <Link href="/my-players" className="home-loginBtn ghost">
                   CHPP login
                 </Link>
