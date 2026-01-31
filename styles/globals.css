@@ -19,7 +19,7 @@ a { color: inherit; text-decoration: none; }
       rgba(180, 0, 40, 0.35),
       rgba(90, 0, 20, 0.85)
     ),
-    url("/backgrounds/hr-hero.jpg") center center / cover no-repeat;
+    url("/backgrounds/home-red.jpg") center center / cover no-repeat;
 }
 
 /* UNUTARNJE STRANICE */
@@ -246,6 +246,7 @@ a { color: inherit; text-decoration: none; }
 
 /* IMAGE TILES */
 .home-tile.image {
+  padding: 0;
   background-size: cover;
   background-position: center;
 }
@@ -258,23 +259,11 @@ a { color: inherit; text-decoration: none; }
   background-image: url("/home/tile-u21.png");
 }
 
-.home-tileOverlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to right,
-    rgba(0,0,0,0.55),
-    rgba(0,0,0,0.15)
-  );
-  display: flex;
-  align-items: center;
-  padding-left: 20px;
-}
-
-.home-tileTitle {
-  font-size: 20px;
-  font-weight: 900;
-  color: #fff;
+.home-tileImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 /* TRANSFER TILE */
