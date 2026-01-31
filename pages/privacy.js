@@ -1,8 +1,12 @@
+import Link from "next/link";
 import AppLayout from "../components/AppLayout";
 
 export default function PrivacyPage() {
   return (
     <AppLayout title="Privatnost (Privacy Policy)">
+      <Link href="/" className="hr-backLink">
+        ← Natrag na naslovnicu
+      </Link>
       <div
         style={{
           background: "rgba(255,255,255,0.9)",
