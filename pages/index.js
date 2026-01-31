@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Header from "../components/Header";
 import TileFeatured from "../components/TileFeatured";
-import "../styles/home-featured.css";
 
 export default function HomePage() {
   return (
@@ -29,7 +28,6 @@ export default function HomePage() {
               </span>
             </div>
 
-            {/* PRVI RED – NT / U21 / TRANSFER */}
             <div className="home-tilesRow">
               <TileFeatured
                 href="/team/nt"
@@ -43,7 +41,7 @@ export default function HomePage() {
                 label="U21 Hrvatska"
               />
 
-              {/* TRANSFER – NE DIRAMO */}
+              {/* Transfer – NE DIRAMO */}
               <div className="home-tile transfer">
                 <div className="home-transferIcon">⇅</div>
                 <div className="home-transferTitle">Transfer lista</div>
@@ -52,6 +50,7 @@ export default function HomePage() {
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </main>
