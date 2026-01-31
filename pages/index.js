@@ -4,6 +4,17 @@ import Footer from '../components/Footer'
 import Header from '../components/Header'
 
 export default function Home() {
+  const comingSoonLinks = [
+    '/requests',
+    '/lists',
+    '/players',
+    '/alerts',
+    '/training-settings',
+    '/snapshots',
+    '/u21-status',
+    '/u21-kalkulator',
+  ]
+
   return (
     <>
       <Head>
@@ -27,8 +38,14 @@ export default function Home() {
 
               <div className="home-loginRow">
                 <button className="home-loginBtn">Admin login</button>
-                <button className="home-loginBtn ghost">CHPP login</button>
+                <Link href="/my-players" className="home-loginBtn ghost">
+                  CHPP login
+                </Link>
               </div>
+
+              <Link href="/my-players" className="home-panelLink">
+                Otvori “Moji igrači”
+              </Link>
 
               <div className="home-tilesRow">
                 <Link href="/team/nt" className="home-tile image">
@@ -47,18 +64,18 @@ export default function Home() {
                   />
                 </Link>
 
-                <div className="home-tile transfer">
+                <Link href="/team/nt/transfers" className="home-tile transfer">
                   <div className="home-transferIcon">⇅</div>
                   <div className="home-transferTitle">Transfer lista</div>
                   <div className="home-transferSub">U izradi</div>
-                </div>
+                </Link>
               </div>
 
               <div className="home-subTiles">
-                {Array.from({ length: 8 }).map((_, index) => (
-                  <div key={index} className="home-subTile">
+                {comingSoonLinks.map((href) => (
+                  <Link key={href} href={href} className="home-subTile">
                     <span>U izradi</span>
-                  </div>
+                  </Link>
                 ))}
               </div>
             </section>
