@@ -31,16 +31,20 @@ export default function Home() {
               </div>
 
               <div className="home-tilesRow">
-                <Link href="/team/nt" className="home-tile image nt">
-                  <span className="home-tileOverlay">
-                    <span className="home-tileTitle">NT Hrvatska</span>
-                  </span>
+                <Link href="/team/nt" className="home-tile image">
+                  <img
+                    className="home-tileImage"
+                    src="/home/tile-nt.png"
+                    alt="NT Hrvatska"
+                  />
                 </Link>
 
-                <Link href="/team/u21" className="home-tile image u21">
-                  <span className="home-tileOverlay">
-                    <span className="home-tileTitle">U21 Hrvatska</span>
-                  </span>
+                <Link href="/team/u21" className="home-tile image">
+                  <img
+                    className="home-tileImage"
+                    src="/home/tile-u21.png"
+                    alt="U21 Hrvatska"
+                  />
                 </Link>
 
                 <div className="home-tile transfer">
