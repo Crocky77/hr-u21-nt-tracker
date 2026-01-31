@@ -1,11 +1,6 @@
 import "../styles/globals.css";
+import "../styles/home-featured.css";
 
-export default function App({ Component, pageProps, router }) {
-  // INTRO STRANICA — bez ikakvog layouta
-  if (router.pathname === "/intro") {
-    return <Component {...pageProps} />;
-  }
-
-  // SVE OSTALE STRANICE
+export default function App({ Component, pageProps }) {
   return <Component {...pageProps} />;
 }
