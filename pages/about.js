@@ -1,4 +1,5 @@
 // pages/about.js
+import Link from "next/link";
 import AppLayout from "../components/AppLayout";
 
 export default function About() {
@@ -8,6 +9,9 @@ export default function About() {
       title="Hrvatski U21/NT Tracker"
       subtitle="O alatu"
     >
+      <Link href="/" className="hr-backLink">
+        ← Natrag na naslovnicu
+      </Link>
       <div className="hr-header hr-headerAccentGlobal">
         <div className="hr-headerRow">
           <div>
