@@ -15,11 +15,11 @@ a { color: inherit; text-decoration: none; }
 .hr-homeBg {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 50% 35%,
-      rgba(220, 0, 40, 0.55),
-      rgba(60, 0, 16, 0.9)
+    radial-gradient(circle at 50% 38%,
+      rgba(235, 0, 50, 0.7),
+      rgba(70, 0, 18, 0.92)
     ),
-    url("/backgrounds/home-red.jpg") center 20% / cover no-repeat;
+    url("/backgrounds/home-red.jpg") center 10% / cover no-repeat;
 }
 
 /* UNUTARNJE STRANICE */
@@ -43,6 +43,8 @@ a { color: inherit; text-decoration: none; }
 .hr-header--home {
   background: rgba(0, 0, 0, 0.45);
   border-bottom: 1px solid rgba(255,255,255,0.15);
+  border-top: 2px solid rgba(200, 0, 30, 0.85);
+  box-shadow: inset 0 -1px 0 rgba(120,0,20,0.45);
   backdrop-filter: blur(10px);
 }
 
@@ -50,6 +52,8 @@ a { color: inherit; text-decoration: none; }
 .hr-header--inner {
   background: rgba(0, 0, 0, 0.45);
   border-bottom: 1px solid rgba(255,255,255,0.15);
+  border-top: 2px solid rgba(200, 0, 30, 0.85);
+  box-shadow: inset 0 -1px 0 rgba(120,0,20,0.45);
   backdrop-filter: blur(10px);
 }
 
@@ -173,7 +177,7 @@ a { color: inherit; text-decoration: none; }
 /* ===================================================== */
 
 .home-mainPanel {
-  background: rgba(0,0,0,0.55);
+  background: rgba(40,40,46,0.78);
   border-radius: 20px;
   padding: 36px;
   box-shadow: 0 30px 80px rgba(0,0,0,0.55);
@@ -223,21 +227,6 @@ a { color: inherit; text-decoration: none; }
 .home-loginBtn.disabled {
   opacity: 0.45;
   cursor: not-allowed;
-}
-
-.home-panelLink {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 24px;
-  padding: 6px 14px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.2);
-  color: rgba(255,255,255,0.85);
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
-  background: rgba(0,0,0,0.3);
 }
 
 /* TILE ROW */
