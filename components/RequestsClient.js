@@ -19,9 +19,44 @@ function teamLabel(team) {
   return "Tim";
 }
 
+function teamTypeFromSlug(team) {
+  if (team === "u21") return "U21";
+  if (team === "nt") return "NT";
+  return null;
+}
+
+const PORTAL_REQUIREMENTS = [
+  "21y",
+  "22y",
+  "23y",
+  "24y",
+  "25y",
+  "26y",
+  "27y",
+  "28y",
+  "29y",
+  "30y",
+  "31y",
+  "32y",
+  "33y",
+  "34y",
+  "All Players",
+  "gk 22-25",
+  "gk 25-28",
+  "gk 28+",
+  "LS 28+",
+  "Osrednji 22-25",
+  "Osrednji 25-28",
+  "Osrednji 28+",
+  "Top -28",
+  "Top 28+",
+  "TOP+2100",
+];
+
 export default function RequestsClient({ team }) {
   const [loading, setLoading] = useState(true);
   const [sessionUser, setSessionUser] = useState(null);
+  const [role, setRole] = useState(null);
 
   const [teamId, setTeamId] = useState(null);
   const [teamIdLoading, setTeamIdLoading] = useState(true);
@@ -29,9 +64,17 @@ export default function RequestsClient({ team }) {
   const [rows, setRows] = useState([]);
   const [rowsLoading, setRowsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [isActive, setIsActive] = useState(true);
 
   const base = useMemo(() => `/team/${team}`, [team]);
   const title = useMemo(() => teamLabel(team), [team]);
+  const canManage =
+    typeof role === "string" &&
+    ["admin", "coach", "izbornik"].includes(role.toLowerCase());
 
   // 1) get session user
   useEffect(() => {
@@ -65,6 +108,56 @@ export default function RequestsClient({ team }) {
       mounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadRole() {
+      setRole(null);
+      setNotice("");
+
+      try {
+        if (!sessionUser?.email) return;
+        if (!supabase?.from) return;
+
+        const teamType = teamTypeFromSlug(team);
+        if (!teamType) return;
+
+        const { data: srows, error: serror } = await supabase
+          .from("staff_roles")
+          .select("role")
+          .eq("email", sessionUser.email)
+          .eq("team_type", teamType)
+          .limit(1);
+
+        if (serror) throw serror;
+
+        if (Array.isArray(srows) && srows.length > 0) {
+          if (mounted) setRole(srows[0]?.role ?? null);
+          return;
+        }
+
+        const { data: urows, error: uerror } = await supabase
+          .from("users")
+          .select("role")
+          .eq("email", sessionUser.email)
+          .limit(1);
+
+        if (uerror) throw uerror;
+        if (mounted) setRole(urows?.[0]?.role ?? null);
+      } catch (e) {
+        if (mounted) {
+          setNotice("Ne mogu dohvatiti ulogu korisnika.");
+        }
+      }
+    }
+
+    loadRole();
+
+    return () => {
+      mounted = false;
+    };
+  }, [sessionUser?.email, team]);
 
   // 2) resolve teamId from teams.slug
   useEffect(() => {
@@ -111,8 +204,14 @@ export default function RequestsClient({ team }) {
     setError("");
     setRowsLoading(true);
     try {
-      if (!supabase?.rpc) return;
-      if (!teamId) return;
+      if (!supabase?.rpc) {
+        setRowsLoading(false);
+        return;
+      }
+      if (!teamId) {
+        setRowsLoading(false);
+        return;
+      }
 
       const tries = [
         { p_team_id: teamId },
@@ -168,11 +267,114 @@ export default function RequestsClient({ team }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamIdLoading, teamId]);
 
+  async function createRequirement() {
+    setError("");
+    setNotice("");
+
+    if (!sessionUser?.id) {
+      setError("Moraš biti prijavljen da bi dodao zahtjev.");
+      return;
+    }
+
+    if (!canManage) {
+      setError("Nemaš ovlasti (samo admin ili izbornik).");
+      return;
+    }
+
+    if (!teamId) {
+      setError("teamId nije spreman (teams.slug lookup nije uspio).");
+      return;
+    }
+
+    if (!name.trim()) {
+      setError("Naziv zahtjeva je obavezan.");
+      return;
+    }
+
+    try {
+      const payload = {
+        team_id: teamId,
+        created_by: sessionUser.id,
+        name: name.trim(),
+        is_active: isActive,
+      };
+
+      const { error: insertError } = await supabase
+        .from("requirements")
+        .insert(payload);
+
+      if (insertError) throw insertError;
+
+      setCreateOpen(false);
+      setName("");
+      setIsActive(true);
+      await refresh();
+    } catch (e) {
+      setError(e?.message || "Greška kod kreiranja zahtjeva.");
+    }
+  }
+
+  async function importPortalRequirements() {
+    setError("");
+    setNotice("");
+
+    if (!sessionUser?.id) {
+      setError("Moraš biti prijavljen da bi uvezao zahtjeve.");
+      return;
+    }
+
+    if (!canManage) {
+      setError("Nemaš ovlasti (samo admin ili izbornik).");
+      return;
+    }
+
+    if (!teamId) {
+      setError("teamId nije spreman (teams.slug lookup nije uspio).");
+      return;
+    }
+
+    const existing = new Set(
+      rows.map((row) => String(row?.name || "").trim().toLowerCase())
+    );
+
+    const toInsert = PORTAL_REQUIREMENTS.filter(
+      (reqName) => !existing.has(reqName.trim().toLowerCase())
+    ).map((reqName) => ({
+      team_id: teamId,
+      created_by: sessionUser.id,
+      name: reqName,
+      is_active: true,
+    }));
+
+    if (toInsert.length === 0) {
+      setNotice("Svi portal zahtjevi su već dodani.");
+      return;
+    }
+
+    try {
+      const { error: insertError } = await supabase
+        .from("requirements")
+        .insert(toInsert);
+
+      if (insertError) throw insertError;
+
+      setNotice(`Dodano ${toInsert.length} zahtjeva iz portala.`);
+      await refresh();
+    } catch (e) {
+      setError(e?.message || "Greška kod uvoza zahtjeva.");
+    }
+  }
+
   async function deleteRequirement(requirementId) {
     setError("");
 
     if (!sessionUser?.id) {
       setError("Moraš biti prijavljen da bi obrisao zahtjev.");
+      return;
+    }
+
+    if (!canManage) {
+      setError("Nemaš ovlasti (samo admin ili izbornik).");
       return;
     }
 
@@ -224,11 +426,29 @@ export default function RequestsClient({ team }) {
             <button
               className="hr-backBtn"
               type="button"
-              onClick={() => alert("Uskoro: ručni unos zahtjeva.")}
-              disabled={!isLoggedIn}
-              style={!isLoggedIn ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+              onClick={() => setCreateOpen((prev) => !prev)}
+              disabled={!isLoggedIn || !canManage}
+              style={
+                !isLoggedIn || !canManage
+                  ? { opacity: 0.6, cursor: "not-allowed" }
+                  : undefined
+              }
             >
               + Novi zahtjev
+            </button>
+
+            <button
+              className="hr-backBtn"
+              type="button"
+              onClick={importPortalRequirements}
+              disabled={!isLoggedIn || !canManage}
+              style={
+                !isLoggedIn || !canManage
+                  ? { opacity: 0.6, cursor: "not-allowed" }
+                  : undefined
+              }
+            >
+              Uvezi portal zahtjeve
             </button>
           </div>
         </div>
@@ -250,6 +470,23 @@ export default function RequestsClient({ team }) {
           </div>
         ) : null}
 
+        {notice ? (
+          <div
+            style={{
+              marginTop: 12,
+              padding: 12,
+              borderRadius: 12,
+              border: "1px solid rgba(59,130,246,0.25)",
+              background: "rgba(59,130,246,0.06)",
+              color: "rgba(37,99,235,0.95)",
+              fontWeight: 800,
+              fontSize: 13,
+            }}
+          >
+            {notice}
+          </div>
+        ) : null}
+
         {!isLoggedIn ? (
           <div
             style={{
@@ -262,8 +499,77 @@ export default function RequestsClient({ team }) {
               opacity: 0.9,
             }}
           >
-            Samo admini mogu dodavati i brisati zahtjeve. Prijavi se za punu
+            Samo admin/izbornik može dodavati i brisati zahtjeve. Prijavi se za punu
             funkcionalnost.
+          </div>
+        ) : null}
+
+        {createOpen ? (
+          <div
+            style={{
+              marginTop: 14,
+              padding: 14,
+              borderRadius: 14,
+              border: "1px solid rgba(0,0,0,0.10)",
+              background: "rgba(255,255,255,0.85)",
+            }}
+          >
+            <div style={{ fontWeight: 1000, marginBottom: 8 }}>
+              Novi zahtjev
+            </div>
+
+            <div style={{ display: "grid", gap: 10 }}>
+              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
+                Naziv
+                <input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder='npr. "U21 GK (spec) 18+"'
+                  style={{
+                    width: "100%",
+                    marginTop: 6,
+                    padding: "10px 12px",
+                    borderRadius: 12,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    outline: "none",
+                  }}
+                />
+              </label>
+
+              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
+                Aktivno
+                <input
+                  type="checkbox"
+                  checked={isActive}
+                  onChange={(e) => setIsActive(e.target.checked)}
+                  style={{ marginLeft: 10 }}
+                />
+              </label>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  className="hr-backBtn"
+                  type="button"
+                  onClick={createRequirement}
+                  disabled={!isLoggedIn || !canManage}
+                  style={
+                    !isLoggedIn || !canManage
+                      ? { opacity: 0.6, cursor: "not-allowed" }
+                      : undefined
+                  }
+                >
+                  Spremi
+                </button>
+                <button
+                  className="hr-backBtn"
+                  type="button"
+                  onClick={() => setCreateOpen(false)}
+                  style={{ opacity: 0.8 }}
+                >
+                  Odustani
+                </button>
+              </div>
+            </div>
           </div>
         ) : null}
 
@@ -342,9 +648,9 @@ export default function RequestsClient({ team }) {
                         className="hr-backBtn"
                         type="button"
                         onClick={() => deleteRequirement(r.id)}
-                        disabled={!isLoggedIn}
+                        disabled={!isLoggedIn || !canManage}
                         style={
-                          !isLoggedIn
+                          !isLoggedIn || !canManage
                             ? { opacity: 0.5, cursor: "not-allowed" }
                             : undefined
                         }
