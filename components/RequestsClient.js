@@ -42,27 +42,54 @@ export default function RequestsClient({ team }) {
   const [name, setName] = useState("");
   const [isActive, setIsActive] = useState(false);
 
-  const [selectedRequirement, setSelectedRequirement] = useState(null);
-  const [rules, setRules] = useState([]);
-  const [rulesLoading, setRulesLoading] = useState(false);
+  const [ageMinYears, setAgeMinYears] = useState("21");
+  const [ageMaxYears, setAgeMaxYears] = useState("21");
+  const [ageMinDays, setAgeMinDays] = useState("0");
+  const [ageMaxDays, setAgeMaxDays] = useState("111");
 
-  const [ruleType, setRuleType] = useState("age");
-  const [ageMin, setAgeMin] = useState("");
-  const [ageMax, setAgeMax] = useState("");
-  const [skillName, setSkillName] = useState("");
-  const [skillMin, setSkillMin] = useState("");
-  const [skillMax, setSkillMax] = useState("");
+  const [skillKeeper, setSkillKeeper] = useState("");
+  const [skillDefending, setSkillDefending] = useState("");
+  const [skillPlaymaking, setSkillPlaymaking] = useState("");
+  const [skillWinger, setSkillWinger] = useState("");
+  const [skillPassing, setSkillPassing] = useState("");
+  const [skillScoring, setSkillScoring] = useState("");
+  const [skillSetPieces, setSkillSetPieces] = useState("");
+  const [skillStamina, setSkillStamina] = useState("");
+
   const [htmsMin, setHtmsMin] = useState("");
-  const [htmsMax, setHtmsMax] = useState("");
   const [htms28Min, setHtms28Min] = useState("");
-  const [htms28Max, setHtms28Max] = useState("");
-  const [specText, setSpecText] = useState("");
-  const [positionText, setPositionText] = useState("");
+
+  const [specialty, setSpecialty] = useState("any");
 
   const base = useMemo(() => `/team/${team}`, [team]);
   const title = useMemo(() => teamLabel(team), [team]);
   const canManage =
     typeof role === "string" && ["admin", "izbornik"].includes(role.toLowerCase());
+
+  const SKILL_LEVELS = Array.from({ length: 21 }, (_, i) => i);
+  const SKILL_LEVEL_LABELS = [
+    "non-existent",
+    "katastrofalan",
+    "očajan",
+    "loš",
+    "slab",
+    "nedovoljan",
+    "prolazan",
+    "dobar",
+    "odličan",
+    "impresivan",
+    "izvanredan",
+    "sjajan",
+    "veličanstven",
+    "svjetski",
+    "natprirodan",
+    "titanski",
+    "izvanzemaljski",
+    "mitski",
+    "čaroban",
+    "utopijski",
+    "božanski",
+  ];
 
   // 1) get session user
   useEffect(() => {
@@ -240,30 +267,6 @@ export default function RequestsClient({ team }) {
     }
   }
 
-  async function loadRules(requirementId) {
-    setRulesLoading(true);
-    setError("");
-
-    try {
-      const { data, error: rulesError } = await supabase
-        .from("requirement_rules")
-        .select(
-          "id, requirement_id, rule_order, rule_type, field, op, int_min, int_max, text_value, json_value, created_at"
-        )
-        .eq("requirement_id", requirementId)
-        .order("rule_order", { ascending: true })
-        .order("created_at", { ascending: true });
-
-      if (rulesError) throw rulesError;
-      setRules(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError(e?.message || "Greška kod učitavanja pravila.");
-      setRules([]);
-    } finally {
-      setRulesLoading(false);
-    }
-  }
-
   // 3) load requests
   useEffect(() => {
     if (!teamIdLoading && teamId) {
@@ -303,10 +306,6 @@ export default function RequestsClient({ team }) {
     }
 
     try {
-      if (isActive) {
-        setNotice("Zahtjev se sprema kao neaktivan dok se ne dodaju pravila.");
-      }
-
       const payload = {
         team_id: teamId,
         created_by: sessionUser.id,
@@ -314,11 +313,115 @@ export default function RequestsClient({ team }) {
         is_active: false,
       };
 
-      const { error: insertError } = await supabase
+      const { data: reqData, error: insertError } = await supabase
         .from("requirements")
-        .insert(payload);
+        .insert(payload)
+        .select("id")
+        .single();
 
       if (insertError) throw insertError;
+
+      const rulesPayload = [];
+      let order = 1;
+
+      const ageMinNumber = Number(ageMinYears);
+      const ageMaxNumber = Number(ageMaxYears);
+
+      if (Number.isFinite(ageMinNumber) || Number.isFinite(ageMaxNumber)) {
+        rulesPayload.push({
+          requirement_id: reqData.id,
+          rule_order: order++,
+          rule_type: "age",
+          field: "age",
+          op: "between",
+          int_min: Number.isFinite(ageMinNumber) ? ageMinNumber : null,
+          int_max: Number.isFinite(ageMaxNumber) ? ageMaxNumber : null,
+          json_value: JSON.stringify({
+            min_days: Number(ageMinDays) || 0,
+            max_days: Number(ageMaxDays) || 0,
+          }),
+        });
+      }
+
+      const skillRows = [
+        ["keeper", skillKeeper],
+        ["defending", skillDefending],
+        ["playmaking", skillPlaymaking],
+        ["winger", skillWinger],
+        ["passing", skillPassing],
+        ["scoring", skillScoring],
+        ["set_pieces", skillSetPieces],
+        ["stamina", skillStamina],
+      ];
+
+      skillRows.forEach(([skillKey, value]) => {
+        if (value === "" || value === null) return;
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return;
+        rulesPayload.push({
+          requirement_id: reqData.id,
+          rule_order: order++,
+          rule_type: "skill",
+          field: "skill",
+          op: "gte",
+          int_min: numeric,
+          text_value: skillKey,
+        });
+      });
+
+      const htmsMinNumber = Number(htmsMin);
+      if (Number.isFinite(htmsMinNumber) && htmsMinNumber > 0) {
+        rulesPayload.push({
+          requirement_id: reqData.id,
+          rule_order: order++,
+          rule_type: "htms",
+          field: "htms",
+          op: "gte",
+          int_min: htmsMinNumber,
+        });
+      }
+
+      const htms28MinNumber = Number(htms28Min);
+      if (Number.isFinite(htms28MinNumber) && htms28MinNumber > 0) {
+        rulesPayload.push({
+          requirement_id: reqData.id,
+          rule_order: order++,
+          rule_type: "htms28",
+          field: "htms28",
+          op: "gte",
+          int_min: htms28MinNumber,
+        });
+      }
+
+      if (specialty && specialty !== "any") {
+        rulesPayload.push({
+          requirement_id: reqData.id,
+          rule_order: order++,
+          rule_type: "spec",
+          field: "spec",
+          op: "eq",
+          text_value: specialty,
+        });
+      }
+
+      if (rulesPayload.length > 0) {
+        const { error: rulesError } = await supabase
+          .from("requirement_rules")
+          .insert(rulesPayload);
+
+        if (rulesError) throw rulesError;
+      }
+
+      if (isActive && rulesPayload.length > 0) {
+        const { error: updateError } = await supabase
+          .from("requirements")
+          .update({ is_active: true })
+          .eq("id", reqData.id);
+
+        if (updateError) throw updateError;
+      } else if (isActive && rulesPayload.length === 0) {
+        setNotice("Zahtjev je spremljen, ali mora imati pravila da bi bio aktivan.");
+      }
 
       setCreateOpen(false);
       setName("");
@@ -326,159 +429,6 @@ export default function RequestsClient({ team }) {
       await refresh();
     } catch (e) {
       setError(e?.message || "Greška kod kreiranja zahtjeva.");
-    }
-  }
-
-  function resetRuleInputs() {
-    setRuleType("age");
-    setAgeMin("");
-    setAgeMax("");
-    setSkillName("");
-    setSkillMin("");
-    setSkillMax("");
-    setHtmsMin("");
-    setHtmsMax("");
-    setHtms28Min("");
-    setHtms28Max("");
-    setSpecText("");
-    setPositionText("");
-  }
-
-  function buildRulePayload(requirementId, order) {
-    if (ruleType === "age") {
-      return {
-        requirement_id: requirementId,
-        rule_order: order,
-        rule_type: "age",
-        field: "age",
-        op: "between",
-        int_min: ageMin ? Number(ageMin) : null,
-        int_max: ageMax ? Number(ageMax) : null,
-      };
-    }
-
-    if (ruleType === "skill") {
-      return {
-        requirement_id: requirementId,
-        rule_order: order,
-        rule_type: "skill",
-        field: "skill",
-        op: "between",
-        int_min: skillMin ? Number(skillMin) : null,
-        int_max: skillMax ? Number(skillMax) : null,
-        text_value: skillName.trim() || null,
-      };
-    }
-
-    if (ruleType === "htms") {
-      return {
-        requirement_id: requirementId,
-        rule_order: order,
-        rule_type: "htms",
-        field: "htms",
-        op: "between",
-        int_min: htmsMin ? Number(htmsMin) : null,
-        int_max: htmsMax ? Number(htmsMax) : null,
-      };
-    }
-
-    if (ruleType === "htms28") {
-      return {
-        requirement_id: requirementId,
-        rule_order: order,
-        rule_type: "htms28",
-        field: "htms28",
-        op: "between",
-        int_min: htms28Min ? Number(htms28Min) : null,
-        int_max: htms28Max ? Number(htms28Max) : null,
-      };
-    }
-
-    if (ruleType === "spec") {
-      return {
-        requirement_id: requirementId,
-        rule_order: order,
-        rule_type: "spec",
-        field: "spec",
-        op: "eq",
-        text_value: specText.trim() || null,
-      };
-    }
-
-    if (ruleType === "position") {
-      return {
-        requirement_id: requirementId,
-        rule_order: order,
-        rule_type: "position",
-        field: "position",
-        op: "eq",
-        text_value: positionText.trim() || null,
-      };
-    }
-
-    return null;
-  }
-
-  async function addRule() {
-    setError("");
-    setNotice("");
-
-    if (!selectedRequirement?.id) {
-      setError("Odaberi zahtjev prije dodavanja pravila.");
-      return;
-    }
-
-    const nextOrder = rules.length + 1;
-    const payload = buildRulePayload(selectedRequirement.id, nextOrder);
-
-    if (!payload) {
-      setError("Neispravan tip pravila.");
-      return;
-    }
-
-    if (payload.rule_type === "skill" && !payload.text_value) {
-      setError("Skill je obavezan.");
-      return;
-    }
-
-    if (payload.rule_type === "spec" && !payload.text_value) {
-      setError("Specijalnost je obavezna.");
-      return;
-    }
-
-    if (payload.rule_type === "position" && !payload.text_value) {
-      setError("Pozicija je obavezna.");
-      return;
-    }
-
-    try {
-      const { error: insertError } = await supabase
-        .from("requirement_rules")
-        .insert(payload);
-
-      if (insertError) throw insertError;
-      resetRuleInputs();
-      await loadRules(selectedRequirement.id);
-    } catch (e) {
-      setError(e?.message || "Greška kod dodavanja pravila.");
-    }
-  }
-
-  async function deleteRule(ruleId) {
-    setError("");
-
-    try {
-      const { error: delError } = await supabase
-        .from("requirement_rules")
-        .delete()
-        .eq("id", ruleId);
-
-      if (delError) throw delError;
-      if (selectedRequirement?.id) {
-        await loadRules(selectedRequirement.id);
-      }
-    } catch (e) {
-      setError(e?.message || "Greška kod brisanja pravila.");
     }
   }
 
@@ -623,6 +573,161 @@ export default function RequestsClient({ team }) {
                 />
               </label>
 
+              <div style={{ fontWeight: 900, marginTop: 4 }}>Godine</div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 12, fontWeight: 800 }}>
+                  Najmanje (god)
+                  <input
+                    type="number"
+                    value={ageMinYears}
+                    onChange={(e) => setAgeMinYears(e.target.value)}
+                    style={{
+                      width: 110,
+                      marginLeft: 8,
+                      padding: "6px 8px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 12, fontWeight: 800 }}>
+                  Najmanje (dana)
+                  <input
+                    type="number"
+                    value={ageMinDays}
+                    onChange={(e) => setAgeMinDays(e.target.value)}
+                    style={{
+                      width: 110,
+                      marginLeft: 8,
+                      padding: "6px 8px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 12, fontWeight: 800 }}>
+                  Najviše (god)
+                  <input
+                    type="number"
+                    value={ageMaxYears}
+                    onChange={(e) => setAgeMaxYears(e.target.value)}
+                    style={{
+                      width: 110,
+                      marginLeft: 8,
+                      padding: "6px 8px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 12, fontWeight: 800 }}>
+                  Najviše (dana)
+                  <input
+                    type="number"
+                    value={ageMaxDays}
+                    onChange={(e) => setAgeMaxDays(e.target.value)}
+                    style={{
+                      width: 110,
+                      marginLeft: 8,
+                      padding: "6px 8px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div style={{ fontWeight: 900, marginTop: 4 }}>Vještine (min)</div>
+              <div style={{ display: "grid", gap: 8 }}>
+                {[
+                  ["Na golu", skillKeeper, setSkillKeeper],
+                  ["Obrana", skillDefending, setSkillDefending],
+                  ["Kreiranje", skillPlaymaking, setSkillPlaymaking],
+                  ["Krilo", skillWinger, setSkillWinger],
+                  ["Dodavanje", skillPassing, setSkillPassing],
+                  ["Napad", skillScoring, setSkillScoring],
+                  ["Prekidi", skillSetPieces, setSkillSetPieces],
+                  ["Izdržljivost", skillStamina, setSkillStamina],
+                ].map(([label, value, setter]) => (
+                  <label key={label} style={{ fontSize: 12, fontWeight: 800 }}>
+                    {label}
+                    <select
+                      value={value}
+                      onChange={(e) => setter(e.target.value)}
+                      style={{
+                        marginLeft: 8,
+                        padding: "6px 8px",
+                        borderRadius: 10,
+                        border: "1px solid rgba(0,0,0,0.12)",
+                      }}
+                    >
+                      <option value="">—</option>
+                      {SKILL_LEVELS.map((lvl) => (
+                        <option key={lvl} value={lvl}>
+                          {SKILL_LEVEL_LABELS[lvl] ?? lvl}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ))}
+              </div>
+
+              <div style={{ fontWeight: 900, marginTop: 4 }}>HTMS</div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <label style={{ fontSize: 12, fontWeight: 800 }}>
+                  Trenutni HTMS ≥
+                  <input
+                    type="number"
+                    value={htmsMin}
+                    onChange={(e) => setHtmsMin(e.target.value)}
+                    style={{
+                      width: 120,
+                      marginLeft: 8,
+                      padding: "6px 8px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                    }}
+                  />
+                </label>
+                <label style={{ fontSize: 12, fontWeight: 800 }}>
+                  Potencijalni HTMS ≥
+                  <input
+                    type="number"
+                    value={htms28Min}
+                    onChange={(e) => setHtms28Min(e.target.value)}
+                    style={{
+                      width: 120,
+                      marginLeft: 8,
+                      padding: "6px 8px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                    }}
+                  />
+                </label>
+              </div>
+
+              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
+                Specijalnost
+                <select
+                  value={specialty}
+                  onChange={(e) => setSpecialty(e.target.value)}
+                  style={{
+                    marginLeft: 8,
+                    padding: "6px 8px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                  }}
+                >
+                  <option value="any">Any Specialty</option>
+                  <option value="Technical">Technical</option>
+                  <option value="Quick">Quick</option>
+                  <option value="Powerful">Powerful</option>
+                  <option value="Unpredictable">Unpredictable</option>
+                  <option value="Head">Head</option>
+                  <option value="Resilient">Resilient</option>
+                </select>
+              </label>
+
               <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
                 Aktivno
                 <input
@@ -751,17 +856,6 @@ export default function RequestsClient({ team }) {
                       <button
                         className="hr-backBtn"
                         type="button"
-                        onClick={() => {
-                          setSelectedRequirement(r);
-                          loadRules(r.id);
-                        }}
-                        style={{ marginBottom: 6 }}
-                      >
-                        Pravila
-                      </button>
-                      <button
-                        className="hr-backBtn"
-                        type="button"
                         onClick={() => deleteRequirement(r.id)}
                         disabled={!isLoggedIn || !canManage}
                         style={
@@ -785,286 +879,6 @@ export default function RequestsClient({ team }) {
           </div>
         </div>
 
-        {selectedRequirement ? (
-          <div style={{ marginTop: 18 }}>
-            <div style={{ fontWeight: 1000, marginBottom: 8 }}>
-              Pravila za: {selectedRequirement.name}
-            </div>
-
-            <div
-              style={{
-                border: "1px solid rgba(0,0,0,0.08)",
-                borderRadius: 14,
-                padding: 12,
-                background: "rgba(255,255,255,0.75)",
-              }}
-            >
-              {rulesLoading ? (
-                <div style={{ fontSize: 13, opacity: 0.75 }}>Učitavanje…</div>
-              ) : rules.length === 0 ? (
-                <div style={{ fontSize: 13, opacity: 0.75 }}>
-                  Nema pravila. Dodaj prvo pravilo ispod.
-                </div>
-              ) : (
-                <div style={{ display: "grid", gap: 8 }}>
-                  {rules.map((rule) => (
-                    <div
-                      key={rule.id}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "8px 10px",
-                        borderRadius: 10,
-                        border: "1px solid rgba(0,0,0,0.08)",
-                        fontSize: 13,
-                      }}
-                    >
-                      <div>
-                        <strong>{rule.rule_type}</strong>{" "}
-                        {rule.text_value ? `(${rule.text_value})` : ""}
-                        {typeof rule.int_min !== "undefined" ||
-                        typeof rule.int_max !== "undefined"
-                          ? ` · ${rule.int_min ?? "?"} - ${rule.int_max ?? "?"}`
-                          : ""}
-                      </div>
-                      <button
-                        className="hr-backBtn"
-                        type="button"
-                        onClick={() => deleteRule(rule.id)}
-                        disabled={!isLoggedIn || !canManage}
-                        style={
-                          !isLoggedIn || !canManage
-                            ? { opacity: 0.5, cursor: "not-allowed" }
-                            : undefined
-                        }
-                      >
-                        Obriši
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div
-              style={{
-                marginTop: 12,
-                border: "1px solid rgba(0,0,0,0.08)",
-                borderRadius: 14,
-                padding: 12,
-                background: "rgba(255,255,255,0.75)",
-              }}
-            >
-              <div style={{ fontWeight: 900, marginBottom: 8 }}>
-                Dodaj pravilo
-              </div>
-
-              <div style={{ display: "grid", gap: 10 }}>
-                <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
-                  Tip pravila
-                  <select
-                    value={ruleType}
-                    onChange={(e) => setRuleType(e.target.value)}
-                    style={{
-                      marginLeft: 8,
-                      padding: "8px 10px",
-                      borderRadius: 12,
-                      border: "1px solid rgba(0,0,0,0.12)",
-                    }}
-                  >
-                    <option value="age">Dob</option>
-                    <option value="skill">Skill (min/max)</option>
-                    <option value="htms">HTMS</option>
-                    <option value="htms28">HTMS28</option>
-                    <option value="spec">Specijalnost</option>
-                    <option value="position">Pozicija</option>
-                  </select>
-                </label>
-
-                {ruleType === "age" ? (
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <input
-                      type="number"
-                      placeholder="Age min"
-                      value={ageMin}
-                      onChange={(e) => setAgeMin(e.target.value)}
-                      style={{
-                        width: 120,
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        border: "1px solid rgba(0,0,0,0.12)",
-                      }}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Age max"
-                      value={ageMax}
-                      onChange={(e) => setAgeMax(e.target.value)}
-                      style={{
-                        width: 120,
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        border: "1px solid rgba(0,0,0,0.12)",
-                      }}
-                    />
-                  </div>
-                ) : null}
-
-                {ruleType === "skill" ? (
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <input
-                      placeholder="Skill (npr. gk, def)"
-                      value={skillName}
-                      onChange={(e) => setSkillName(e.target.value)}
-                      style={{
-                        width: 180,
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        border: "1px solid rgba(0,0,0,0.12)",
-                      }}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Min"
-                      value={skillMin}
-                      onChange={(e) => setSkillMin(e.target.value)}
-                      style={{
-                        width: 90,
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        border: "1px solid rgba(0,0,0,0.12)",
-                      }}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Max"
-                      value={skillMax}
-                      onChange={(e) => setSkillMax(e.target.value)}
-                      style={{
-                        width: 90,
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        border: "1px solid rgba(0,0,0,0.12)",
-                      }}
-                    />
-                  </div>
-                ) : null}
-
-                {ruleType === "htms" ? (
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <input
-                      type="number"
-                      placeholder="HTMS min"
-                      value={htmsMin}
-                      onChange={(e) => setHtmsMin(e.target.value)}
-                      style={{
-                        width: 120,
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        border: "1px solid rgba(0,0,0,0.12)",
-                      }}
-                    />
-                    <input
-                      type="number"
-                      placeholder="HTMS max"
-                      value={htmsMax}
-                      onChange={(e) => setHtmsMax(e.target.value)}
-                      style={{
-                        width: 120,
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        border: "1px solid rgba(0,0,0,0.12)",
-                      }}
-                    />
-                  </div>
-                ) : null}
-
-                {ruleType === "htms28" ? (
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                    <input
-                      type="number"
-                      placeholder="HTMS28 min"
-                      value={htms28Min}
-                      onChange={(e) => setHtms28Min(e.target.value)}
-                      style={{
-                        width: 120,
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        border: "1px solid rgba(0,0,0,0.12)",
-                      }}
-                    />
-                    <input
-                      type="number"
-                      placeholder="HTMS28 max"
-                      value={htms28Max}
-                      onChange={(e) => setHtms28Max(e.target.value)}
-                      style={{
-                        width: 120,
-                        padding: "8px 10px",
-                        borderRadius: 12,
-                        border: "1px solid rgba(0,0,0,0.12)",
-                      }}
-                    />
-                  </div>
-                ) : null}
-
-                {ruleType === "spec" ? (
-                  <input
-                    placeholder="Specijalnost"
-                    value={specText}
-                    onChange={(e) => setSpecText(e.target.value)}
-                    style={{
-                      width: 220,
-                      padding: "8px 10px",
-                      borderRadius: 12,
-                      border: "1px solid rgba(0,0,0,0.12)",
-                    }}
-                  />
-                ) : null}
-
-                {ruleType === "position" ? (
-                  <input
-                    placeholder="Pozicija"
-                    value={positionText}
-                    onChange={(e) => setPositionText(e.target.value)}
-                    style={{
-                      width: 220,
-                      padding: "8px 10px",
-                      borderRadius: 12,
-                      border: "1px solid rgba(0,0,0,0.12)",
-                    }}
-                  />
-                ) : null}
-
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  <button
-                    className="hr-backBtn"
-                    type="button"
-                    onClick={addRule}
-                    disabled={!isLoggedIn || !canManage}
-                    style={
-                      !isLoggedIn || !canManage
-                        ? { opacity: 0.6, cursor: "not-allowed" }
-                        : undefined
-                    }
-                  >
-                    Dodaj pravilo
-                  </button>
-                  <button
-                    className="hr-backBtn"
-                    type="button"
-                    onClick={() => setSelectedRequirement(null)}
-                    style={{ opacity: 0.8 }}
-                  >
-                    Zatvori
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ) : null}
       </div>
     </div>
   );
