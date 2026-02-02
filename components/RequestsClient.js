@@ -25,34 +25,6 @@ function teamTypeFromSlug(team) {
   return null;
 }
 
-const PORTAL_REQUIREMENTS = [
-  "21y",
-  "22y",
-  "23y",
-  "24y",
-  "25y",
-  "26y",
-  "27y",
-  "28y",
-  "29y",
-  "30y",
-  "31y",
-  "32y",
-  "33y",
-  "34y",
-  "All Players",
-  "gk 22-25",
-  "gk 25-28",
-  "gk 28+",
-  "LS 28+",
-  "Osrednji 22-25",
-  "Osrednji 25-28",
-  "Osrednji 28+",
-  "Top -28",
-  "Top 28+",
-  "TOP+2100",
-];
-
 export default function RequestsClient({ team }) {
   const [loading, setLoading] = useState(true);
   const [sessionUser, setSessionUser] = useState(null);
@@ -64,11 +36,9 @@ export default function RequestsClient({ team }) {
   const [rows, setRows] = useState([]);
   const [rowsLoading, setRowsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
 
   const [createOpen, setCreateOpen] = useState(false);
   const [name, setName] = useState("");
-  const [isActive, setIsActive] = useState(true);
 
   const base = useMemo(() => `/team/${team}`, [team]);
   const title = useMemo(() => teamLabel(team), [team]);
@@ -114,8 +84,6 @@ export default function RequestsClient({ team }) {
 
     async function loadRole() {
       setRole(null);
-      setNotice("");
-
       try {
         if (!sessionUser?.email) return;
         if (!supabase?.from) return;
@@ -146,9 +114,7 @@ export default function RequestsClient({ team }) {
         if (uerror) throw uerror;
         if (mounted) setRole(urows?.[0]?.role ?? null);
       } catch (e) {
-        if (mounted) {
-          setNotice("Ne mogu dohvatiti ulogu korisnika.");
-        }
+        // ignore role lookup errors for now
       }
     }
 
@@ -269,7 +235,6 @@ export default function RequestsClient({ team }) {
 
   async function createRequirement() {
     setError("");
-    setNotice("");
 
     if (!sessionUser?.id) {
       setError("Moraš biti prijavljen da bi dodao zahtjev.");
@@ -296,7 +261,7 @@ export default function RequestsClient({ team }) {
         team_id: teamId,
         created_by: sessionUser.id,
         name: name.trim(),
-        is_active: isActive,
+        is_active: false,
       };
 
       const { error: insertError } = await supabase
@@ -307,61 +272,9 @@ export default function RequestsClient({ team }) {
 
       setCreateOpen(false);
       setName("");
-      setIsActive(true);
       await refresh();
     } catch (e) {
       setError(e?.message || "Greška kod kreiranja zahtjeva.");
-    }
-  }
-
-  async function importPortalRequirements() {
-    setError("");
-    setNotice("");
-
-    if (!sessionUser?.id) {
-      setError("Moraš biti prijavljen da bi uvezao zahtjeve.");
-      return;
-    }
-
-    if (!canManage) {
-      setError("Nemaš ovlasti (samo admin ili izbornik).");
-      return;
-    }
-
-    if (!teamId) {
-      setError("teamId nije spreman (teams.slug lookup nije uspio).");
-      return;
-    }
-
-    const existing = new Set(
-      rows.map((row) => String(row?.name || "").trim().toLowerCase())
-    );
-
-    const toInsert = PORTAL_REQUIREMENTS.filter(
-      (reqName) => !existing.has(reqName.trim().toLowerCase())
-    ).map((reqName) => ({
-      team_id: teamId,
-      created_by: sessionUser.id,
-      name: reqName,
-      is_active: true,
-    }));
-
-    if (toInsert.length === 0) {
-      setNotice("Svi portal zahtjevi su već dodani.");
-      return;
-    }
-
-    try {
-      const { error: insertError } = await supabase
-        .from("requirements")
-        .insert(toInsert);
-
-      if (insertError) throw insertError;
-
-      setNotice(`Dodano ${toInsert.length} zahtjeva iz portala.`);
-      await refresh();
-    } catch (e) {
-      setError(e?.message || "Greška kod uvoza zahtjeva.");
     }
   }
 
@@ -437,19 +350,6 @@ export default function RequestsClient({ team }) {
               + Novi zahtjev
             </button>
 
-            <button
-              className="hr-backBtn"
-              type="button"
-              onClick={importPortalRequirements}
-              disabled={!isLoggedIn || !canManage}
-              style={
-                !isLoggedIn || !canManage
-                  ? { opacity: 0.6, cursor: "not-allowed" }
-                  : undefined
-              }
-            >
-              Uvezi portal zahtjeve
-            </button>
           </div>
         </div>
 
@@ -467,23 +367,6 @@ export default function RequestsClient({ team }) {
             }}
           >
             {error}
-          </div>
-        ) : null}
-
-        {notice ? (
-          <div
-            style={{
-              marginTop: 12,
-              padding: 12,
-              borderRadius: 12,
-              border: "1px solid rgba(59,130,246,0.25)",
-              background: "rgba(59,130,246,0.06)",
-              color: "rgba(37,99,235,0.95)",
-              fontWeight: 800,
-              fontSize: 13,
-            }}
-          >
-            {notice}
           </div>
         ) : null}
 
@@ -533,16 +416,6 @@ export default function RequestsClient({ team }) {
                     border: "1px solid rgba(0,0,0,0.12)",
                     outline: "none",
                   }}
-                />
-              </label>
-
-              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
-                Aktivno
-                <input
-                  type="checkbox"
-                  checked={isActive}
-                  onChange={(e) => setIsActive(e.target.checked)}
-                  style={{ marginLeft: 10 }}
                 />
               </label>
 
