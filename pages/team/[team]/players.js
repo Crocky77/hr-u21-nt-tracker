@@ -39,6 +39,9 @@ const SKILL_LEVEL_LABELS = [
 ];
 
 const COLUMN_LABELS = {
+  playingIn: "Igra u",
+  owningTeam: "Klub",
+  manager: "Manager",
   age: "Dob",
   salary: "Plaća",
   tsi: "TSI",
@@ -46,6 +49,8 @@ const COLUMN_LABELS = {
   agree: "Suglasnost",
   agg: "Agresivnost",
   hon: "Poštenje",
+  fo: "Forma",
+  st: "Stamina",
   gk: "GK",
   de: "Obrana",
   pm: "Kreiranje",
@@ -53,13 +58,29 @@ const COLUMN_LABELS = {
   ps: "Dodavanje",
   sc: "Napad",
   sp: "Prekidi",
-  st: "Stamina",
   exp: "Iskustvo",
   lead: "Vodstvo",
   abilityHtms: "Ability HTMS",
   potentialHtms: "Potential HTMS",
   talent: "Talent",
+  lastMatch: "Zadnja utakmica",
   position: "Pozicija",
+  time: "Vrijeme",
+  rating: "Ocjena",
+  tr: "Trening",
+  lastTraining: "Zadnji trening",
+  staminaPart: "Stamina part",
+  lastStaminaPart: "Zadnja stamina part",
+  trainerSkill: "Trenerska vještina",
+  trainerLeadership: "Trenersko vodstvo",
+  assistantCoach: "Pomoćni trener lvl",
+  formCoach: "Forma coach lvl",
+  medic: "Medic lvl",
+  lastMatchWcCc: "Zadnja utakmica WC/CC",
+  updated: "Ažurirano",
+  updatedSkills: "Ažurirani skillovi",
+  updatedSubskills: "Ažurirani subskillovi",
+  lastScoutNote: "Zadnja bilješka skauta",
 };
 
 const DEFAULT_COLUMNS = Object.keys(COLUMN_LABELS).reduce((acc, key) => {
@@ -67,15 +88,33 @@ const DEFAULT_COLUMNS = Object.keys(COLUMN_LABELS).reduce((acc, key) => {
   return acc;
 }, {});
 
-const DEFAULT_VISIBLE_COLUMNS = Object.keys(COLUMN_LABELS).reduce(
-  (acc, key) => {
-    acc[key] = true;
-    return acc;
-  },
-  {}
-);
+const DEFAULT_VISIBLE_COLUMNS = {
+  age: true,
+  salary: true,
+  tsi: true,
+  spec: true,
+  agree: true,
+  agg: true,
+  hon: true,
+  gk: true,
+  de: true,
+  pm: true,
+  wg: true,
+  ps: true,
+  sc: true,
+  sp: true,
+  exp: true,
+  lead: true,
+  abilityHtms: true,
+  potentialHtms: true,
+  talent: true,
+  position: true,
+};
 
 const COLUMN_FILTER_KEYS = [
+  "playingIn",
+  "owningTeam",
+  "manager",
   "age",
   "salary",
   "tsi",
@@ -83,6 +122,8 @@ const COLUMN_FILTER_KEYS = [
   "agree",
   "agg",
   "hon",
+  "fo",
+  "st",
   "gk",
   "de",
   "pm",
@@ -90,13 +131,29 @@ const COLUMN_FILTER_KEYS = [
   "ps",
   "sc",
   "sp",
-  "st",
   "exp",
   "lead",
   "abilityHtms",
   "potentialHtms",
   "talent",
+  "lastMatch",
   "position",
+  "time",
+  "rating",
+  "tr",
+  "lastTraining",
+  "staminaPart",
+  "lastStaminaPart",
+  "trainerSkill",
+  "trainerLeadership",
+  "assistantCoach",
+  "formCoach",
+  "medic",
+  "lastMatchWcCc",
+  "updated",
+  "updatedSkills",
+  "updatedSubskills",
+  "lastScoutNote",
 ];
 
 const TRAIT_LABELS = {
@@ -202,6 +259,116 @@ function dedupePlayers(rows) {
   return Array.from(map.values());
 }
 
+const PORTAL_PLAYERS_URL = "/data/import_portal_players_rows.csv";
+let portalPlayersCache = null;
+let portalPlayersPromise = null;
+
+function parseCsvLine(line) {
+  const values = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      values.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  values.push(current);
+  return values;
+}
+
+function parseCsv(text) {
+  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
+  if (lines.length === 0) return [];
+  const headers = parseCsvLine(lines[0]).map((header) => header.trim());
+  return lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    return headers.reduce((acc, header, idx) => {
+      acc[header] = values[idx] ?? "";
+      return acc;
+    }, {});
+  });
+}
+
+function toNumberOrNull(value) {
+  if (value === "" || value === null || typeof value === "undefined") return null;
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+async function loadPortalPlayers(team) {
+  if (portalPlayersCache) {
+    return portalPlayersCache.filter(
+      (row) =>
+        !team || String(row.team_code || "").toLowerCase() === team.toLowerCase()
+    );
+  }
+
+  if (!portalPlayersPromise) {
+    portalPlayersPromise = fetch(PORTAL_PLAYERS_URL)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error("Ne mogu učitati portal CSV.");
+        }
+        return res.text();
+      })
+      .then((text) => {
+        portalPlayersCache = parseCsv(text);
+        return portalPlayersCache;
+      })
+      .catch(() => {
+        portalPlayersCache = [];
+        return portalPlayersCache;
+      });
+  }
+
+  const rows = await portalPlayersPromise;
+  return rows.filter(
+    (row) =>
+      !team || String(row.team_code || "").toLowerCase() === team.toLowerCase()
+  );
+}
+
+function mapPortalPlayer(row) {
+  return {
+    team_code: row.team_code,
+    nationality: row.Nacionalnost,
+    full_name: row.Ime,
+    ht_player_id: row["ID-broj igrača"],
+    specialty: row.Specijalnost,
+    spec: row.Specijalnost,
+    age_years: toNumberOrNull(row.Dob),
+    age_days: toNumberOrNull(row.Dani),
+    tsi: toNumberOrNull(row.TSI),
+    experience: toNumberOrNull(row.Iskustvo),
+    leadership: toNumberOrNull(row.Vodstvo),
+    form: toNumberOrNull(row.Forma),
+    stamina: toNumberOrNull(row.Izdržljivost),
+    skill_gk: toNumberOrNull(row["Na vratima"]),
+    skill_defending: toNumberOrNull(row.Obrana),
+    skill_playmaking: toNumberOrNull(row.Kreiranje),
+    skill_winger: toNumberOrNull(row.Krilo),
+    skill_passing: toNumberOrNull(row.Proigravanje),
+    skill_scoring: toNumberOrNull(row.Napad),
+    skill_set_pieces: toNumberOrNull(row.Prekidi),
+    position: row.Kategorija,
+  };
+}
+
 export default function PlayersPage() {
   const router = useRouter();
   const { team } = router.query;
@@ -210,7 +377,7 @@ export default function PlayersPage() {
   const [teamLoading, setTeamLoading] = useState(true);
 
   const [requests, setRequests] = useState([]);
-  const [requestId, setRequestId] = useState("");
+  const [requestId, setRequestId] = useState("all");
   const [requestLoading, setRequestLoading] = useState(true);
 
   const [players, setPlayers] = useState([]);
@@ -433,7 +600,7 @@ export default function PlayersPage() {
   }, [team, teamId]);
 
   useEffect(() => {
-    if (!team || !requestId) {
+    if (!team || requestId === "") {
       setPlayers([]);
       setLoading(false);
       return;
@@ -445,34 +612,39 @@ export default function PlayersPage() {
       setLoading(true);
       setError("");
 
-      const requestValue = Number(requestId);
-      const requestArg = Number.isFinite(requestValue) ? requestValue : requestId;
-
-      const tries = [
-        { team_slug: team, request_id: requestArg },
-        { team_id: teamId, request_id: requestArg },
-        { p_team_slug: team, p_request_id: requestArg },
-        { p_team_id: teamId, p_request_id: requestArg },
-      ];
-
       let data = null;
       let lastError = null;
 
-      for (const args of tries) {
-        if (Object.values(args).every((v) => v === null || typeof v === "undefined")) {
-          continue;
-        }
+      if (requestId !== "all") {
+        const requestValue = Number(requestId);
+        const requestArg = Number.isFinite(requestValue) ? requestValue : requestId;
 
-        const res = await supabase.rpc("list_team_players", args);
-        if (res?.error) {
-          lastError = res.error;
-          continue;
-        }
+        const tries = [
+          { team_slug: team, request_id: requestArg },
+          { team_id: teamId, request_id: requestArg },
+          { p_team_slug: team, p_request_id: requestArg },
+          { p_team_id: teamId, p_request_id: requestArg },
+        ];
 
-        if (Array.isArray(res?.data)) {
-          data = res.data;
-          break;
+        for (const args of tries) {
+          if (Object.values(args).every((v) => v === null || typeof v === "undefined")) {
+            continue;
+          }
+
+          const res = await supabase.rpc("list_team_players", args);
+          if (res?.error) {
+            lastError = res.error;
+            continue;
+          }
+
+          if (Array.isArray(res?.data)) {
+            data = res.data;
+            break;
+          }
         }
+      } else {
+        const portalRows = await loadPortalPlayers(team);
+        data = portalRows.map(mapPortalPlayer);
       }
 
       if (!data) {
@@ -509,6 +681,11 @@ export default function PlayersPage() {
         } catch (e) {
           lastError = e;
         }
+      }
+
+      if ((!data || data.length === 0) && team) {
+        const portalRows = await loadPortalPlayers(team);
+        data = portalRows.map(mapPortalPlayer);
       }
 
       if (!mounted) return;
@@ -710,6 +887,7 @@ export default function PlayersPage() {
                 onChange={(e) => setRequestId(e.target.value)}
                 disabled={requestLoading || teamLoading}
               >
+                <option value="all">Sve</option>
                 <option value="">Odaberi zahtjev…</option>
                 {requests.map((req) => (
                   <option key={req.id} value={req.id}>
@@ -721,6 +899,8 @@ export default function PlayersPage() {
               <div className="hint">
                 {requestLoading
                   ? "Učitavam zahtjeve…"
+                  : requestId === "all"
+                  ? "Prikaz svih igrača"
                   : requestId
                   ? "Zahtjev aktivan"
                   : "Bez zahtjeva nema igrača"}
@@ -1069,21 +1249,24 @@ export default function PlayersPage() {
 
             {error ? <div className="error">Greška: {error}</div> : null}
 
-            {!requestId && (
+            {requestId === "" && (
               <div className="empty">Odaberi zahtjev kako bi se lista učitala.</div>
             )}
 
-            {requestId && loading && <div className="empty">Učitavanje…</div>}
+            {requestId !== "" && loading && <div className="empty">Učitavanje…</div>}
 
-            {requestId && !loading && filteredPlayers.length === 0 && (
+            {requestId !== "" && !loading && filteredPlayers.length === 0 && (
               <div className="empty">Nema igrača za ovaj zahtjev / filtere.</div>
             )}
 
-            {requestId && !loading && filteredPlayers.length > 0 ? (
+            {requestId !== "" && !loading && filteredPlayers.length > 0 ? (
               <div className="tableWrap">
                 <table>
                   <thead>
                     <tr>
+                      {columnsApplied.playingIn && <th>Igra u</th>}
+                      {columnsApplied.owningTeam && <th>Klub</th>}
+                      {columnsApplied.manager && <th>Manager</th>}
                       {columnsApplied.age && <th>Dob</th>}
                       {columnsApplied.salary && <th>Plaća</th>}
                       {columnsApplied.tsi && <th>TSI</th>}
@@ -1091,6 +1274,7 @@ export default function PlayersPage() {
                       {columnsApplied.agree && <th>Suglasnost</th>}
                       {columnsApplied.agg && <th>Agresivnost</th>}
                       {columnsApplied.hon && <th>Poštenje</th>}
+                      {columnsApplied.fo && <th>Forma</th>}
                       {columnsApplied.gk && <th>GK</th>}
                       {columnsApplied.de && <th>Obrana</th>}
                       {columnsApplied.pm && <th>Kreiranje</th>}
@@ -1104,7 +1288,24 @@ export default function PlayersPage() {
                       {columnsApplied.abilityHtms && <th>Ability HTMS</th>}
                       {columnsApplied.potentialHtms && <th>Potential HTMS</th>}
                       {columnsApplied.talent && <th>Talent</th>}
+                      {columnsApplied.lastMatch && <th>Zadnja utakmica</th>}
                       {columnsApplied.position && <th>Pozicija</th>}
+                      {columnsApplied.time && <th>Vrijeme</th>}
+                      {columnsApplied.rating && <th>Ocjena</th>}
+                      {columnsApplied.tr && <th>Trening</th>}
+                      {columnsApplied.lastTraining && <th>Zadnji trening</th>}
+                      {columnsApplied.staminaPart && <th>Stamina part</th>}
+                      {columnsApplied.lastStaminaPart && <th>Zadnja stamina part</th>}
+                      {columnsApplied.trainerSkill && <th>Trenerska vještina</th>}
+                      {columnsApplied.trainerLeadership && <th>Trenersko vodstvo</th>}
+                      {columnsApplied.assistantCoach && <th>Pomoćni trener lvl</th>}
+                      {columnsApplied.formCoach && <th>Forma coach lvl</th>}
+                      {columnsApplied.medic && <th>Medic lvl</th>}
+                      {columnsApplied.lastMatchWcCc && <th>Zadnja utakmica WC/CC</th>}
+                      {columnsApplied.updated && <th>Ažurirano</th>}
+                      {columnsApplied.updatedSkills && <th>Ažurirani skillovi</th>}
+                      {columnsApplied.updatedSubskills && <th>Ažurirani subskillovi</th>}
+                      {columnsApplied.lastScoutNote && <th>Zadnja bilješka skauta</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1120,6 +1321,15 @@ export default function PlayersPage() {
 
                       return (
                         <tr key={playerId || name}>
+                          {columnsApplied.playingIn && (
+                            <td>{getField(player, ["playing_in", "playingIn"]) || "—"}</td>
+                          )}
+                          {columnsApplied.owningTeam && (
+                            <td>{getField(player, ["owning_team", "owningTeam", "club_name"]) || "—"}</td>
+                          )}
+                          {columnsApplied.manager && (
+                            <td>{getField(player, ["manager", "manager_name"]) || "—"}</td>
+                          )}
                           {columnsApplied.age && <td>{ageText}</td>}
                           {columnsApplied.salary && (
                             <td>{getField(player, ["salary", "wage"]) || "—"}</td>
@@ -1137,6 +1347,7 @@ export default function PlayersPage() {
                           {columnsApplied.hon && (
                             <td>{formatTraitLabel(getField(player, ["honesty", "hon"]), "hon")}</td>
                           )}
+                          {columnsApplied.fo && <td>{getField(player, ["form"]) || "—"}</td>}
                           {columnsApplied.gk && (
                             <td>
                               {formatSkillValue(
@@ -1204,8 +1415,59 @@ export default function PlayersPage() {
                           {columnsApplied.talent && (
                             <td>{getField(player, ["talent"]) || "—"}</td>
                           )}
+                          {columnsApplied.lastMatch && (
+                            <td>{getField(player, ["last_match", "lastMatch"]) || "—"}</td>
+                          )}
                           {columnsApplied.position && (
                             <td>{getField(player, ["position", "pos", "role"]) || "—"}</td>
+                          )}
+                          {columnsApplied.time && (
+                            <td>{getField(player, ["time", "played_time"]) || "—"}</td>
+                          )}
+                          {columnsApplied.rating && (
+                            <td>{getField(player, ["rating", "match_rating"]) || "—"}</td>
+                          )}
+                          {columnsApplied.tr && (
+                            <td>{getField(player, ["current_training", "training"]) || "—"}</td>
+                          )}
+                          {columnsApplied.lastTraining && (
+                            <td>{getField(player, ["last_training", "lastTraining"]) || "—"}</td>
+                          )}
+                          {columnsApplied.staminaPart && (
+                            <td>{getField(player, ["stamina_part", "staminaPart"]) || "—"}</td>
+                          )}
+                          {columnsApplied.lastStaminaPart && (
+                            <td>{getField(player, ["last_stamina_part", "lastStaminaPart"]) || "—"}</td>
+                          )}
+                          {columnsApplied.trainerSkill && (
+                            <td>{getField(player, ["trainer_skill", "trainerSkill"]) || "—"}</td>
+                          )}
+                          {columnsApplied.trainerLeadership && (
+                            <td>{getField(player, ["trainer_leadership", "trainerLeadership"]) || "—"}</td>
+                          )}
+                          {columnsApplied.assistantCoach && (
+                            <td>{getField(player, ["assistant_coach_level", "assistantCoachLevel"]) || "—"}</td>
+                          )}
+                          {columnsApplied.formCoach && (
+                            <td>{getField(player, ["form_coach_level", "formCoachLevel"]) || "—"}</td>
+                          )}
+                          {columnsApplied.medic && (
+                            <td>{getField(player, ["medic_level", "medicLevel"]) || "—"}</td>
+                          )}
+                          {columnsApplied.lastMatchWcCc && (
+                            <td>{getField(player, ["last_match_wc_cc", "lastMatchWcCc"]) || "—"}</td>
+                          )}
+                          {columnsApplied.updated && (
+                            <td>{getField(player, ["updated", "updated_at"]) || "—"}</td>
+                          )}
+                          {columnsApplied.updatedSkills && (
+                            <td>{getField(player, ["updated_skills", "updatedSkills"]) || "—"}</td>
+                          )}
+                          {columnsApplied.updatedSubskills && (
+                            <td>{getField(player, ["updated_subskills", "updatedSubskills"]) || "—"}</td>
+                          )}
+                          {columnsApplied.lastScoutNote && (
+                            <td>{getField(player, ["last_scout_note", "lastScoutNote"]) || "—"}</td>
                           )}
                         </tr>
                       );
