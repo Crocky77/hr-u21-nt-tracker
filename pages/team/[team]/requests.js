@@ -11,19 +11,29 @@ export default function TeamRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // dohvat team_id po slug-u
+  // NT ONLY – dohvat team_id
   useEffect(() => {
     if (!team) return;
 
     const loadTeam = async () => {
+      setLoading(true);
+
       const { data, error } = await supabase
         .from("teams")
-        .select("id")
+        .select("id, team_type")
         .eq("slug", team)
         .single();
 
-      if (error) {
-        setError("Ne mogu dohvatiti tim.");
+      if (error || !data) {
+        setError("Ne mogu dohvatiti NT tim.");
+        setLoading(false);
+        return;
+      }
+
+      // samo NT
+      if (data.team_type !== "NT") {
+        setError("Ova stranica je samo za NT zahtjeve.");
+        setLoading(false);
         return;
       }
 
@@ -33,20 +43,19 @@ export default function TeamRequestsPage() {
     loadTeam();
   }, [team]);
 
-  // lista zahtjeva
+  // lista NT zahtjeva
   useEffect(() => {
     if (!teamId) return;
 
     const loadRequests = async () => {
-      setLoading(true);
-
       const { data, error } = await supabase.rpc(
         "list_team_requirements",
         { p_team_id: teamId }
       );
 
       if (error) {
-        setError("Ne mogu dohvatiti zahtjeve.");
+        setError("Greška pri dohvaćanju zahtjeva.");
+        setRequests([]);
       } else {
         setRequests(data || []);
       }
@@ -59,7 +68,7 @@ export default function TeamRequestsPage() {
 
   // brisanje zahtjeva
   const deleteRequest = async (id) => {
-    if (!confirm("Obrisati zahtjev?")) return;
+    if (!confirm("Obrisati NT zahtjev?")) return;
 
     const { error } = await supabase
       .from("requirements")
@@ -67,7 +76,7 @@ export default function TeamRequestsPage() {
       .eq("id", id);
 
     if (error) {
-      alert("Greška pri brisanju zahtjeva.");
+      alert("Greška pri brisanju.");
       return;
     }
 
@@ -75,13 +84,11 @@ export default function TeamRequestsPage() {
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h1>Zahtjevi — Tim</h1>
+    <div style={{ padding: 20 }}>
+      <h1>Zahtjevi — NT</h1>
 
-      <div style={{ marginBottom: "16px" }}>
-        <button
-          onClick={() => alert("Dodavanje zahtjeva dolazi u sljedećem koraku")}
-        >
+      <div style={{ marginBottom: 16 }}>
+        <button onClick={() => alert("Z2 – unos zahtjeva slijedi")}>
           + Novi zahtjev
         </button>
       </div>
@@ -89,17 +96,12 @@ export default function TeamRequestsPage() {
       {loading && <div>Učitavanje…</div>}
       {error && <div style={{ color: "red" }}>{error}</div>}
 
-      {!loading && requests.length === 0 && (
-        <div>Trenutno nema zahtjeva.</div>
+      {!loading && !error && requests.length === 0 && (
+        <div>Nema definiranih NT zahtjeva.</div>
       )}
 
-      {!loading && requests.length > 0 && (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-          }}
-        >
+      {!loading && !error && requests.length > 0 && (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr>
               <th style={th}>Naziv</th>
@@ -138,10 +140,10 @@ export default function TeamRequestsPage() {
 const th = {
   textAlign: "left",
   borderBottom: "1px solid #ccc",
-  padding: "8px",
+  padding: 8,
 };
 
 const td = {
   borderBottom: "1px solid #eee",
-  padding: "8px",
+  padding: 8,
 };
