@@ -11,28 +11,19 @@ export default function TeamRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // NT ONLY – dohvat team_id
+  // dohvat team_id po slug-u (NT ONLY – ali bez blokiranja UI-a)
   useEffect(() => {
     if (!team) return;
 
     const loadTeam = async () => {
-      setLoading(true);
-
       const { data, error } = await supabase
         .from("teams")
-        .select("id, team_type")
+        .select("id")
         .eq("slug", team)
         .single();
 
       if (error || !data) {
-        setError("Ne mogu dohvatiti NT tim.");
-        setLoading(false);
-        return;
-      }
-
-      // samo NT
-      if (data.team_type !== "NT") {
-        setError("Ova stranica je samo za NT zahtjeve.");
+        setError("Ne mogu dohvatiti tim.");
         setLoading(false);
         return;
       }
@@ -43,7 +34,7 @@ export default function TeamRequestsPage() {
     loadTeam();
   }, [team]);
 
-  // lista NT zahtjeva
+  // lista zahtjeva
   useEffect(() => {
     if (!teamId) return;
 
