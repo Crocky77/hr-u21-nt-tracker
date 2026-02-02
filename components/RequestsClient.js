@@ -19,15 +19,6 @@ function teamLabel(team) {
   return "Tim";
 }
 
-function safeJsonParse(str) {
-  try {
-    const v = JSON.parse(str);
-    return { ok: true, value: v };
-  } catch (e) {
-    return { ok: false, error: e?.message || "Neispravan JSON" };
-  }
-}
-
 export default function RequestsClient({ team }) {
   const [loading, setLoading] = useState(true);
   const [sessionUser, setSessionUser] = useState(null);
@@ -36,26 +27,8 @@ export default function RequestsClient({ team }) {
   const [teamIdLoading, setTeamIdLoading] = useState(true);
 
   const [rows, setRows] = useState([]);
+  const [rowsLoading, setRowsLoading] = useState(true);
   const [error, setError] = useState("");
-
-  // Create form
-  const [createOpen, setCreateOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [status, setStatus] = useState("open");
-  const [priority, setPriority] = useState(50);
-  const [criteriaText, setCriteriaText] = useState(
-    JSON.stringify(
-      {
-        q: "spec",
-        age_min: null,
-        age_max: 21,
-        position: null,
-        skills: { goalkeeping: 8 },
-      },
-      null,
-      2
-    )
-  );
 
   const base = useMemo(() => `/team/${team}`, [team]);
   const title = useMemo(() => teamLabel(team), [team]);
@@ -136,79 +109,85 @@ export default function RequestsClient({ team }) {
 
   async function refresh() {
     setError("");
+    setRowsLoading(true);
     try {
-      if (!supabase?.from) return;
+      if (!supabase?.rpc) return;
       if (!teamId) return;
 
-      const { data, error: e } = await supabase
-        .from("team_requests")
-        .select(
-          "id, name, status, priority, created_at, updated_at, created_by"
-        )
-        .eq("team_id", teamId)
-        .order("priority", { ascending: false })
-        .order("created_at", { ascending: false });
+      const tries = [
+        { p_team_id: teamId },
+        { team_id: teamId },
+        { p_team_slug: team },
+        { team_slug: team },
+      ];
 
-      if (e) throw e;
+      let data = null;
+      let lastError = null;
+
+      for (const args of tries) {
+        if (Object.values(args).every((v) => v === null || typeof v === "undefined")) {
+          continue;
+        }
+
+        const res = await supabase.rpc("list_team_requirements", args);
+        if (res?.error) {
+          lastError = res.error;
+          continue;
+        }
+
+        if (Array.isArray(res?.data)) {
+          data = res.data;
+          break;
+        }
+      }
+
+      if (!data && lastError) {
+        throw lastError;
+      }
+
       setRows(Array.isArray(data) ? data : []);
     } catch (e) {
       setError(e?.message || "Greška kod učitavanja zahtjeva.");
+      setRows([]);
+    } finally {
+      setRowsLoading(false);
     }
   }
 
   // 3) load requests
   useEffect(() => {
-    if (!teamIdLoading && teamId) refresh();
+    if (!teamIdLoading && teamId) {
+      refresh();
+      return;
+    }
+
+    if (!teamIdLoading && !teamId) {
+      setRows([]);
+      setRowsLoading(false);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamIdLoading, teamId]);
 
-  async function createRequest() {
+  async function deleteRequirement(requirementId) {
     setError("");
 
     if (!sessionUser?.id) {
-      setError("Moraš biti prijavljen da bi kreirao zahtjev.");
+      setError("Moraš biti prijavljen da bi obrisao zahtjev.");
       return;
     }
 
-    if (!teamId) {
-      setError("teamId nije spreman (teams.slug lookup nije uspio).");
-      return;
-    }
-
-    if (!name.trim()) {
-      setError("Naziv zahtjeva je obavezan.");
-      return;
-    }
-
-    const parsed = safeJsonParse(criteriaText);
-    if (!parsed.ok) {
-      setError(`Criteria JSON error: ${parsed.error}`);
-      return;
-    }
-
-    const pr = Number(priority);
-    const prNorm = Number.isFinite(pr) ? pr : 50;
+    if (!requirementId) return;
 
     try {
-      const payload = {
-        team_id: teamId,
-        created_by: sessionUser.id,
-        name: name.trim(),
-        status,
-        priority: prNorm,
-        criteria: parsed.value,
-      };
+      const { error: delError } = await supabase
+        .from("requirements")
+        .delete()
+        .eq("id", requirementId);
 
-      const { error: e } = await supabase.from("team_requests").insert(payload);
-      if (e) throw e;
-
-      setCreateOpen(false);
-      setName("");
-      setStatus("open");
-      setPriority(50);
+      if (delError) throw delError;
       await refresh();
     } catch (e) {
-      setError(e?.message || "Greška kod kreiranja zahtjeva.");
+      setError(e?.message || "Greška kod brisanja zahtjeva.");
     }
   }
 
@@ -242,22 +221,15 @@ export default function RequestsClient({ team }) {
               ← Natrag
             </Link>
 
-            {isLoggedIn ? (
-              <button
-                className="hr-backBtn"
-                type="button"
-                onClick={() => setCreateOpen((v) => !v)}
-              >
-                + Novi zahtjev
-              </button>
-            ) : (
-              <span
-                className="hr-backBtn"
-                style={{ opacity: 0.75, cursor: "default" }}
-              >
-                Zaključano bez prijave
-              </span>
-            )}
+            <button
+              className="hr-backBtn"
+              type="button"
+              onClick={() => alert("Uskoro: ručni unos zahtjeva.")}
+              disabled={!isLoggedIn}
+              style={!isLoggedIn ? { opacity: 0.6, cursor: "not-allowed" } : undefined}
+            >
+              + Novi zahtjev
+            </button>
           </div>
         </div>
 
@@ -290,113 +262,8 @@ export default function RequestsClient({ team }) {
               opacity: 0.9,
             }}
           >
-            Gost vidi samo “preview”. Za kreiranje zahtjeva treba prijava (auth
-            flow ćemo ispolirati kasnije).
-          </div>
-        ) : null}
-
-        {createOpen && isLoggedIn ? (
-          <div
-            style={{
-              marginTop: 14,
-              padding: 14,
-              borderRadius: 14,
-              border: "1px solid rgba(0,0,0,0.10)",
-              background: "rgba(255,255,255,0.85)",
-            }}
-          >
-            <div style={{ fontWeight: 1000, marginBottom: 8 }}>
-              Novi zahtjev
-            </div>
-
-            <div style={{ display: "grid", gap: 10 }}>
-              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
-                Naziv
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder='npr. "U21 GK (spec) 18+"'
-                  style={{
-                    width: "100%",
-                    marginTop: 6,
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    outline: "none",
-                  }}
-                />
-              </label>
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
-                  Status
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    style={{
-                      marginLeft: 8,
-                      padding: "8px 10px",
-                      borderRadius: 12,
-                      border: "1px solid rgba(0,0,0,0.12)",
-                    }}
-                  >
-                    <option value="open">open</option>
-                    <option value="closed">closed</option>
-                    <option value="archived">archived</option>
-                  </select>
-                </label>
-
-                <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
-                  Priority
-                  <input
-                    type="number"
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    style={{
-                      width: 90,
-                      marginLeft: 8,
-                      padding: "8px 10px",
-                      borderRadius: 12,
-                      border: "1px solid rgba(0,0,0,0.12)",
-                    }}
-                  />
-                </label>
-              </div>
-
-              <label style={{ fontSize: 12, fontWeight: 900, opacity: 0.75 }}>
-                Criteria (JSON)
-                <textarea
-                  value={criteriaText}
-                  onChange={(e) => setCriteriaText(e.target.value)}
-                  rows={8}
-                  style={{
-                    width: "100%",
-                    marginTop: 6,
-                    padding: "10px 12px",
-                    borderRadius: 12,
-                    border: "1px solid rgba(0,0,0,0.12)",
-                    outline: "none",
-                    fontFamily:
-                      "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-                    fontSize: 12,
-                  }}
-                />
-              </label>
-
-              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                <button className="hr-backBtn" type="button" onClick={createRequest}>
-                  Spremi
-                </button>
-                <button
-                  className="hr-backBtn"
-                  type="button"
-                  onClick={() => setCreateOpen(false)}
-                  style={{ opacity: 0.8 }}
-                >
-                  Odustani
-                </button>
-              </div>
-            </div>
+            Samo admini mogu dodavati i brisati zahtjeve. Prijavi se za punu
+            funkcionalnost.
           </div>
         ) : null}
 
@@ -416,7 +283,7 @@ export default function RequestsClient({ team }) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "1.2fr 0.6fr 0.4fr 0.8fr",
+                gridTemplateColumns: "1.2fr 0.4fr 0.4fr 0.7fr 0.4fr",
                 gap: 10,
                 padding: "10px 12px",
                 fontSize: 12,
@@ -425,45 +292,78 @@ export default function RequestsClient({ team }) {
               }}
             >
               <div>Naziv</div>
-              <div>Status</div>
-              <div>Prio</div>
-              <div>Created</div>
+              <div>Pravila</div>
+              <div>Aktivno</div>
+              <div>Datum</div>
+              <div>Akcija</div>
             </div>
 
-            {rows.length === 0 ? (
+            {rowsLoading ? (
+              <div style={{ padding: 12, fontSize: 13, opacity: 0.75 }}>
+                Učitavanje…
+              </div>
+            ) : rows.length === 0 ? (
               <div style={{ padding: 12, fontSize: 13, opacity: 0.75 }}>
                 Trenutno nema zahtjeva. {isLoggedIn ? "Klikni “Novi zahtjev”." : ""}
               </div>
             ) : (
-              rows.map((r) => (
-                <div
-                  key={r.id}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1.2fr 0.6fr 0.4fr 0.8fr",
-                    gap: 10,
-                    padding: "10px 12px",
-                    borderTop: "1px solid rgba(0,0,0,0.06)",
-                    fontSize: 13,
-                    alignItems: "center",
-                  }}
-                >
-                  <div style={{ fontWeight: 900 }}>{r.name}</div>
-                  <div style={{ opacity: 0.8 }}>{r.status}</div>
-                  <div style={{ opacity: 0.8 }}>{r.priority}</div>
-                  <div style={{ opacity: 0.7 }}>
-                    {r.created_at ? String(r.created_at).slice(0, 10) : "-"}
+              rows.map((r) => {
+                const rulesCount =
+                  r?.rules_count ??
+                  r?.rule_count ??
+                  r?.rulesCount ??
+                  r?.rules?.length ??
+                  0;
+                const isActive =
+                  typeof r?.is_active !== "undefined"
+                    ? r.is_active
+                    : r?.active ?? false;
+                return (
+                  <div
+                    key={r.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1.2fr 0.4fr 0.4fr 0.7fr 0.4fr",
+                      gap: 10,
+                      padding: "10px 12px",
+                      borderTop: "1px solid rgba(0,0,0,0.06)",
+                      fontSize: 13,
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ fontWeight: 900 }}>{r.name}</div>
+                    <div style={{ opacity: 0.8 }}>{rulesCount}</div>
+                    <div style={{ opacity: 0.8 }}>{isActive ? "Da" : "Ne"}</div>
+                    <div style={{ opacity: 0.7 }}>
+                      {r.created_at ? String(r.created_at).slice(0, 10) : "-"}
+                    </div>
+                    <div>
+                      <button
+                        className="hr-backBtn"
+                        type="button"
+                        onClick={() => deleteRequirement(r.id)}
+                        disabled={!isLoggedIn}
+                        style={
+                          !isLoggedIn
+                            ? { opacity: 0.5, cursor: "not-allowed" }
+                            : undefined
+                        }
+                      >
+                        Obriši
+                      </button>
+                    </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
 
           <div style={{ marginTop: 10, fontSize: 12, opacity: 0.7 }}>
-            Napomena: sljedeći korak je “Request → filtrira Players” + “Dodaj u listu”.
+            Napomena: sljedeći korak je povezati odabrani zahtjev s filtriranjem
+            igrača.
           </div>
         </div>
       </div>
     </div>
   );
-                }
+}
