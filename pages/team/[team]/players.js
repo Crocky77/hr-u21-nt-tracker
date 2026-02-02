@@ -228,19 +228,16 @@ export default function PlayersPage() {
     ps: "",
     sc: "",
     sp: "",
-    stam: "",
-    lead: "",
     exp: "",
+    lead: "",
+    stam: "",
     coach: "",
-    tsi: "",
-    htms: "",
-    htms28: "",
   });
 
   const [htmsInputs, setHtmsInputs] = useState({
     tsi: "",
     abilityHtms: "",
-    potentialHtms: "",
+    potentialHtms: "2000",
   });
 
   const [traits, setTraits] = useState({
@@ -250,10 +247,9 @@ export default function PlayersPage() {
     hon: "any",
   });
 
-  const [dataFiltersOpen, setDataFiltersOpen] = useState(false);
-  const [columnFiltersOpen, setColumnFiltersOpen] = useState(false);
-
   const [columns, setColumns] = useState(DEFAULT_COLUMNS);
+  const [dataFiltersOpen, setDataFiltersOpen] = useState(true);
+  const [columnFiltersOpen, setColumnFiltersOpen] = useState(true);
 
   useEffect(() => {
     if (!team) return;
@@ -288,7 +284,7 @@ export default function PlayersPage() {
   }, [team]);
 
   useEffect(() => {
-    if (!teamId) return;
+    if (!team && !teamId) return;
 
     let mounted = true;
 
@@ -297,14 +293,34 @@ export default function PlayersPage() {
       setError("");
 
       try {
-        const { data, error: reqError } = await supabase
-          .from("team_requests")
-          .select("id, name, status, priority")
-          .eq("team_id", teamId)
-          .order("priority", { ascending: false })
-          .order("created_at", { ascending: false });
+        const tries = [
+          { p_team_id: teamId },
+          { team_id: teamId },
+          { p_team_slug: team },
+          { team_slug: team },
+        ];
 
-        if (reqError) throw reqError;
+        let data = null;
+        let lastError = null;
+
+        for (const args of tries) {
+          if (Object.values(args).every((v) => v === null || typeof v === "undefined")) {
+            continue;
+          }
+
+          const res = await supabase.rpc("list_team_requirements", args);
+          if (res?.error) {
+            lastError = res.error;
+            continue;
+          }
+
+          if (Array.isArray(res?.data)) {
+            data = res.data;
+            break;
+          }
+        }
+
+        if (!data && lastError) throw lastError;
 
         if (mounted) setRequests(Array.isArray(data) ? data : []);
       } catch (e) {
@@ -319,7 +335,7 @@ export default function PlayersPage() {
     return () => {
       mounted = false;
     };
-  }, [teamId]);
+  }, [team, teamId]);
 
   useEffect(() => {
     if (!team) return;
@@ -595,7 +611,7 @@ export default function PlayersPage() {
                 <option value="">Odaberi zahtjev…</option>
                 {requests.map((req) => (
                   <option key={req.id} value={req.id}>
-                    {req.name} ({req.status})
+                    {req.name}
                   </option>
                 ))}
               </select>
@@ -649,243 +665,273 @@ export default function PlayersPage() {
                 </div>
 
                 <div className="row">
-                  <div className="ageGroup">
-                    <span>Najmanje</span>
-                    <select
-                      value={ageMinYears}
-                      onChange={(e) => setAgeMinYears(e.target.value)}
-                    >
-                      {Array.from({ length: 83 }, (_, i) => i + 17).map((year) => (
-                        <option key={year} value={year}>
-                          {year} god
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={ageMinDays}
-                      onChange={(e) => setAgeMinDays(e.target.value)}
-                    >
-                      {Array.from({ length: 112 }, (_, i) => i).map((day) => (
-                        <option key={day} value={day}>
-                          {day} dana
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <div className="rowTitle">Najmanje</div>
+                  <select
+                    value={ageMinYears}
+                    onChange={(e) => setAgeMinYears(e.target.value)}
+                  >
+                    {Array.from({ length: 83 }, (_, i) => i + 17).map((y) => (
+                      <option key={y} value={y}>
+                        {y} god
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={ageMinDays}
+                    onChange={(e) => setAgeMinDays(e.target.value)}
+                  >
+                    {Array.from({ length: 112 }, (_, i) => i).map((d) => (
+                      <option key={d} value={d}>
+                        {d} dana
+                      </option>
+                    ))}
+                  </select>
 
-                  <div className="ageGroup">
-                    <span>Najviše</span>
-                    <select
-                      value={ageMaxYears}
-                      onChange={(e) => setAgeMaxYears(e.target.value)}
-                    >
-                      {Array.from({ length: 83 }, (_, i) => i + 17).map((year) => (
-                        <option key={year} value={year}>
-                          {year} god
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={ageMaxDays}
-                      onChange={(e) => setAgeMaxDays(e.target.value)}
-                    >
-                      {Array.from({ length: 112 }, (_, i) => i).map((day) => (
-                        <option key={day} value={day}>
-                          {day} dana
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  <div className="rowTitle">Najviše</div>
+                  <select
+                    value={ageMaxYears}
+                    onChange={(e) => setAgeMaxYears(e.target.value)}
+                  >
+                    {Array.from({ length: 83 }, (_, i) => i + 17).map((y) => (
+                      <option key={y} value={y}>
+                        {y} god
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={ageMaxDays}
+                    onChange={(e) => setAgeMaxDays(e.target.value)}
+                  >
+                    {Array.from({ length: 112 }, (_, i) => i).map((d) => (
+                      <option key={d} value={d}>
+                        {d} dana
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="gridRow">
-                  {[
-                    ["Na golu", "gk"],
-                    ["Obrana", "de"],
-                    ["Kreiranje", "pm"],
-                    ["Na krilu", "wg"],
-                    ["Dodavanje", "ps"],
-                    ["U napadu", "sc"],
-                    ["Prekidi", "sp"],
-                  ].map(([label, key]) => (
-                    <label key={key} className="stacked">
-                      <span>{label} ≥</span>
-                      <select
-                        value={minSkills[key]}
-                        onChange={(e) =>
-                          setMinSkills({ ...minSkills, [key]: e.target.value })
-                        }
-                      >
-                        <option value="">—</option>
-                        {SKILL_LEVELS.map((level) => (
-                          <option key={level} value={level}>
-                            {SKILL_LEVEL_LABELS[level]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ))}
+                <div className="row">
+                  <div className="rowTitle">Na golu ≥</div>
+                  <select
+                    value={minSkills.gk}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, gk: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="rowTitle">Obrana ≥</div>
+                  <select
+                    value={minSkills.de}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, de: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="rowTitle">Kreiranje ≥</div>
+                  <select
+                    value={minSkills.pm}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, pm: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="rowTitle">Na krilu ≥</div>
+                  <select
+                    value={minSkills.wg}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, wg: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="rowTitle">Dodavanje ≥</div>
+                  <select
+                    value={minSkills.ps}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, ps: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="rowTitle">U napadu ≥</div>
+                  <select
+                    value={minSkills.sc}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, sc: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="rowTitle">Prekidi ≥</div>
+                  <select
+                    value={minSkills.sp}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, sp: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="gridRow">
-                  <label className="stacked">
-                    <span>Izdržljivost ≥</span>
-                    <select
-                      value={minSkills.stam}
-                      onChange={(e) =>
-                        setMinSkills({ ...minSkills, stam: e.target.value })
-                      }
-                    >
-                      <option value="">—</option>
-                      {Array.from({ length: 10 }, (_, i) => i).map((level) => (
-                        <option key={level} value={level}>
-                          {level}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                <div className="row">
+                  <div className="rowTitle">Izdržljivost ≥</div>
+                  <select
+                    value={minSkills.stam}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, stam: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
 
-                  <label className="stacked">
-                    <span>Iskustvo ≥</span>
-                    <select
-                      value={minSkills.exp}
-                      onChange={(e) =>
-                        setMinSkills({ ...minSkills, exp: e.target.value })
-                      }
-                    >
-                      <option value="">—</option>
-                      {SKILL_LEVELS.map((level) => (
-                        <option key={level} value={level}>
-                          {SKILL_LEVEL_LABELS[level]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div className="rowTitle">Iskustvo ≥</div>
+                  <select
+                    value={minSkills.exp}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, exp: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
 
-                  <label className="stacked">
-                    <span>Vodstvo ≥</span>
-                    <select
-                      value={minSkills.lead}
-                      onChange={(e) =>
-                        setMinSkills({ ...minSkills, lead: e.target.value })
-                      }
-                    >
-                      <option value="">—</option>
-                      {Array.from({ length: 8 }, (_, i) => i).map((level) => (
-                        <option key={level} value={level}>
-                          {level}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div className="rowTitle">Vodstvo ≥</div>
+                  <select
+                    value={minSkills.lead}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, lead: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
 
-                  <label className="stacked">
-                    <span>Trenerska vještina ≥</span>
-                    <select
-                      value={minSkills.coach}
-                      onChange={(e) =>
-                        setMinSkills({ ...minSkills, coach: e.target.value })
-                      }
-                    >
-                      <option value="">—</option>
-                      {Array.from({ length: 9 }, (_, i) => i).map((level) => (
-                        <option key={level} value={level}>
-                          {level}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <div className="rowTitle">Trenerska vještina ≥</div>
+                  <select
+                    value={minSkills.coach}
+                    onChange={(e) => setMinSkills((p) => ({ ...p, coach: e.target.value }))}
+                  >
+                    <option value="">—</option>
+                    {SKILL_LEVELS.map((lvl) => (
+                      <option key={lvl} value={lvl}>
+                        {SKILL_LEVEL_LABELS[lvl]}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
-                <div className="gridRow">
-                  <label className="stacked">
-                    <span>TSI ≥</span>
-                    <input
-                      value={htmsInputs.tsi}
-                      onChange={(e) =>
-                        setHtmsInputs({ ...htmsInputs, tsi: e.target.value })
-                      }
-                      placeholder="0"
-                    />
-                  </label>
-                  <label className="stacked">
-                    <span>Ability HTMS ≥</span>
-                    <input
-                      value={htmsInputs.abilityHtms}
-                      onChange={(e) =>
-                        setHtmsInputs({
-                          ...htmsInputs,
-                          abilityHtms: e.target.value,
-                        })
-                      }
-                      placeholder="0"
-                    />
-                  </label>
-                  <label className="stacked">
-                    <span>Potential HTMS ≥</span>
-                    <input
-                      value={htmsInputs.potentialHtms}
-                      onChange={(e) =>
-                        setHtmsInputs({
-                          ...htmsInputs,
-                          potentialHtms: e.target.value,
-                        })
-                      }
-                      placeholder="2000"
-                    />
-                  </label>
+                <div className="row">
+                  <div className="rowTitle">TSI ≥</div>
+                  <input
+                    value={htmsInputs.tsi}
+                    onChange={(e) => setHtmsInputs((p) => ({ ...p, tsi: e.target.value }))}
+                  />
+
+                  <div className="rowTitle">Ability HTMS ≥</div>
+                  <input
+                    value={htmsInputs.abilityHtms}
+                    onChange={(e) =>
+                      setHtmsInputs((p) => ({ ...p, abilityHtms: e.target.value }))
+                    }
+                  />
+
+                  <div className="rowTitle">Potential HTMS ≥</div>
+                  <input
+                    value={htmsInputs.potentialHtms}
+                    onChange={(e) =>
+                      setHtmsInputs((p) => ({ ...p, potentialHtms: e.target.value }))
+                    }
+                  />
                 </div>
 
                 <div className="row">
                   <select
                     value={traits.specialty}
-                    onChange={(e) =>
-                      setTraits({ ...traits, specialty: e.target.value })
-                    }
+                    onChange={(e) => setTraits((p) => ({ ...p, specialty: e.target.value }))}
                   >
                     <option value="any">Specijalnost (sve)</option>
-                    <option value="quick">Quick</option>
-                    <option value="head">Head</option>
-                    <option value="technical">Technical</option>
-                    <option value="powerful">Powerful</option>
-                    <option value="unpredictable">Unpredictable</option>
-                    <option value="resilient">Resilient</option>
+                    <option value="Technical">Technical</option>
+                    <option value="Quick">Quick</option>
+                    <option value="Powerful">Powerful</option>
+                    <option value="Unpredictable">Unpredictable</option>
+                    <option value="Head">Head</option>
+                    <option value="Resilient">Resilient</option>
                   </select>
 
                   <select
                     value={traits.agree}
-                    onChange={(e) => setTraits({ ...traits, agree: e.target.value })}
+                    onChange={(e) => setTraits((p) => ({ ...p, agree: e.target.value }))}
                   >
                     <option value="any">Suglasnost (sve)</option>
-                    {TRAIT_LABELS.agree.map((label, idx) => (
-                      <option key={label} value={idx}>
-                        {label}
-                      </option>
-                    ))}
+                    <option value="0">Opak tip</option>
+                    <option value="1">Svadljiv čovjek</option>
+                    <option value="2">Drag momak</option>
+                    <option value="3">Simpatičan momak</option>
+                    <option value="4">Popularan tip</option>
+                    <option value="5">Obožavani član momčadi</option>
                   </select>
 
                   <select
                     value={traits.agg}
-                    onChange={(e) => setTraits({ ...traits, agg: e.target.value })}
+                    onChange={(e) => setTraits((p) => ({ ...p, agg: e.target.value }))}
                   >
                     <option value="any">Agresivnost (sve)</option>
-                    {TRAIT_LABELS.agg.map((label, idx) => (
-                      <option key={label} value={idx}>
-                        {label}
-                      </option>
-                    ))}
+                    <option value="0">Miran</option>
+                    <option value="1">Priseban</option>
+                    <option value="2">Uravnotežen</option>
+                    <option value="3">Nagao</option>
+                    <option value="4">Vatren</option>
+                    <option value="5">Nestabilan</option>
                   </select>
 
                   <select
                     value={traits.hon}
-                    onChange={(e) => setTraits({ ...traits, hon: e.target.value })}
+                    onChange={(e) => setTraits((p) => ({ ...p, hon: e.target.value }))}
                   >
                     <option value="any">Poštenje (sve)</option>
-                    {TRAIT_LABELS.hon.map((label, idx) => (
-                      <option key={label} value={idx}>
-                        {label}
-                      </option>
-                    ))}
+                    <option value="0">Na zlu glasu</option>
+                    <option value="1">Nepošten</option>
+                    <option value="2">Pošten</option>
+                    <option value="3">Čestit</option>
+                    <option value="4">Pravedan</option>
+                    <option value="5">Kao svetac</option>
                   </select>
                 </div>
               </>
@@ -910,32 +956,32 @@ export default function PlayersPage() {
             </div>
 
             {columnFiltersOpen ? (
-              <div className="gridRow columns">
-                {Object.keys(columns).map((key) => (
-                  <label key={key} className="checkbox">
+              <div className="columnsGrid">
+                {Object.entries(COLUMN_LABELS).map(([key, label]) => (
+                  <label key={key}>
                     <input
                       type="checkbox"
-                      checked={columns[key]}
-                      onChange={() =>
-                        setColumns({ ...columns, [key]: !columns[key] })
+                      checked={columns[key] || false}
+                      onChange={(e) =>
+                        setColumns((p) => ({ ...p, [key]: e.target.checked }))
                       }
                     />
-                    <span>{COLUMN_LABELS[key] || key.toUpperCase()}</span>
+                    {label}
                   </label>
                 ))}
               </div>
             ) : null}
           </div>
 
-          <div className="tableCard">
-            <div className="tableHeader">
+          <div className="card">
+            <div className="cardHeader">
               <div className="cardTitle">Tablica igrača</div>
               <div className="cardSub">
                 Klik na igrača otvara detalje (Portal-style).
               </div>
             </div>
 
-            {error ? <div className="error">Greška: {error}</div> : null}
+            {error ? <div className="error">{error}</div> : null}
 
             {!requestId && (
               <div className="empty">Odaberi zahtjev kako bi se lista učitala.</div>
@@ -944,7 +990,7 @@ export default function PlayersPage() {
             {requestId && loading && <div className="empty">Učitavanje…</div>}
 
             {requestId && !loading && filteredPlayers.length === 0 && (
-              <div className="empty">Nema igrača za ovaj zahtjev / filtere.</div>
+              <div className="empty">Nema igrača koji odgovaraju zahtjevu.</div>
             )}
 
             {requestId && !loading && filteredPlayers.length > 0 ? (
@@ -952,243 +998,124 @@ export default function PlayersPage() {
                 <table>
                   <thead>
                     <tr>
-                      {columns.playingIn && <th>Igra u</th>}
-                      {columns.owningTeam && <th>Klub</th>}
-                      {columns.manager && <th>Manager</th>}
-                      {columns.name && <th>Ime</th>}
-                      {columns.pos && <th>Poz</th>}
-                      {columns.age && <th>Dob</th>}
-                      {columns.htid && <th>HTID</th>}
-                      {columns.salary && <th>Plaća</th>}
-                      {columns.tsi && <th>TSI</th>}
-                      {columns.spec && <th>Spec</th>}
-                      {columns.agree && <th>Suglasnost</th>}
-                      {columns.agg && <th>Agresivnost</th>}
-                      {columns.hon && <th>Poštenje</th>}
-                      {columns.fo && <th>Forma</th>}
-                      {columns.st && <th>Stamina</th>}
-                      {columns.gk && <th>GK</th>}
-                      {columns.de && <th>Obrana</th>}
-                      {columns.pm && <th>Kreiranje</th>}
-                      {columns.wg && <th>Krilo</th>}
-                      {columns.ps && <th>Dodavanje</th>}
-                      {columns.sc && <th>Napad</th>}
-                      {columns.sp && <th>Prekidi</th>}
-                      {columns.exp && <th>Iskustvo</th>}
-                      {columns.lead && <th>Vodstvo</th>}
-                      {columns.abilityHtms && <th>Ability HTMS</th>}
-                      {columns.potentialHtms && <th>Potential HTMS</th>}
-                      {columns.talent && <th>Talent</th>}
-                      {columns.lastMatch && <th>Zadnja utakmica</th>}
-                      {columns.position && <th>Pozicija</th>}
-                      {columns.time && <th>Vrijeme</th>}
-                      {columns.rating && <th>Ocjena</th>}
-                      {columns.tr && <th>Trening</th>}
-                      {columns.lastTraining && <th>Zadnji trening</th>}
-                      {columns.staminaPart && <th>Stamina part</th>}
-                      {columns.lastStaminaPart && <th>Zadnja stamina part</th>}
-                      {columns.trainerSkill && <th>Trenerska vještina</th>}
-                      {columns.trainerLeadership && <th>Trenersko vodstvo</th>}
-                      {columns.assistantCoach && <th>Pomoćni trener lvl</th>}
-                      {columns.formCoach && <th>Forma coach lvl</th>}
-                      {columns.medic && <th>Medic lvl</th>}
-                      {columns.lastMatchWcCc && <th>Zadnja utakmica WC/CC</th>}
-                      {columns.updated && <th>Ažurirano</th>}
-                      {columns.updatedSkills && <th>Ažurirani skillovi</th>}
-                      {columns.updatedSubskills && <th>Ažurirani subskillovi</th>}
-                      {columns.lastScoutNote && <th>Zadnja bilješka skauta</th>}
-                      {columns.htms && <th>HTMS</th>}
-                      {columns.htms28 && <th>HTMS28</th>}
+                      <th>Ime</th>
+                      <th>Dob</th>
+                      <th>Poz</th>
+                      {Object.entries(COLUMN_LABELS).map(([key]) =>
+                        columns[key] ? <th key={key}>{COLUMN_LABELS[key]}</th> : null
+                      )}
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPlayers.map((player) => {
-                      const playerId = player.id ?? player.player_id ?? player.ht_player_id;
-                      const name = player.full_name || player.name || "—";
-                      const ageYears = getField(player, ["age_years", "age", "years"]);
-                      const ageDays = getField(player, ["age_days", "days"]);
-                      const ageText =
-                        typeof ageYears !== "undefined" && ageYears !== null
-                          ? `${ageYears}${ageDays ? ` (${ageDays})` : ""}`
-                          : "—";
-
-                      return (
-                        <tr key={playerId || name}>
-                          {columns.playingIn && (
-                            <td>{getField(player, ["playing_in", "playingIn"]) || "—"}</td>
-                          )}
-                          {columns.owningTeam && (
-                            <td>{getField(player, ["owning_team", "owningTeam", "club_name"]) || "—"}</td>
-                          )}
-                          {columns.manager && (
-                            <td>{getField(player, ["manager", "manager_name"]) || "—"}</td>
-                          )}
-                          {columns.name && (
-                            <td>
-                              {playerId ? (
-                                <Link
-                                  href={`/team/${team}/players/${playerId}`}
-                                  className="playerLink"
-                                >
-                                  {name}
-                                </Link>
-                              ) : (
-                                name
-                              )}
+                    {filteredPlayers.map((player) => (
+                      <tr key={player.id || player.ht_player_id}>
+                        <td>{player.full_name || player.name}</td>
+                        <td>
+                          {getField(player, ["age_years", "age", "years"])}y{" "}
+                          {getField(player, ["age_days", "days"])}d
+                        </td>
+                        <td>{getField(player, ["position", "pos", "role"]) || "—"}</td>
+                        {Object.entries(COLUMN_LABELS).map(([key]) =>
+                          columns[key] ? (
+                            <td key={key}>
+                              {key === "spec"
+                                ? getField(player, ["speciality", "specialty", "spec"]) ||
+                                  "—"
+                                : key === "agree"
+                                ? formatTraitLabel(
+                                    getField(player, ["agreeability", "agree"]),
+                                    "agree"
+                                  )
+                                : key === "agg"
+                                ? formatTraitLabel(
+                                    getField(player, ["aggressiveness", "agg"]),
+                                    "agg"
+                                  )
+                                : key === "hon"
+                                ? formatTraitLabel(
+                                    getField(player, ["honesty", "hon"]),
+                                    "hon"
+                                  )
+                                : key === "gk"
+                                ? formatSkillValue(
+                                    getField(player, ["skill_gk", "gk", "goalkeeping"])
+                                  )
+                                : key === "de"
+                                ? formatSkillValue(
+                                    getField(player, [
+                                      "skill_defending",
+                                      "skill_def",
+                                      "defending",
+                                      "def",
+                                    ])
+                                  )
+                                : key === "pm"
+                                ? formatSkillValue(
+                                    getField(player, [
+                                      "skill_playmaking",
+                                      "skill_pm",
+                                      "playmaking",
+                                      "pm",
+                                    ])
+                                  )
+                                : key === "wg"
+                                ? formatSkillValue(
+                                    getField(player, [
+                                      "skill_winger",
+                                      "skill_wing",
+                                      "winger",
+                                      "wing",
+                                      "wg",
+                                    ])
+                                  )
+                                : key === "ps"
+                                ? formatSkillValue(
+                                    getField(player, [
+                                      "skill_passing",
+                                      "skill_pass",
+                                      "passing",
+                                      "pass",
+                                      "ps",
+                                    ])
+                                  )
+                                : key === "sc"
+                                ? formatSkillValue(
+                                    getField(player, [
+                                      "skill_scoring",
+                                      "skill_scor",
+                                      "scoring",
+                                      "scor",
+                                      "sc",
+                                    ])
+                                  )
+                                : key === "sp"
+                                ? formatSkillValue(
+                                    getField(player, [
+                                      "skill_set_pieces",
+                                      "skill_sp",
+                                      "set_pieces",
+                                      "sp",
+                                    ])
+                                  )
+                                : key === "st"
+                                ? formatSkillValue(
+                                    getField(player, ["stamina", "skill_stamina"])
+                                  )
+                                : key === "abilityHtms"
+                                ? getField(player, ["ability_htms", "abilityHtms", "htms"]) ||
+                                  "—"
+                                : key === "potentialHtms"
+                                ? getField(player, [
+                                    "potential_htms",
+                                    "potentialHtms",
+                                    "htms28",
+                                  ]) || "—"
+                                : getField(player, [key]) || "—"}
                             </td>
-                          )}
-                          {columns.pos && (
-                            <td>{getField(player, ["position", "pos", "role"]) || "—"}</td>
-                          )}
-                          {columns.age && <td>{ageText}</td>}
-                          {columns.htid && (
-                            <td>{getField(player, ["ht_player_id", "htid"]) || "—"}</td>
-                          )}
-                          {columns.salary && (
-                            <td>{getField(player, ["salary", "wage"]) || "—"}</td>
-                          )}
-                          {columns.spec && (
-                            <td>{getField(player, ["speciality", "specialty", "spec"]) || "—"}</td>
-                          )}
-                          {columns.agree && (
-                            <td>{formatTraitLabel(getField(player, ["agreeability", "agree"]), "agree")}</td>
-                          )}
-                          {columns.agg && (
-                            <td>{formatTraitLabel(getField(player, ["aggressiveness", "agg"]), "agg")}</td>
-                          )}
-                          {columns.hon && (
-                            <td>{formatTraitLabel(getField(player, ["honesty", "hon"]), "hon")}</td>
-                          )}
-                          {columns.tsi && <td>{getField(player, ["tsi"]) || "—"}</td>}
-                          {columns.fo && <td>{getField(player, ["form"]) || "—"}</td>}
-                          {columns.st && (
-                            <td>{formatSkillValue(getField(player, ["stamina"]))}</td>
-                          )}
-                          {columns.gk && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_gk", "gk", "goalkeeping"])
-                              )}
-                            </td>
-                          )}
-                          {columns.tr && (
-                            <td>{getField(player, ["current_training", "training"]) || "—"}</td>
-                          )}
-                          {columns.de && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_defending", "skill_def", "defending", "def"])
-                              )}
-                            </td>
-                          )}
-                          {columns.pm && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_playmaking", "skill_pm", "playmaking", "pm"])
-                              )}
-                            </td>
-                          )}
-                          {columns.wg && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_winger", "skill_wing", "winger", "wing", "wg"])
-                              )}
-                            </td>
-                          )}
-                          {columns.ps && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_passing", "skill_pass", "passing", "pass", "ps"])
-                              )}
-                            </td>
-                          )}
-                          {columns.sc && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_scoring", "skill_scor", "scoring", "scor", "sc"])
-                              )}
-                            </td>
-                          )}
-                          {columns.sp && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_set_pieces", "skill_sp", "set_pieces", "sp"])
-                              )}
-                            </td>
-                          )}
-                          {columns.exp && (
-                            <td>{formatSkillValue(getField(player, ["experience", "exp"]))}</td>
-                          )}
-                          {columns.lead && (
-                            <td>{formatSkillValue(getField(player, ["leadership", "leader"]))}</td>
-                          )}
-                          {columns.abilityHtms && (
-                            <td>{getField(player, ["ability_htms", "abilityHtms"]) || "—"}</td>
-                          )}
-                          {columns.potentialHtms && (
-                            <td>{getField(player, ["potential_htms", "potentialHtms"]) || "—"}</td>
-                          )}
-                          {columns.talent && (
-                            <td>{getField(player, ["talent"]) || "—"}</td>
-                          )}
-                          {columns.lastMatch && (
-                            <td>{getField(player, ["last_match", "lastMatch"]) || "—"}</td>
-                          )}
-                          {columns.position && (
-                            <td>{getField(player, ["position", "pos", "role"]) || "—"}</td>
-                          )}
-                          {columns.time && (
-                            <td>{getField(player, ["time", "played_time"]) || "—"}</td>
-                          )}
-                          {columns.rating && (
-                            <td>{getField(player, ["rating", "match_rating"]) || "—"}</td>
-                          )}
-                          {columns.lastTraining && (
-                            <td>{getField(player, ["last_training", "lastTraining"]) || "—"}</td>
-                          )}
-                          {columns.staminaPart && (
-                            <td>{getField(player, ["stamina_part", "staminaPart"]) || "—"}</td>
-                          )}
-                          {columns.lastStaminaPart && (
-                            <td>{getField(player, ["last_stamina_part", "lastStaminaPart"]) || "—"}</td>
-                          )}
-                          {columns.trainerSkill && (
-                            <td>{getField(player, ["trainer_skill", "trainerSkill"]) || "—"}</td>
-                          )}
-                          {columns.trainerLeadership && (
-                            <td>{getField(player, ["trainer_leadership", "trainerLeadership"]) || "—"}</td>
-                          )}
-                          {columns.assistantCoach && (
-                            <td>{getField(player, ["assistant_coach_level", "assistantCoachLevel"]) || "—"}</td>
-                          )}
-                          {columns.formCoach && (
-                            <td>{getField(player, ["form_coach_level", "formCoachLevel"]) || "—"}</td>
-                          )}
-                          {columns.medic && (
-                            <td>{getField(player, ["medic_level", "medicLevel"]) || "—"}</td>
-                          )}
-                          {columns.lastMatchWcCc && (
-                            <td>{getField(player, ["last_match_wc_cc", "lastMatchWcCc"]) || "—"}</td>
-                          )}
-                          {columns.updated && (
-                            <td>{getField(player, ["updated", "updated_at"]) || "—"}</td>
-                          )}
-                          {columns.updatedSkills && (
-                            <td>{getField(player, ["updated_skills", "updatedSkills"]) || "—"}</td>
-                          )}
-                          {columns.updatedSubskills && (
-                            <td>{getField(player, ["updated_subskills", "updatedSubskills"]) || "—"}</td>
-                          )}
-                          {columns.lastScoutNote && (
-                            <td>{getField(player, ["last_scout_note", "lastScoutNote"]) || "—"}</td>
-                          )}
-                          {columns.htms && <td>{getField(player, ["htms"]) || "—"}</td>}
-                          {columns.htms28 && (
-                            <td>{getField(player, ["htms28"]) || "—"}</td>
-                          )}
-                        </tr>
-                      );
-                    })}
+                          ) : null
+                        )}
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -1200,120 +1127,87 @@ export default function PlayersPage() {
       <style jsx>{`
         .shell {
           display: flex;
-          min-height: calc(100vh - 60px);
           width: 100%;
+          min-height: calc(100vh - 60px);
         }
         .sidebar {
-          padding: 12px 0;
+          padding: 14px 0 18px 0;
         }
         .main {
           flex: 1;
-          padding: 16px 18px 28px;
-          display: flex;
-          flex-direction: column;
-          gap: 14px;
+          padding: 14px 18px 24px 18px;
         }
         .header {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-        h1 {
-          margin: 0 0 4px 0;
+          justify-content: space-between;
+          margin-bottom: 12px;
         }
         .sub {
+          font-size: 13px;
           opacity: 0.7;
         }
-        .card,
-        .tableCard {
-          background: rgba(255, 255, 255, 0.85);
-          padding: 14px;
-          border-radius: 14px;
-          border: 1px solid rgba(0, 0, 0, 0.08);
-          box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
+        .ghostBtn {
+          border: 1px solid rgba(0, 0, 0, 0.12);
+          border-radius: 8px;
+          padding: 6px 10px;
+          font-weight: 600;
+          background: transparent;
+          cursor: pointer;
         }
-        .tableCard {
-          padding: 16px;
+        .card {
+          background: #fff;
+          border-radius: 14px;
+          padding: 14px;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+          margin-bottom: 14px;
         }
         .cardTitle {
-          font-weight: 900;
-          font-size: 14px;
+          font-weight: 800;
+          margin-bottom: 4px;
         }
         .cardSub {
           font-size: 12px;
-          opacity: 0.65;
-          margin-top: 4px;
+          opacity: 0.7;
+          margin-bottom: 8px;
         }
         .cardHeader {
           display: flex;
-          align-items: center;
           justify-content: space-between;
-          gap: 10px;
-          margin-bottom: 10px;
+          align-items: center;
+          margin-bottom: 8px;
         }
         .row {
           display: flex;
-          gap: 8px;
           flex-wrap: wrap;
-          align-items: center;
-          margin-top: 10px;
-        }
-        .gridRow {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
           gap: 10px;
-          margin-top: 12px;
-        }
-        .gridRow.columns {
-          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        }
-        .stacked {
-          display: grid;
-          gap: 4px;
-          font-size: 12px;
-        }
-        .ageGroup {
-          display: flex;
           align-items: center;
-          gap: 8px;
-          flex-wrap: wrap;
+        }
+        .rowTitle {
           font-size: 12px;
-        }
-        .checkbox {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          font-weight: 600;
-        }
-        input,
-        select {
-          padding: 8px 10px;
-          border-radius: 10px;
-          border: 1px solid rgba(0, 0, 0, 0.14);
-          font-size: 13px;
-          background: #fff;
-        }
-        .ghostBtn {
-          padding: 8px 12px;
-          border-radius: 10px;
-          border: 1px solid rgba(0, 0, 0, 0.15);
-          text-decoration: none;
           font-weight: 700;
-          background: #fff;
-          color: #111;
+          margin-right: 6px;
+        }
+        select,
+        input {
+          border: 1px solid rgba(0, 0, 0, 0.12);
+          border-radius: 10px;
+          padding: 6px 8px;
         }
         .hint {
           font-size: 12px;
           opacity: 0.7;
         }
-        .tableHeader {
+        .columnsGrid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+          gap: 6px;
+        }
+        .columnsGrid label {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          gap: 12px;
-          margin-bottom: 10px;
+          gap: 6px;
+          font-size: 12px;
         }
         .tableWrap {
           overflow-x: auto;
@@ -1321,41 +1215,27 @@ export default function PlayersPage() {
         table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 13px;
-          min-width: 1400px;
+          font-size: 12px;
         }
         th,
         td {
-          padding: 8px 10px;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+          padding: 8px 6px;
+          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+          text-align: left;
           white-space: nowrap;
         }
-        th {
-          background: rgba(0, 0, 0, 0.05);
-          font-weight: 800;
-        }
-        .playerLink {
-          color: #111;
-          font-weight: 700;
-          text-decoration: none;
-        }
-        .playerLink:hover {
-          text-decoration: underline;
-        }
         .empty {
-          padding: 16px;
-          border-radius: 12px;
-          background: rgba(0, 0, 0, 0.04);
+          padding: 12px;
           font-size: 13px;
-          margin-top: 10px;
+          opacity: 0.7;
         }
         .error {
-          margin-top: 10px;
           padding: 12px;
-          border-radius: 12px;
-          background: rgba(255, 0, 0, 0.08);
-          border: 1px solid rgba(255, 0, 0, 0.2);
-          font-size: 13px;
+          border-radius: 8px;
+          background: rgba(220, 38, 38, 0.08);
+          color: rgb(220, 38, 38);
+          font-weight: 700;
+          margin-bottom: 8px;
         }
       `}</style>
     </AppLayout>
