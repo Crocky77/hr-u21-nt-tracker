@@ -427,13 +427,32 @@ export default function PlayersPage() {
           if (teamId) {
             const { data: fallbackData, error: fallbackError } = await supabase
               .from("team_players")
-              .select("player_id, players ( * )")
+              .select(
+                "id, full_name, ht_player_id, age_years, age_days, nationality, position, tsi, salary, spec, status, notes, created_at, updated_at"
+              )
               .eq("team_id", teamId);
 
             if (fallbackError) throw fallbackError;
 
-            data = (fallbackData || []).map((row) => row.players || row.player);
+            data = fallbackData || [];
           }
+        } catch (e) {
+          lastError = e;
+        }
+      }
+
+      if (!data && team) {
+        try {
+          const { data: playersData, error: playersError } = await supabase
+            .from("players")
+            .select(
+              "id, full_name, ht_player_id, team_type, age_years, age_days, nationality, position, tsi, skill_gk, skill_def, skill_pm, skill_wing, skill_pass, skill_score, skill_sp, specialty, spec, updated_at"
+            )
+            .eq("team_type", team.toUpperCase());
+
+          if (playersError) throw playersError;
+
+          data = playersData || [];
         } catch (e) {
           lastError = e;
         }
