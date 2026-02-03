@@ -259,116 +259,6 @@ function dedupePlayers(rows) {
   return Array.from(map.values());
 }
 
-const PORTAL_PLAYERS_URL = "/data/import_portal_players_rows.csv";
-let portalPlayersCache = null;
-let portalPlayersPromise = null;
-
-function parseCsvLine(line) {
-  const values = [];
-  let current = "";
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === '"') {
-      if (inQuotes && line[i + 1] === '"') {
-        current += '"';
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-
-    if (char === "," && !inQuotes) {
-      values.push(current);
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  values.push(current);
-  return values;
-}
-
-function parseCsv(text) {
-  const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
-  if (lines.length === 0) return [];
-  const headers = parseCsvLine(lines[0]).map((header) => header.trim());
-  return lines.slice(1).map((line) => {
-    const values = parseCsvLine(line);
-    return headers.reduce((acc, header, idx) => {
-      acc[header] = values[idx] ?? "";
-      return acc;
-    }, {});
-  });
-}
-
-function toNumberOrNull(value) {
-  if (value === "" || value === null || typeof value === "undefined") return null;
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : null;
-}
-
-async function loadPortalPlayers(team) {
-  if (portalPlayersCache) {
-    return portalPlayersCache.filter(
-      (row) =>
-        !team || String(row.team_code || "").toLowerCase() === team.toLowerCase()
-    );
-  }
-
-  if (!portalPlayersPromise) {
-    portalPlayersPromise = fetch(PORTAL_PLAYERS_URL)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error("Ne mogu učitati portal CSV.");
-        }
-        return res.text();
-      })
-      .then((text) => {
-        portalPlayersCache = parseCsv(text);
-        return portalPlayersCache;
-      })
-      .catch(() => {
-        portalPlayersCache = [];
-        return portalPlayersCache;
-      });
-  }
-
-  const rows = await portalPlayersPromise;
-  return rows.filter(
-    (row) =>
-      !team || String(row.team_code || "").toLowerCase() === team.toLowerCase()
-  );
-}
-
-function mapPortalPlayer(row) {
-  return {
-    team_code: row.team_code,
-    nationality: row.Nacionalnost,
-    full_name: row.Ime,
-    ht_player_id: row["ID-broj igrača"],
-    specialty: row.Specijalnost,
-    spec: row.Specijalnost,
-    age_years: toNumberOrNull(row.Dob),
-    age_days: toNumberOrNull(row.Dani),
-    tsi: toNumberOrNull(row.TSI),
-    experience: toNumberOrNull(row.Iskustvo),
-    leadership: toNumberOrNull(row.Vodstvo),
-    form: toNumberOrNull(row.Forma),
-    stamina: toNumberOrNull(row.Izdržljivost),
-    skill_gk: toNumberOrNull(row["Na vratima"]),
-    skill_defending: toNumberOrNull(row.Obrana),
-    skill_playmaking: toNumberOrNull(row.Kreiranje),
-    skill_winger: toNumberOrNull(row.Krilo),
-    skill_passing: toNumberOrNull(row.Proigravanje),
-    skill_scoring: toNumberOrNull(row.Napad),
-    skill_set_pieces: toNumberOrNull(row.Prekidi),
-    position: row.Kategorija,
-  };
-}
-
 export default function PlayersPage() {
   const router = useRouter();
   const { team } = router.query;
@@ -615,77 +505,18 @@ export default function PlayersPage() {
       let data = null;
       let lastError = null;
 
-      if (requestId !== "all") {
-        const requestValue = Number(requestId);
-        const requestArg = Number.isFinite(requestValue) ? requestValue : requestId;
+      try {
+        const { data: compactData, error: compactError } = await supabase
+          .from("players_compact")
+          .select(
+            "id, full_name, ht_player_id, team_type, age_years, age_days, nationality, position, tsi, salary, spec, status, notes, created_at, updated_at"
+          )
+          .eq("team_type", team.toUpperCase());
 
-        const tries = [
-          { team_slug: team, request_id: requestArg },
-          { team_id: teamId, request_id: requestArg },
-          { p_team_slug: team, p_request_id: requestArg },
-          { p_team_id: teamId, p_request_id: requestArg },
-        ];
-
-        for (const args of tries) {
-          if (Object.values(args).every((v) => v === null || typeof v === "undefined")) {
-            continue;
-          }
-
-          const res = await supabase.rpc("list_team_players", args);
-          if (res?.error) {
-            lastError = res.error;
-            continue;
-          }
-
-          if (Array.isArray(res?.data)) {
-            data = res.data;
-            break;
-          }
-        }
-      } else {
-        const portalRows = await loadPortalPlayers(team);
-        data = portalRows.map(mapPortalPlayer);
-      }
-
-      if (!data) {
-        try {
-          if (teamId) {
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from("team_players")
-              .select(
-                "id, full_name, ht_player_id, age_years, age_days, nationality, position, tsi, salary, spec, status, notes, created_at, updated_at"
-              )
-              .eq("team_id", teamId);
-
-            if (fallbackError) throw fallbackError;
-
-            data = fallbackData || [];
-          }
-        } catch (e) {
-          lastError = e;
-        }
-      }
-
-      if (!data && team) {
-        try {
-          const { data: playersData, error: playersError } = await supabase
-            .from("players")
-            .select(
-              "id, full_name, ht_player_id, team_type, age_years, age_days, nationality, position, tsi, skill_gk, skill_def, skill_pm, skill_wing, skill_pass, skill_score, skill_sp, specialty, spec, updated_at"
-            )
-            .eq("team_type", team.toUpperCase());
-
-          if (playersError) throw playersError;
-
-          data = playersData || [];
-        } catch (e) {
-          lastError = e;
-        }
-      }
-
-      if ((!data || data.length === 0) && team) {
-        const portalRows = await loadPortalPlayers(team);
-        data = portalRows.map(mapPortalPlayer);
+        if (compactError) throw compactError;
+        data = compactData || [];
+      } catch (e) {
+        lastError = e;
       }
 
       if (!mounted) return;
