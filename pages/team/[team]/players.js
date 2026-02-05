@@ -38,50 +38,72 @@ const SKILL_LEVEL_LABELS = [
   "božanski",
 ];
 
-const COLUMN_LABELS = {
-  playingIn: "Igra u",
-  owningTeam: "Klub",
-  manager: "Manager",
-  age: "Dob",
-  salary: "Plaća",
-  tsi: "TSI",
-  spec: "Specijalnost",
-  agree: "Suglasnost",
-  agg: "Agresivnost",
-  hon: "Poštenje",
-  fo: "Forma",
-  st: "Stamina",
-  gk: "GK",
-  de: "Obrana",
-  pm: "Kreiranje",
-  wg: "Krilo",
-  ps: "Dodavanje",
-  sc: "Napad",
-  sp: "Prekidi",
-  exp: "Iskustvo",
-  lead: "Vodstvo",
-  abilityHtms: "Ability HTMS",
-  potentialHtms: "Potential HTMS",
-  talent: "Talent",
-  lastMatch: "Zadnja utakmica",
-  position: "Pozicija",
-  time: "Vrijeme",
-  rating: "Ocjena",
-  tr: "Trening",
-  lastTraining: "Zadnji trening",
-  staminaPart: "Stamina part",
-  lastStaminaPart: "Zadnja stamina part",
-  trainerSkill: "Trenerska vještina",
-  trainerLeadership: "Trenersko vodstvo",
-  assistantCoach: "Pomoćni trener lvl",
-  formCoach: "Forma coach lvl",
-  medic: "Medic lvl",
-  lastMatchWcCc: "Zadnja utakmica WC/CC",
-  updated: "Ažurirano",
-  updatedSkills: "Ažurirani skillovi",
-  updatedSubskills: "Ažurirani subskillovi",
-  lastScoutNote: "Zadnja bilješka skauta",
-};
+const COLUMN_DEFS = [
+  { key: "player", label: "Igrač", shortLabel: "Igrač" },
+  { key: "playingIn", label: "Igra u", shortLabel: "In" },
+  { key: "owningTeam", label: "Klub", shortLabel: "Klub" },
+  { key: "manager", label: "Korisnik", shortLabel: "Korisnik" },
+  { key: "age", label: "Godine", shortLabel: "God" },
+  { key: "salary", label: "Plaća", shortLabel: "Plaća" },
+  { key: "tsi", label: "TSI", shortLabel: "TSI" },
+  { key: "spec", label: "Specijalnost", shortLabel: "S" },
+  { key: "agree", label: "Suglasnost", shortLabel: "Sug" },
+  { key: "agg", label: "Agresivnost", shortLabel: "Agr" },
+  { key: "hon", label: "Poštenje", shortLabel: "Poš" },
+  { key: "fo", label: "Forma", shortLabel: "For" },
+  { key: "st", label: "Izdržljivost", shortLabel: "Izd" },
+  { key: "gk", label: "Na vratima", shortLabel: "Vra" },
+  { key: "de", label: "Obrana", shortLabel: "Obr" },
+  { key: "pm", label: "Kreiranje", shortLabel: "Kre" },
+  { key: "wg", label: "Krilo", shortLabel: "Kr" },
+  { key: "ps", label: "Proigravanje", shortLabel: "Pro" },
+  { key: "sc", label: "Napad", shortLabel: "Nap" },
+  { key: "sp", label: "Prekidi", shortLabel: "SU" },
+  { key: "exp", label: "Iskustvo", shortLabel: "Isk" },
+  { key: "lead", label: "Vodstvo", shortLabel: "Vod" },
+  { key: "abilityHtms", label: "Trenutni HTMS", shortLabel: "HTMS" },
+  { key: "potentialHtms", label: "Potencijalni HTMS", shortLabel: "HTMS28" },
+  { key: "talent", label: "Talent", shortLabel: "Talent" },
+  { key: "lastMatch", label: "Zadnja utakmica", shortLabel: "Utakmica" },
+  { key: "position", label: "Pozicija", shortLabel: "Pos" },
+  { key: "time", label: "Vrijeme", shortLabel: "Vrijeme" },
+  { key: "rating", label: "Ocijena", shortLabel: "Rating" },
+  { key: "tr", label: "Trenutni trenin", shortLabel: "TT" },
+  { key: "lastTraining", label: "Posljednji trening", shortLabel: "PT" },
+  { key: "staminaPart", label: "Udio stamine", shortLabel: "US*" },
+  {
+    key: "lastStaminaPart",
+    label: "Posljednji udio izdržljivosti",
+    shortLabel: "US,%",
+  },
+  { key: "trainerSkill", label: "Vještina trenera", shortLabel: "Trn" },
+  { key: "trainerLeadership", label: "Vodstvo trenera", shortLabel: "VTr" },
+  {
+    key: "assistantCoach",
+    label: "Razina pomoćnih trenera",
+    shortLabel: "RPT",
+  },
+  { key: "formCoach", label: "Razina trenera forme", shortLabel: "RTF" },
+  { key: "medic", label: "Razina doktora", shortLabel: "DOC" },
+  { key: "lastMatchWcCc", label: "Zadnja utakmica SP/CC", shortLabel: "SP/CC" },
+  { key: "updated", label: "Ažurirano", shortLabel: "Ažurirano" },
+  { key: "updatedSkills", label: "Ažurirani skilovi", shortLabel: "Ažurirani skill" },
+  {
+    key: "updatedSubskills",
+    label: "Ažurirani subskilovi",
+    shortLabel: "Ažurirani subskilovi",
+  },
+  {
+    key: "lastScoutNote",
+    label: "Posljednja zabilješka skauta",
+    shortLabel: "Zabilješka skauta",
+  },
+];
+
+const COLUMN_LABELS = COLUMN_DEFS.reduce((acc, column) => {
+  acc[column.key] = column.label;
+  return acc;
+}, {});
 
 const DEFAULT_COLUMNS = Object.keys(COLUMN_LABELS).reduce((acc, key) => {
   acc[key] = false;
@@ -89,6 +111,7 @@ const DEFAULT_COLUMNS = Object.keys(COLUMN_LABELS).reduce((acc, key) => {
 }, {});
 
 const DEFAULT_VISIBLE_COLUMNS = {
+  player: true,
   age: true,
   salary: true,
   tsi: true,
@@ -111,50 +134,7 @@ const DEFAULT_VISIBLE_COLUMNS = {
   position: true,
 };
 
-const COLUMN_FILTER_KEYS = [
-  "playingIn",
-  "owningTeam",
-  "manager",
-  "age",
-  "salary",
-  "tsi",
-  "spec",
-  "agree",
-  "agg",
-  "hon",
-  "fo",
-  "st",
-  "gk",
-  "de",
-  "pm",
-  "wg",
-  "ps",
-  "sc",
-  "sp",
-  "exp",
-  "lead",
-  "abilityHtms",
-  "potentialHtms",
-  "talent",
-  "lastMatch",
-  "position",
-  "time",
-  "rating",
-  "tr",
-  "lastTraining",
-  "staminaPart",
-  "lastStaminaPart",
-  "trainerSkill",
-  "trainerLeadership",
-  "assistantCoach",
-  "formCoach",
-  "medic",
-  "lastMatchWcCc",
-  "updated",
-  "updatedSkills",
-  "updatedSubskills",
-  "lastScoutNote",
-];
+const COLUMN_FILTER_KEYS = COLUMN_DEFS.map((column) => column.key);
 
 const TRAIT_LABELS = {
   agree: [
@@ -505,40 +485,35 @@ export default function PlayersPage() {
 
       try {
         let playersData = [];
-        const teamType = team.toUpperCase();
 
         if (requestId === "all" || !requestId) {
           // Fallback: svi igrači za tim
           const { data, error } = await supabase
             .from("players")
             .select("*")
-            .eq("team_type", teamType)
             .eq("team_id", teamId);
 
           if (error) throw error;
           playersData = data;
         } else {
           // Dohvati samo one koji zadovoljavaju requirement
-          const { data: matchData, error: matchError } = await supabase
+          let matchQuery = supabase
             .from("player_requirement_matches")
             .select("player_id")
-            .eq("requirement_id", requestId)
-            .eq("team_type", teamType);
+            .eq("requirement_id", requestId);
+
+          if (teamId) {
+            matchQuery = matchQuery.eq("team_id", teamId);
+          }
+
+          const { data: matchData, error: matchError } = await matchQuery;
 
           if (matchError) throw matchError;
 
           const playerIds = matchData.map((m) => m.player_id);
 
           if (playerIds.length === 0) {
-            // Nema match-eva → fallback
-            const { data, error } = await supabase
-              .from("players")
-              .select("*")
-              .eq("team_type", teamType)
-              .eq("team_id", teamId);
-
-            if (error) throw error;
-            playersData = data;
+            playersData = [];
           } else {
             // Ima match-eva → učitaj ih
             const { data, error } = await supabase
@@ -712,6 +687,120 @@ export default function PlayersPage() {
 
   function applyColumns() {
     setColumnsApplied({ ...columnsDraft });
+  }
+
+  function renderCell(columnKey, player, ageText, name, playerId) {
+    switch (columnKey) {
+      case "player":
+        if (!playerId) return name;
+        return (
+          <Link className="playerLink" href={`/team/${team}/players/${playerId}`}>
+            {name}
+          </Link>
+        );
+      case "playingIn":
+        return getField(player, ["playing_in", "playingIn"]) || "—";
+      case "owningTeam":
+        return getField(player, ["owning_team", "owningTeam", "club_name"]) || "—";
+      case "manager":
+        return getField(player, ["manager", "manager_name"]) || "—";
+      case "age":
+        return ageText;
+      case "salary":
+        return getField(player, ["salary", "wage"]) || "—";
+      case "tsi":
+        return getField(player, ["tsi"]) || "—";
+      case "spec":
+        return getField(player, ["speciality", "specialty", "spec"]) || "—";
+      case "agree":
+        return formatTraitLabel(getField(player, ["agreeability", "agree"]), "agree");
+      case "agg":
+        return formatTraitLabel(getField(player, ["aggressiveness", "agg"]), "agg");
+      case "hon":
+        return formatTraitLabel(getField(player, ["honesty", "hon"]), "hon");
+      case "fo":
+        return getField(player, ["form"]) || "—";
+      case "gk":
+        return formatSkillValue(
+          getField(player, ["skill_gk", "gk", "goalkeeping"])
+        );
+      case "de":
+        return formatSkillValue(
+          getField(player, ["skill_defending", "skill_def", "defending", "def"])
+        );
+      case "pm":
+        return formatSkillValue(
+          getField(player, ["skill_playmaking", "skill_pm", "playmaking", "pm"])
+        );
+      case "wg":
+        return formatSkillValue(
+          getField(player, ["skill_winger", "skill_wing", "winger", "wing", "wg"])
+        );
+      case "ps":
+        return formatSkillValue(
+          getField(player, ["skill_passing", "skill_pass", "passing", "pass", "ps"])
+        );
+      case "sc":
+        return formatSkillValue(
+          getField(player, ["skill_scoring", "skill_scor", "scoring", "scor", "sc"])
+        );
+      case "sp":
+        return formatSkillValue(
+          getField(player, ["skill_set_pieces", "skill_sp", "set_pieces", "sp"])
+        );
+      case "st":
+        return formatSkillValue(getField(player, ["stamina"]));
+      case "exp":
+        return formatSkillValue(getField(player, ["experience", "exp"]));
+      case "lead":
+        return formatSkillValue(getField(player, ["leadership", "leader"]));
+      case "abilityHtms":
+        return getField(player, ["ability_htms", "abilityHtms"]) || "—";
+      case "potentialHtms":
+        return getField(player, ["potential_htms", "potentialHtms"]) || "—";
+      case "talent":
+        return getField(player, ["talent"]) || "—";
+      case "lastMatch":
+        return getField(player, ["last_match", "lastMatch"]) || "—";
+      case "position":
+        return getField(player, ["position", "pos", "role"]) || "—";
+      case "time":
+        return getField(player, ["time", "played_time"]) || "—";
+      case "rating":
+        return getField(player, ["rating", "match_rating"]) || "—";
+      case "tr":
+        return getField(player, ["current_training", "training"]) || "—";
+      case "lastTraining":
+        return getField(player, ["last_training", "lastTraining"]) || "—";
+      case "staminaPart":
+        return getField(player, ["stamina_part", "staminaPart"]) || "—";
+      case "lastStaminaPart":
+        return getField(player, ["last_stamina_part", "lastStaminaPart"]) || "—";
+      case "trainerSkill":
+        return getField(player, ["trainer_skill", "trainerSkill"]) || "—";
+      case "trainerLeadership":
+        return getField(player, ["trainer_leadership", "trainerLeadership"]) || "—";
+      case "assistantCoach":
+        return (
+          getField(player, ["assistant_coach_level", "assistantCoachLevel"]) || "—"
+        );
+      case "formCoach":
+        return getField(player, ["form_coach_level", "formCoachLevel"]) || "—";
+      case "medic":
+        return getField(player, ["medic_level", "medicLevel"]) || "—";
+      case "lastMatchWcCc":
+        return getField(player, ["last_match_wc_cc", "lastMatchWcCc"]) || "—";
+      case "updated":
+        return getField(player, ["updated", "updated_at"]) || "—";
+      case "updatedSkills":
+        return getField(player, ["updated_skills", "updatedSkills"]) || "—";
+      case "updatedSubskills":
+        return getField(player, ["updated_subskills", "updatedSubskills"]) || "—";
+      case "lastScoutNote":
+        return getField(player, ["last_scout_note", "lastScoutNote"]) || "—";
+      default:
+        return "—";
+    }
   }
 
   if (!team) return null;
@@ -1123,48 +1212,13 @@ export default function PlayersPage() {
                 <table>
                   <thead>
                     <tr>
-                      {columnsApplied.playingIn && <th>Igra u</th>}
-                      {columnsApplied.owningTeam && <th>Klub</th>}
-                      {columnsApplied.manager && <th>Manager</th>}
-                      {columnsApplied.age && <th>Dob</th>}
-                      {columnsApplied.salary && <th>Plaća</th>}
-                      {columnsApplied.tsi && <th>TSI</th>}
-                      {columnsApplied.spec && <th>Spec</th>}
-                      {columnsApplied.agree && <th>Suglasnost</th>}
-                      {columnsApplied.agg && <th>Agresivnost</th>}
-                      {columnsApplied.hon && <th>Poštenje</th>}
-                      {columnsApplied.fo && <th>Forma</th>}
-                      {columnsApplied.gk && <th>GK</th>}
-                      {columnsApplied.de && <th>Obrana</th>}
-                      {columnsApplied.pm && <th>Kreiranje</th>}
-                      {columnsApplied.wg && <th>Krilo</th>}
-                      {columnsApplied.ps && <th>Dodavanje</th>}
-                      {columnsApplied.sc && <th>Napad</th>}
-                      {columnsApplied.sp && <th>Prekidi</th>}
-                      {columnsApplied.st && <th>Stamina</th>}
-                      {columnsApplied.exp && <th>Iskustvo</th>}
-                      {columnsApplied.lead && <th>Vodstvo</th>}
-                      {columnsApplied.abilityHtms && <th>Ability HTMS</th>}
-                      {columnsApplied.potentialHtms && <th>Potential HTMS</th>}
-                      {columnsApplied.talent && <th>Talent</th>}
-                      {columnsApplied.lastMatch && <th>Zadnja utakmica</th>}
-                      {columnsApplied.position && <th>Pozicija</th>}
-                      {columnsApplied.time && <th>Vrijeme</th>}
-                      {columnsApplied.rating && <th>Ocjena</th>}
-                      {columnsApplied.tr && <th>Trening</th>}
-                      {columnsApplied.lastTraining && <th>Zadnji trening</th>}
-                      {columnsApplied.staminaPart && <th>Stamina part</th>}
-                      {columnsApplied.lastStaminaPart && <th>Zadnja stamina part</th>}
-                      {columnsApplied.trainerSkill && <th>Trenerska vještina</th>}
-                      {columnsApplied.trainerLeadership && <th>Trenersko vodstvo</th>}
-                      {columnsApplied.assistantCoach && <th>Pomoćni trener lvl</th>}
-                      {columnsApplied.formCoach && <th>Forma coach lvl</th>}
-                      {columnsApplied.medic && <th>Medic lvl</th>}
-                      {columnsApplied.lastMatchWcCc && <th>Zadnja utakmica WC/CC</th>}
-                      {columnsApplied.updated && <th>Ažurirano</th>}
-                      {columnsApplied.updatedSkills && <th>Ažurirani skillovi</th>}
-                      {columnsApplied.updatedSubskills && <th>Ažurirani subskillovi</th>}
-                      {columnsApplied.lastScoutNote && <th>Zadnja bilješka skauta</th>}
+                      {COLUMN_DEFS.filter((column) => columnsApplied[column.key]).map(
+                        (column) => (
+                          <th key={column.key} title={column.label}>
+                            {column.shortLabel}
+                          </th>
+                        )
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -1180,153 +1234,12 @@ export default function PlayersPage() {
 
                       return (
                         <tr key={playerId || name}>
-                          {columnsApplied.playingIn && (
-                            <td>{getField(player, ["playing_in", "playingIn"]) || "—"}</td>
-                          )}
-                          {columnsApplied.owningTeam && (
-                            <td>{getField(player, ["owning_team", "owningTeam", "club_name"]) || "—"}</td>
-                          )}
-                          {columnsApplied.manager && (
-                            <td>{getField(player, ["manager", "manager_name"]) || "—"}</td>
-                          )}
-                          {columnsApplied.age && <td>{ageText}</td>}
-                          {columnsApplied.salary && (
-                            <td>{getField(player, ["salary", "wage"]) || "—"}</td>
-                          )}
-                          {columnsApplied.tsi && <td>{getField(player, ["tsi"]) || "—"}</td>}
-                          {columnsApplied.spec && (
-                            <td>{getField(player, ["speciality", "specialty", "spec"]) || "—"}</td>
-                          )}
-                          {columnsApplied.agree && (
-                            <td>{formatTraitLabel(getField(player, ["agreeability", "agree"]), "agree")}</td>
-                          )}
-                          {columnsApplied.agg && (
-                            <td>{formatTraitLabel(getField(player, ["aggressiveness", "agg"]), "agg")}</td>
-                          )}
-                          {columnsApplied.hon && (
-                            <td>{formatTraitLabel(getField(player, ["honesty", "hon"]), "hon")}</td>
-                          )}
-                          {columnsApplied.fo && <td>{getField(player, ["form"]) || "—"}</td>}
-                          {columnsApplied.gk && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_gk", "gk", "goalkeeping"])
-                              )}
-                            </td>
-                          )}
-                          {columnsApplied.de && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_defending", "skill_def", "defending", "def"])
-                              )}
-                            </td>
-                          )}
-                          {columnsApplied.pm && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_playmaking", "skill_pm", "playmaking", "pm"])
-                              )}
-                            </td>
-                          )}
-                          {columnsApplied.wg && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_winger", "skill_wing", "winger", "wing", "wg"])
-                              )}
-                            </td>
-                          )}
-                          {columnsApplied.ps && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_passing", "skill_pass", "passing", "pass", "ps"])
-                              )}
-                            </td>
-                          )}
-                          {columnsApplied.sc && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_scoring", "skill_scor", "scoring", "scor", "sc"])
-                              )}
-                            </td>
-                          )}
-                          {columnsApplied.sp && (
-                            <td>
-                              {formatSkillValue(
-                                getField(player, ["skill_set_pieces", "skill_sp", "set_pieces", "sp"])
-                              )}
-                            </td>
-                          )}
-                          {columnsApplied.st && (
-                            <td>{formatSkillValue(getField(player, ["stamina"]))}</td>
-                          )}
-                          {columnsApplied.exp && (
-                            <td>{formatSkillValue(getField(player, ["experience", "exp"]))}</td>
-                          )}
-                          {columnsApplied.lead && (
-                            <td>{formatSkillValue(getField(player, ["leadership", "leader"]))}</td>
-                          )}
-                          {columnsApplied.abilityHtms && (
-                            <td>{getField(player, ["ability_htms", "abilityHtms"]) || "—"}</td>
-                          )}
-                          {columnsApplied.potentialHtms && (
-                            <td>{getField(player, ["potential_htms", "potentialHtms"]) || "—"}</td>
-                          )}
-                          {columnsApplied.talent && (
-                            <td>{getField(player, ["talent"]) || "—"}</td>
-                          )}
-                          {columnsApplied.lastMatch && (
-                            <td>{getField(player, ["last_match", "lastMatch"]) || "—"}</td>
-                          )}
-                          {columnsApplied.position && (
-                            <td>{getField(player, ["position", "pos", "role"]) || "—"}</td>
-                          )}
-                          {columnsApplied.time && (
-                            <td>{getField(player, ["time", "played_time"]) || "—"}</td>
-                          )}
-                          {columnsApplied.rating && (
-                            <td>{getField(player, ["rating", "match_rating"]) || "—"}</td>
-                          )}
-                          {columnsApplied.tr && (
-                            <td>{getField(player, ["current_training", "training"]) || "—"}</td>
-                          )}
-                          {columnsApplied.lastTraining && (
-                            <td>{getField(player, ["last_training", "lastTraining"]) || "—"}</td>
-                          )}
-                          {columnsApplied.staminaPart && (
-                            <td>{getField(player, ["stamina_part", "staminaPart"]) || "—"}</td>
-                          )}
-                          {columnsApplied.lastStaminaPart && (
-                            <td>{getField(player, ["last_stamina_part", "lastStaminaPart"]) || "—"}</td>
-                          )}
-                          {columnsApplied.trainerSkill && (
-                            <td>{getField(player, ["trainer_skill", "trainerSkill"]) || "—"}</td>
-                          )}
-                          {columnsApplied.trainerLeadership && (
-                            <td>{getField(player, ["trainer_leadership", "trainerLeadership"]) || "—"}</td>
-                          )}
-                          {columnsApplied.assistantCoach && (
-                            <td>{getField(player, ["assistant_coach_level", "assistantCoachLevel"]) || "—"}</td>
-                          )}
-                          {columnsApplied.formCoach && (
-                            <td>{getField(player, ["form_coach_level", "formCoachLevel"]) || "—"}</td>
-                          )}
-                          {columnsApplied.medic && (
-                            <td>{getField(player, ["medic_level", "medicLevel"]) || "—"}</td>
-                          )}
-                          {columnsApplied.lastMatchWcCc && (
-                            <td>{getField(player, ["last_match_wc_cc", "lastMatchWcCc"]) || "—"}</td>
-                          )}
-                          {columnsApplied.updated && (
-                            <td>{getField(player, ["updated", "updated_at"]) || "—"}</td>
-                          )}
-                          {columnsApplied.updatedSkills && (
-                            <td>{getField(player, ["updated_skills", "updatedSkills"]) || "—"}</td>
-                          )}
-                          {columnsApplied.updatedSubskills && (
-                            <td>{getField(player, ["updated_subskills", "updatedSubskills"]) || "—"}</td>
-                          )}
-                          {columnsApplied.lastScoutNote && (
-                            <td>{getField(player, ["last_scout_note", "lastScoutNote"]) || "—"}</td>
+                          {COLUMN_DEFS.filter((column) => columnsApplied[column.key]).map(
+                            (column) => (
+                              <td key={column.key}>
+                                {renderCell(column.key, player, ageText, name, playerId)}
+                              </td>
+                            )
                           )}
                         </tr>
                       );
@@ -1404,12 +1317,13 @@ export default function PlayersPage() {
         }
         .gridRow {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
           gap: 10px;
           margin-top: 12px;
         }
         .gridRow.columns {
-          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+          grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+          gap: 6px;
         }
         .applyRow {
           grid-column: 1 / -1;
@@ -1431,15 +1345,16 @@ export default function PlayersPage() {
         .checkbox {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 6px;
           font-weight: 600;
+          font-size: 12px;
         }
         input,
         select {
-          padding: 8px 10px;
+          padding: 6px 8px;
           border-radius: 10px;
           border: 1px solid rgba(0, 0, 0, 0.14);
-          font-size: 13px;
+          font-size: 12px;
           background: #fff;
         }
         .ghostBtn {
@@ -1468,12 +1383,12 @@ export default function PlayersPage() {
         table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 13px;
-          min-width: 1400px;
+          font-size: 12px;
+          min-width: 1080px;
         }
         th,
         td {
-          padding: 8px 10px;
+          padding: 6px 8px;
           border-bottom: 1px solid rgba(0, 0, 0, 0.1);
           white-space: nowrap;
         }
