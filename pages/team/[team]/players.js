@@ -499,20 +499,21 @@ export default function PlayersPage() {
     let mounted = true;
 
     const loadPlayers = async () => {
-      if (!team || !team.id) return;
+      if (!team || !teamId) return;
 
       setLoading(true);
 
       try {
         let playersData = [];
+        const teamType = team.toUpperCase();
 
-        if (selectedRequirementId === "all" || !selectedRequirementId) {
-          // Fallback: svi NT igrači
+        if (requestId === "all" || !requestId) {
+          // Fallback: svi igrači za tim
           const { data, error } = await supabase
             .from("players")
             .select("*")
-            .eq("team_type", "NT")
-            .eq("team_id", team.id);
+            .eq("team_type", teamType)
+            .eq("team_id", teamId);
 
           if (error) throw error;
           playersData = data;
@@ -521,8 +522,8 @@ export default function PlayersPage() {
           const { data: matchData, error: matchError } = await supabase
             .from("player_requirement_matches")
             .select("player_id")
-            .eq("requirement_id", selectedRequirementId)
-            .eq("team_type", "NT");
+            .eq("requirement_id", requestId)
+            .eq("team_type", teamType);
 
           if (matchError) throw matchError;
 
@@ -533,8 +534,8 @@ export default function PlayersPage() {
             const { data, error } = await supabase
               .from("players")
               .select("*")
-              .eq("team_type", "NT")
-              .eq("team_id", team.id);
+              .eq("team_type", teamType)
+              .eq("team_id", teamId);
 
             if (error) throw error;
             playersData = data;
