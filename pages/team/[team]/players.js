@@ -497,20 +497,42 @@ export default function PlayersPage() {
           playersData = data;
         } else {
           // Dohvati samo one koji zadovoljavaju requirement
-          let matchQuery = supabase
-            .from("player_requirement_matches")
-            .select("player_id")
-            .eq("requirement_id", requestId);
+          const matchTries = [
+            { team_id: teamId },
+            { team_type: team?.toUpperCase?.() },
+            {},
+          ];
+          let matchData = null;
+          let lastMatchError = null;
 
-          if (teamId) {
-            matchQuery = matchQuery.eq("team_id", teamId);
+          for (const matchArgs of matchTries) {
+            const entries = Object.entries(matchArgs).filter(
+              ([, value]) => value !== null && typeof value !== "undefined"
+            );
+            let matchQuery = supabase
+              .from("player_requirement_matches")
+              .select("player_id")
+              .eq("requirement_id", requestId);
+
+            entries.forEach(([key, value]) => {
+              matchQuery = matchQuery.eq(key, value);
+            });
+
+            const { data, error } = await matchQuery;
+            if (error) {
+              lastMatchError = error;
+              continue;
+            }
+
+            if (Array.isArray(data)) {
+              matchData = data;
+              break;
+            }
           }
 
-          const { data: matchData, error: matchError } = await matchQuery;
+          if (!matchData && lastMatchError) throw lastMatchError;
 
-          if (matchError) throw matchError;
-
-          const playerIds = matchData.map((m) => m.player_id);
+          const playerIds = (matchData || []).map((m) => m.player_id);
 
           if (playerIds.length === 0) {
             playersData = [];
