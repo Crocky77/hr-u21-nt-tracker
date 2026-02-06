@@ -240,12 +240,12 @@ a { color: inherit; text-decoration: none; }
 .home-subTiles {
   margin-top: 26px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
 .home-subTile {
-  height: 78px;
+  height: 140px;
   border-radius: 14px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.85), rgba(230,230,230,0.85)),
@@ -267,11 +267,20 @@ a { color: inherit; text-decoration: none; }
   text-decoration: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
 
 .home-subTile:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 22px rgba(0,0,0,0.18);
+}
+
+.home-subTileImage {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 
 /* SHARED TILE */
@@ -297,39 +306,6 @@ a { color: inherit; text-decoration: none; }
   height: 100%;
   object-fit: contain;
   display: block;
-}
-
-/* TRANSFER TILE */
-.home-tile.transfer {
-  background: linear-gradient(
-    to bottom,
-    rgba(40, 18, 22, 0.95),
-    rgba(15, 7, 9, 0.95)
-  );
-  flex-direction: column;
-  text-align: center;
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow:
-    0 18px 40px rgba(0,0,0,0.45),
-    inset 0 0 18px rgba(0,0,0,0.35);
-}
-
-.home-transferIcon {
-  font-size: 34px;
-  color: #3ee27d;
-  text-shadow: 0 0 10px rgba(62, 226, 125, 0.45);
-}
-
-.home-transferTitle {
-  font-size: 18px;
-  font-weight: 900;
-  color: #fff;
-}
-
-.home-transferSub {
-  margin-top: 6px;
-  font-size: 12px;
-  color: rgba(255,255,255,0.7);
 }
 
 /* FOOTER */
