@@ -152,10 +152,11 @@ a { color: inherit; text-decoration: none; }
 
 .hr-homeBg .hr-main {
   min-height: calc(100vh - 78px);
-  padding-top: clamp(90px, 14vh, 150px);
-  padding-bottom: clamp(60px, 12vh, 120px);
+  padding-top: 40px;
+  padding-bottom: 40px;
   display: flex;
   justify-content: center;
+  align-items: center;
 }
 
 .hr-appBg .hr-main {
@@ -177,11 +178,18 @@ a { color: inherit; text-decoration: none; }
 /* ===================================================== */
 
 .home-mainPanel {
-  background: rgba(40,40,46,0.78);
+  background: transparent;
   border-radius: 20px;
-  padding: 36px;
-  box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+  padding: 44px 36px 36px;
+  border: 1px solid rgba(200, 0, 30, 0.7);
+  box-shadow: none;
   backdrop-filter: blur(14px);
+  position: relative;
+}
+
+.home-panelTop {
+  text-align: center;
+  margin-bottom: 18px;
 }
 
 .home-panelTitle {
@@ -201,9 +209,11 @@ a { color: inherit; text-decoration: none; }
 
 .home-loginRow {
   display: flex;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 12px;
-  margin: 18px 0 30px;
+  position: absolute;
+  top: 18px;
+  right: 24px;
 }
 
 .home-loginBtn {
@@ -247,21 +257,13 @@ a { color: inherit; text-decoration: none; }
 .home-subTile {
   height: 140px;
   border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.85), rgba(230,230,230,0.85)),
-    repeating-linear-gradient(
-      45deg,
-      rgba(255,255,255,0.18),
-      rgba(255,255,255,0.18) 12px,
-      rgba(255,255,255,0.26) 12px,
-      rgba(255,255,255,0.26) 24px
-    );
-  border: 1px solid rgba(255,255,255,0.55);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  color: rgba(0,0,0,0.55);
+  color: rgba(255,255,255,0.7);
   text-transform: uppercase;
   letter-spacing: 0.6px;
   text-decoration: none;
@@ -273,7 +275,7 @@ a { color: inherit; text-decoration: none; }
 
 .home-subTile:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 22px rgba(0,0,0,0.18);
+  box-shadow: none;
 }
 
 .home-subTileImage {
@@ -289,7 +291,7 @@ a { color: inherit; text-decoration: none; }
   border-radius: 16px;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 18px 40px rgba(0,0,0,0.45);
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -297,8 +299,8 @@ a { color: inherit; text-decoration: none; }
 
 /* IMAGE TILES */
 .home-tile.image {
-  padding: 8px;
-  background: rgba(0,0,0,0.25);
+  padding: 0;
+  background: transparent;
 }
 
 .home-tileImage {
@@ -354,5 +356,11 @@ a { color: inherit; text-decoration: none; }
 
   .home-subTiles {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .home-loginRow {
+    position: static;
+    justify-content: center;
+    margin-bottom: 16px;
   }
 }
