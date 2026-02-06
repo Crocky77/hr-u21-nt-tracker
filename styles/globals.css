@@ -15,10 +15,6 @@ a { color: inherit; text-decoration: none; }
 .hr-homeBg {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 50% 38%,
-      rgba(210, 0, 45, 0.6),
-      rgba(55, 0, 16, 0.9)
-    ),
     url("/backgrounds/home-red.jpg") center 10% / cover no-repeat;
 }
 
@@ -181,9 +177,9 @@ a { color: inherit; text-decoration: none; }
   background: transparent;
   border-radius: 20px;
   padding: 44px 36px 36px;
-  border: 1px solid rgba(200, 0, 30, 0.7);
+  border: none;
   box-shadow: none;
-  backdrop-filter: blur(14px);
+  backdrop-filter: none;
   position: relative;
 }
 
@@ -212,8 +208,8 @@ a { color: inherit; text-decoration: none; }
   justify-content: flex-end;
   gap: 12px;
   position: absolute;
-  top: 18px;
-  right: 24px;
+  top: 6px;
+  right: 6px;
 }
 
 .home-loginBtn {
@@ -224,14 +220,14 @@ a { color: inherit; text-decoration: none; }
   border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
-  border: 1px solid rgba(62, 226, 125, 0.35);
-  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.28);
+  background: rgba(0,0,0,0.18);
   color: #fff;
   text-decoration: none;
 }
 
 .home-loginBtn.ghost {
-  background: rgba(62, 226, 125, 0.08);
+  background: rgba(0,0,0,0.22);
 }
 
 .home-loginBtn.disabled {
@@ -257,13 +253,13 @@ a { color: inherit; text-decoration: none; }
 .home-subTile {
   height: 140px;
   border-radius: 14px;
-  background: rgba(0,0,0,0.18);
+  background: rgba(0,0,0,0.28);
   border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  color: rgba(255,255,255,0.72);
+  color: rgba(255,255,255,0.75);
   text-transform: uppercase;
   letter-spacing: 0.6px;
   text-decoration: none;
@@ -276,6 +272,12 @@ a { color: inherit; text-decoration: none; }
 .home-subTile:hover {
   transform: translateY(-2px);
   box-shadow: none;
+}
+
+.home-subTile span {
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(0,0,0,0.25);
 }
 
 .home-subTileImage {
@@ -313,11 +315,11 @@ a { color: inherit; text-decoration: none; }
 /* FOOTER */
 .hr-footerLite {
   margin-top: 32px;
-  background: linear-gradient(180deg, rgba(86,86,92,0.85), rgba(52,52,58,0.9));
+  background: linear-gradient(180deg, rgba(34, 94, 56, 0.7), rgba(18, 60, 40, 0.78));
   border-radius: 16px;
   padding: 16px 20px;
   color: rgba(255,255,255,0.88);
-  border: 1px solid rgba(255,255,255,0.25);
+  border: 1px solid rgba(110, 200, 140, 0.4);
 }
 
 .hr-footerLiteInner {
