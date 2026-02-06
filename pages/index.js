@@ -33,14 +33,18 @@ export default function Home() {
         <main className="hr-main">
           <div className="hr-container">
             <section className="home-mainPanel">
-              <h1 className="home-panelTitle">
-                Moji igrači u Hrvatskom trackeru
-              </h1>
+              <div className="home-panelTop">
+                <div>
+                  <h1 className="home-panelTitle">
+                    Moji igrači u Hrvatskom trackeru
+                  </h1>
 
-              <p className="home-panelSubtitle">
-                CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji
-                igrači”.
-              </p>
+                  <p className="home-panelSubtitle">
+                    CHPP dozvola je kasnije. Za sada pripremamo UI + DB za “moji
+                    igrači”.
+                  </p>
+                </div>
+              </div>
 
               <div className="home-loginRow">
                 <Link href="/login" className="home-loginBtn">
