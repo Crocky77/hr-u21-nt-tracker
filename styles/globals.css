@@ -16,8 +16,8 @@ a { color: inherit; text-decoration: none; }
   min-height: 100vh;
   background:
     radial-gradient(circle at 50% 38%,
-      rgba(235, 0, 50, 0.7),
-      rgba(70, 0, 18, 0.92)
+      rgba(210, 0, 45, 0.6),
+      rgba(55, 0, 16, 0.9)
     ),
     url("/backgrounds/home-red.jpg") center 10% / cover no-repeat;
 }
@@ -224,14 +224,14 @@ a { color: inherit; text-decoration: none; }
   border-radius: 999px;
   font-size: 13px;
   font-weight: 700;
-  border: 1px solid rgba(255,255,255,0.25);
-  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(62, 226, 125, 0.35);
+  background: rgba(255,255,255,0.06);
   color: #fff;
   text-decoration: none;
 }
 
 .home-loginBtn.ghost {
-  background: rgba(255,255,255,0.12);
+  background: rgba(62, 226, 125, 0.08);
 }
 
 .home-loginBtn.disabled {
@@ -257,13 +257,13 @@ a { color: inherit; text-decoration: none; }
 .home-subTile {
   height: 140px;
   border-radius: 14px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(0,0,0,0.18);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 800;
-  color: rgba(255,255,255,0.7);
+  color: rgba(255,255,255,0.72);
   text-transform: uppercase;
   letter-spacing: 0.6px;
   text-decoration: none;
