@@ -4,15 +4,21 @@ import Footer from '../components/Footer'
 import Header from '../components/Header'
 
 export default function Home() {
-  const comingSoonLinks = [
-    '/coming-soon?slot=1',
-    '/coming-soon?slot=2',
-    '/coming-soon?slot=3',
-    '/coming-soon?slot=4',
-    '/coming-soon?slot=5',
-    '/coming-soon?slot=6',
-    '/coming-soon?slot=7',
-    '/coming-soon?slot=8',
+  const subTiles = [
+    {
+      href: '/coming-soon?slot=1',
+      image: '/home/tile-kalkulator.png',
+      alt: 'Kalkulator treninga',
+    },
+    {
+      href: '/coming-soon?slot=2',
+      image: '/home/tile-tes.png',
+      alt: 'TES',
+    },
+    { href: '/coming-soon?slot=3', label: 'U izradi' },
+    { href: '/coming-soon?slot=4', label: 'U izradi' },
+    { href: '/coming-soon?slot=5', label: 'U izradi' },
+    { href: '/coming-soon?slot=6', label: 'U izradi' },
   ]
 
   return (
@@ -62,17 +68,27 @@ export default function Home() {
                   />
                 </Link>
 
-                <Link href="/team/nt/transfers" className="home-tile transfer">
-                  <div className="home-transferIcon">⇅</div>
-                  <div className="home-transferTitle">Transfer lista</div>
-                  <div className="home-transferSub">U izradi</div>
+                <Link href="/team/nt/transfers" className="home-tile image">
+                  <img
+                    className="home-tileImage"
+                    src="/home/tile-transfer.png"
+                    alt="Transfer lista"
+                  />
                 </Link>
               </div>
 
               <div className="home-subTiles">
-                {comingSoonLinks.map((href) => (
-                  <Link key={href} href={href} className="home-subTile">
-                    <span>U izradi</span>
+                {subTiles.map((tile) => (
+                  <Link key={tile.href} href={tile.href} className="home-subTile">
+                    {tile.image ? (
+                      <img
+                        className="home-subTileImage"
+                        src={tile.image}
+                        alt={tile.alt}
+                      />
+                    ) : (
+                      <span>{tile.label}</span>
+                    )}
                   </Link>
                 ))}
               </div>
