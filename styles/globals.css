@@ -15,7 +15,8 @@ a { color: inherit; text-decoration: none; }
 .hr-homeBg {
   min-height: 100vh;
   background:
-    url("/backgrounds/home-red.jpg") center 10% / cover no-repeat;
+    url("/backgrounds/home-red.jpg") center top / contain no-repeat;
+  background-color: #2a0b0f;
 }
 
 /* UNUTARNJE STRANICE */
@@ -54,9 +55,9 @@ a { color: inherit; text-decoration: none; }
 }
 
 .hr-siteHeaderInner {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 12px 18px;
+  padding: 12px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -148,11 +149,11 @@ a { color: inherit; text-decoration: none; }
 
 .hr-homeBg .hr-main {
   min-height: calc(100vh - 78px);
-  padding-top: 40px;
-  padding-bottom: 40px;
+  padding-top: 24px;
+  padding-bottom: 24px;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: stretch;
 }
 
 .hr-appBg .hr-main {
@@ -167,6 +168,9 @@ a { color: inherit; text-decoration: none; }
 .hr-container {
   width: 100%;
   max-width: 1100px;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 150px);
 }
 
 /* ===================================================== */
@@ -194,6 +198,7 @@ a { color: inherit; text-decoration: none; }
   font-weight: 900;
   color: #ffffff;
   margin: 0;
+  text-shadow: 0 3px 12px rgba(0,0,0,0.55);
 }
 
 .home-panelSubtitle {
@@ -201,6 +206,7 @@ a { color: inherit; text-decoration: none; }
   margin-top: 8px;
   font-size: 14px;
   color: rgba(255,255,255,0.85);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.45);
 }
 
 .home-loginRow {
@@ -208,8 +214,8 @@ a { color: inherit; text-decoration: none; }
   justify-content: flex-end;
   gap: 12px;
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 10px;
+  right: 18px;
 }
 
 .home-loginBtn {
@@ -253,8 +259,8 @@ a { color: inherit; text-decoration: none; }
 .home-subTile {
   height: 140px;
   border-radius: 14px;
-  background: rgba(0,0,0,0.28);
-  border: none;
+  background: rgba(0,0,0,0.22);
+  border: 1px solid rgba(255,255,255,0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -277,7 +283,7 @@ a { color: inherit; text-decoration: none; }
 .home-subTile span {
   padding: 10px 14px;
   border-radius: 10px;
-  background: rgba(0,0,0,0.25);
+  background: rgba(0,0,0,0.35);
 }
 
 .home-subTileImage {
@@ -314,12 +320,12 @@ a { color: inherit; text-decoration: none; }
 
 /* FOOTER */
 .hr-footerLite {
-  margin-top: 32px;
-  background: linear-gradient(180deg, rgba(34, 94, 56, 0.7), rgba(18, 60, 40, 0.78));
+  margin-top: auto;
+  background: linear-gradient(180deg, rgba(40, 110, 64, 0.8), rgba(22, 72, 48, 0.85));
   border-radius: 16px;
   padding: 16px 20px;
   color: rgba(255,255,255,0.88);
-  border: 1px solid rgba(110, 200, 140, 0.4);
+  border: 1px solid rgba(200, 160, 70, 0.6);
 }
 
 .hr-footerLiteInner {
