@@ -64,19 +64,19 @@ export default function Home() {
                   />
                 </Link>
 
-                <Link href="/team/u21" className="home-tile image">
-                  <img
-                    className="home-tileImage"
-                    src="/home/tile-u21.png"
-                    alt="U21 Hrvatska"
-                  />
-                </Link>
-
                 <Link href="/team/nt/transfers" className="home-tile image">
                   <img
                     className="home-tileImage"
                     src="/home/tile-transfer.png"
                     alt="Transfer lista"
+                  />
+                </Link>
+
+                <Link href="/team/u21" className="home-tile image">
+                  <img
+                    className="home-tileImage"
+                    src="/home/tile-u21.png"
+                    alt="U21 Hrvatska"
                   />
                 </Link>
               </div>
