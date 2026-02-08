@@ -30,10 +30,7 @@ async function writeAnnouncementsToFile(items) {
 async function readAnnouncements() {
   const supabase = getSupabaseClient();
   if (supabase) {
-    const { data, error } = await supabase
-      .from("announcements")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data, error } = await supabase.from("announcements").select("*");
     if (!error && Array.isArray(data)) return data;
   }
   return readAnnouncementsFromFile();
@@ -58,17 +55,14 @@ export default async function handler(req, res) {
     }
     const supabase = getSupabaseClient();
     if (supabase) {
-      const { data, error } = await supabase
-        .from("announcements")
-        .insert({
-          text: text.trim(),
-          level,
-          active: Boolean(active),
-        })
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (!error && Array.isArray(data)) {
-        res.status(200).json(data);
+      const { error } = await supabase.from("announcements").insert({
+        text: text.trim(),
+        level,
+        active: Boolean(active),
+      });
+      if (!error) {
+        const items = await readAnnouncements();
+        res.status(200).json(items);
         return;
       }
     }
@@ -95,14 +89,13 @@ export default async function handler(req, res) {
     }
     const supabase = getSupabaseClient();
     if (supabase) {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("announcements")
         .update(updates)
-        .eq("id", id)
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (!error && Array.isArray(data)) {
-        res.status(200).json(data);
+        .eq("id", id);
+      if (!error) {
+        const items = await readAnnouncements();
+        res.status(200).json(items);
         return;
       }
     }
@@ -123,14 +116,10 @@ export default async function handler(req, res) {
     }
     const supabase = getSupabaseClient();
     if (supabase) {
-      const { data, error } = await supabase
-        .from("announcements")
-        .delete()
-        .eq("id", id)
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (!error && Array.isArray(data)) {
-        res.status(200).json(data);
+      const { error } = await supabase.from("announcements").delete().eq("id", id);
+      if (!error) {
+        const items = await readAnnouncements();
+        res.status(200).json(items);
         return;
       }
     }
