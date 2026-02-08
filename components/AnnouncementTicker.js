@@ -55,14 +55,6 @@ export default function AnnouncementTicker() {
             {item.text}
           </span>
         ))}
-        {activeAnnouncements.map((item) => (
-          <span
-            key={`${item.id}-dup`}
-            className={`hr-headerTickerItem hr-headerTickerItem--${item.level}`}
-          >
-            {item.text}
-          </span>
-        ))}
       </div>
     </div>
   );
