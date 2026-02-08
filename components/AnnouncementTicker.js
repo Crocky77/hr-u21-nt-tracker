@@ -1,42 +1,28 @@
 import { useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "hr_announcements";
-const defaultAnnouncements = [
-  {
-    id: "welcome",
-    text: "Dobrodošli! Pratite novosti vezane za Hrvatski NT / U21 tracker.",
-    level: "info",
-    active: true,
-  },
-];
-
-function loadAnnouncements() {
-  if (typeof window === "undefined") return defaultAnnouncements;
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return defaultAnnouncements;
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
-  } catch (error) {
-    console.warn("Neuspjelo čitanje obavijesti.", error);
-  }
-  return defaultAnnouncements;
-}
-
 export default function AnnouncementTicker() {
-  const [announcements, setAnnouncements] = useState(defaultAnnouncements);
+  const [announcements, setAnnouncements] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const rotationMs = 14000;
 
   useEffect(() => {
-    setAnnouncements(loadAnnouncements());
-    const onStorage = (event) => {
-      if (event.key === STORAGE_KEY) {
-        setAnnouncements(loadAnnouncements());
+    let isMounted = true;
+    const fetchAnnouncements = async () => {
+      try {
+        const response = await fetch("/api/announcements");
+        if (!response.ok) return;
+        const data = await response.json();
+        if (isMounted) setAnnouncements(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.warn("Neuspjelo dohvaćanje obavijesti.", error);
       }
     };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
+    fetchAnnouncements();
+    const interval = setInterval(fetchAnnouncements, 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   const activeAnnouncements = useMemo(
