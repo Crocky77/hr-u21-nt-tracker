@@ -3,6 +3,7 @@ import path from "path";
 import { createClient } from "@supabase/supabase-js";
 
 const filePath = path.join(process.cwd(), "data", "announcements.json");
+let cachedAnnouncements = null;
 
 function getSupabaseClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,15 +17,25 @@ async function readAnnouncementsFromFile() {
   try {
     const raw = await fs.readFile(filePath, "utf-8");
     const data = JSON.parse(raw);
-    return Array.isArray(data) ? data : [];
+    const items = Array.isArray(data) ? data : [];
+    cachedAnnouncements = items;
+    return items;
   } catch (error) {
     if (error.code === "ENOENT") return [];
+    if (cachedAnnouncements) return cachedAnnouncements;
     throw error;
   }
 }
 
 async function writeAnnouncementsToFile(items) {
-  await fs.writeFile(filePath, JSON.stringify(items, null, 2));
+  try {
+    await fs.writeFile(filePath, JSON.stringify(items, null, 2));
+    cachedAnnouncements = items;
+    return true;
+  } catch (error) {
+    cachedAnnouncements = items;
+    return false;
+  }
 }
 
 async function readAnnouncements() {
