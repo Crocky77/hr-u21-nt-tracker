@@ -70,7 +70,7 @@ a { color: inherit; text-decoration: none; }
   background: linear-gradient(180deg, rgba(210, 150, 20, 0.95), rgba(150, 95, 10, 0.95));
   box-shadow: inset 0 0 6px rgba(0,0,0,0.35);
   transform: translateX(120vw);
-  animation: hr-ticker-item 8s linear infinite;
+  animation: hr-ticker-item 12s linear infinite;
   will-change: transform;
 }
 
