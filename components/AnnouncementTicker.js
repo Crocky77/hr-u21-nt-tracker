@@ -25,6 +25,8 @@ function loadAnnouncements() {
 
 export default function AnnouncementTicker() {
   const [announcements, setAnnouncements] = useState(defaultAnnouncements);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const rotationMs = 8000;
 
   useEffect(() => {
     setAnnouncements(loadAnnouncements());
@@ -44,17 +46,26 @@ export default function AnnouncementTicker() {
 
   if (activeAnnouncements.length === 0) return null;
 
+  useEffect(() => {
+    if (activeAnnouncements.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % activeAnnouncements.length);
+    }, rotationMs);
+    return () => clearInterval(interval);
+  }, [activeAnnouncements.length, rotationMs]);
+
+  const currentAnnouncement =
+    activeAnnouncements[currentIndex % activeAnnouncements.length];
+
   return (
     <div className="hr-headerTicker">
       <div className="hr-headerTickerTrack">
-        {activeAnnouncements.map((item) => (
-          <span
-            key={item.id}
-            className={`hr-headerTickerItem hr-headerTickerItem--${item.level}`}
-          >
-            {item.text}
-          </span>
-        ))}
+        <span
+          key={`${currentAnnouncement.id}-${currentIndex}`}
+          className={`hr-headerTickerItem hr-headerTickerItem--${currentAnnouncement.level}`}
+        >
+          {currentAnnouncement.text}
+        </span>
       </div>
     </div>
   );
