@@ -2,33 +2,25 @@ import Head from "next/head";
 import { useEffect, useMemo, useState } from "react";
 import Header from "../../components/Header";
 
-const STORAGE_KEY = "hr_announcements";
 const emptyForm = { text: "", level: "info", active: true };
-
-function loadAnnouncements() {
-  if (typeof window === "undefined") return [];
-  const raw = window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
-  } catch (error) {
-    console.warn("Neuspjelo čitanje obavijesti.", error);
-  }
-  return [];
-}
-
-function saveAnnouncements(items) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-}
 
 export default function AnnouncementsAdmin() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(emptyForm);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    setItems(loadAnnouncements());
+    const fetchAnnouncements = async () => {
+      try {
+        const response = await fetch("/api/announcements");
+        if (!response.ok) return;
+        const data = await response.json();
+        setItems(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.warn("Neuspjelo dohvaćanje obavijesti.", error);
+      }
+    };
+    fetchAnnouncements();
   }, []);
 
   const activeCount = useMemo(
@@ -36,35 +28,49 @@ export default function AnnouncementsAdmin() {
     [items]
   );
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     if (!form.text.trim()) return;
-    const next = [
-      {
-        id: `${Date.now()}`,
-        text: form.text.trim(),
-        level: form.level,
-        active: form.active,
-      },
-      ...items,
-    ];
-    setItems(next);
-    saveAnnouncements(next);
-    setForm(emptyForm);
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: form.text.trim(),
+          level: form.level,
+          active: form.active,
+        }),
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      setItems(Array.isArray(data) ? data : []);
+      setForm(emptyForm);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const toggleActive = (id) => {
-    const next = items.map((item) =>
-      item.id === id ? { ...item, active: !item.active } : item
-    );
-    setItems(next);
-    saveAnnouncements(next);
+  const toggleActive = async (id) => {
+    const target = items.find((item) => item.id === id);
+    if (!target) return;
+    const response = await fetch("/api/announcements", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, updates: { active: !target.active } }),
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    setItems(Array.isArray(data) ? data : []);
   };
 
-  const removeItem = (id) => {
-    const next = items.filter((item) => item.id !== id);
-    setItems(next);
-    saveAnnouncements(next);
+  const removeItem = async (id) => {
+    const response = await fetch(`/api/announcements?id=${id}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    setItems(Array.isArray(data) ? data : []);
   };
 
   return (
@@ -121,7 +127,9 @@ export default function AnnouncementsAdmin() {
                   Aktivna obavijest
                 </label>
 
-                <button type="submit">Dodaj obavijest</button>
+                <button type="submit" disabled={isSaving}>
+                  {isSaving ? "Spremam..." : "Dodaj obavijest"}
+                </button>
               </form>
 
               <div className="hr-adminList">
