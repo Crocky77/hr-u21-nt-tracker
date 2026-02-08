@@ -44,7 +44,10 @@ export default function AnnouncementsAdmin() {
         }),
       });
       if (!response.ok) {
-        setErrorMsg("Ne mogu spremiti obavijest. Provjerite postavke.");
+        const message = await response.text();
+        setErrorMsg(
+          `Ne mogu spremiti obavijest. Provjerite postavke. (${message || "greška"})`
+        );
         return;
       }
       const data = await response.json();
@@ -65,7 +68,10 @@ export default function AnnouncementsAdmin() {
       body: JSON.stringify({ id, updates: { active: !target.active } }),
     });
     if (!response.ok) {
-      setErrorMsg("Ne mogu ažurirati obavijest. Provjerite postavke.");
+      const message = await response.text();
+      setErrorMsg(
+        `Ne mogu ažurirati obavijest. Provjerite postavke. (${message || "greška"})`
+      );
       return;
     }
     const data = await response.json();
@@ -78,7 +84,10 @@ export default function AnnouncementsAdmin() {
       method: "DELETE",
     });
     if (!response.ok) {
-      setErrorMsg("Ne mogu obrisati obavijest. Provjerite postavke.");
+      const message = await response.text();
+      setErrorMsg(
+        `Ne mogu obrisati obavijest. Provjerite postavke. (${message || "greška"})`
+      );
       return;
     }
     const data = await response.json();
