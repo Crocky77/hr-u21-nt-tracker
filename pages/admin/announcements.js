@@ -8,6 +8,7 @@ export default function AnnouncementsAdmin() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
     const fetchAnnouncements = async () => {
@@ -42,10 +43,14 @@ export default function AnnouncementsAdmin() {
           active: form.active,
         }),
       });
-      if (!response.ok) return;
+      if (!response.ok) {
+        setErrorMsg("Ne mogu spremiti obavijest. Provjerite postavke.");
+        return;
+      }
       const data = await response.json();
       setItems(Array.isArray(data) ? data : []);
       setForm(emptyForm);
+      setErrorMsg("");
     } finally {
       setIsSaving(false);
     }
@@ -59,18 +64,26 @@ export default function AnnouncementsAdmin() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, updates: { active: !target.active } }),
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      setErrorMsg("Ne mogu ažurirati obavijest. Provjerite postavke.");
+      return;
+    }
     const data = await response.json();
     setItems(Array.isArray(data) ? data : []);
+    setErrorMsg("");
   };
 
   const removeItem = async (id) => {
     const response = await fetch(`/api/announcements?id=${id}`, {
       method: "DELETE",
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      setErrorMsg("Ne mogu obrisati obavijest. Provjerite postavke.");
+      return;
+    }
     const data = await response.json();
     setItems(Array.isArray(data) ? data : []);
+    setErrorMsg("");
   };
 
   return (
@@ -87,6 +100,7 @@ export default function AnnouncementsAdmin() {
               <p>
                 Aktivne obavijesti: <strong>{activeCount}</strong>
               </p>
+              {errorMsg ? <p style={{ color: "#c00" }}>{errorMsg}</p> : null}
 
               <form className="hr-adminForm" onSubmit={handleSubmit}>
                 <label>
