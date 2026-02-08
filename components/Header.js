@@ -40,6 +40,14 @@ export default function Header() {
         <div className="hr-siteHeaderRight">
           <div className="hr-siteHeaderStatus">{statusText}</div>
           {user ? (
+            <Link
+              href="/admin/announcements"
+              className="hr-headerAdminLink"
+            >
+              Obavijesti
+            </Link>
+          ) : null}
+          {user ? (
             <Link href="/logout" className="hr-headerLogout">
               Logout
             </Link>
