@@ -26,7 +26,7 @@ function loadAnnouncements() {
 export default function AnnouncementTicker() {
   const [announcements, setAnnouncements] = useState(defaultAnnouncements);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const rotationMs = 12000;
+  const rotationMs = 14000;
 
   useEffect(() => {
     setAnnouncements(loadAnnouncements());
