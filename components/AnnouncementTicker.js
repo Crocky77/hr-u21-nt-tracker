@@ -26,7 +26,7 @@ function loadAnnouncements() {
 export default function AnnouncementTicker() {
   const [announcements, setAnnouncements] = useState(defaultAnnouncements);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const rotationMs = 8000;
+  const rotationMs = 12000;
 
   useEffect(() => {
     setAnnouncements(loadAnnouncements());
@@ -44,15 +44,18 @@ export default function AnnouncementTicker() {
     [announcements]
   );
 
-  if (activeAnnouncements.length === 0) return null;
-
   useEffect(() => {
-    if (activeAnnouncements.length <= 1) return;
+    if (activeAnnouncements.length <= 1) {
+      setCurrentIndex(0);
+      return;
+    }
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % activeAnnouncements.length);
     }, rotationMs);
     return () => clearInterval(interval);
   }, [activeAnnouncements.length, rotationMs]);
+
+  if (activeAnnouncements.length === 0) return null;
 
   const currentAnnouncement =
     activeAnnouncements[currentIndex % activeAnnouncements.length];
